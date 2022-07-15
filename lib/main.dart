@@ -65,7 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
     AudioServiceAgent agent = AudioServiceAgent();
     final result = await agent.getDuration("/");
     log.info("got result:${result.successValue}");
-    final doc = getApplicationDocumentsDirectory();
+    final doc = (await getApplicationDocumentsDirectory()).path;
 
     log.info("document path:$doc");
     setState(() {
