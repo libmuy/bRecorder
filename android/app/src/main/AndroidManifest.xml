@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.bb_recorder">
+    package="com.example.brecorder">
    <application
-        android:label="bb_recorder"
+        android:label="brecorder"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

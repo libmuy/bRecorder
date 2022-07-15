@@ -1,4 +1,4 @@
-# bb_recorder
+# brecorder
 
 A new Flutter project.
 

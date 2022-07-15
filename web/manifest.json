@@ -1,6 +1,6 @@
 {
-    "name": "bb_recorder",
-    "short_name": "bb_recorder",
+    "name": "brecorder",
+    "short_name": "brecorder",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

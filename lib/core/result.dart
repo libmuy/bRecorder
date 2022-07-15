@@ -21,6 +21,8 @@ abstract class Result<Success, Failure> {
 
   bool isSuccess();
   bool isFailure();
+  Success? get successValue;
+  Failure? get failureValue;
   void fold(void Function(Success) sf, void Function(Failure) ff);
 }
 
@@ -30,8 +32,16 @@ class Succeed<S, F> extends Result<S, F> {
 
   @override
   isSuccess() => true;
+
   @override
   isFailure() => false;
+
+  @override
+  S get successValue => value;
+
+  @override
+  F? get failureValue => null;
+
   @override
   void fold(void Function(S) sf, void Function(F) ff) {
     sf(value);
@@ -44,8 +54,16 @@ class Fail<S, F> extends Result<S, F> {
 
   @override
   isSuccess() => false;
+
   @override
   isFailure() => true;
+
+  @override
+  S? get successValue => null;
+
+  @override
+  F get failureValue => value;
+
   @override
   void fold(void Function(S) sf, void Function(F) ff) {
     ff(value);
