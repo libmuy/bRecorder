@@ -18,7 +18,8 @@ class FilesystemRepository extends AbstractRepository {
     var audios = List<AudioInfo>.empty();
 
     if (path == "/") {
-      dir = await getApplicationDocumentsDirectory();
+      dir = Directory(
+          join((await getApplicationDocumentsDirectory()).path, "data"));
     } else {
       dir = Directory(path);
     }
