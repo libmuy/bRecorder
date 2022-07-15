@@ -39,9 +39,10 @@ dependencies:
   get_it: ^7.2.0
   equatable: ^2.0.3
   shared_preferences: ^2.0.15
-  dartz: ^0.10.1
+  # dartz: ^0.10.1
   path_provider: ^2.0.11
   logging: ^1.0.2
+  path: ^1.8.1
 
 
 dev_dependencies:
