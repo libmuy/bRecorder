@@ -1,11 +1,11 @@
-import 'package:bb_recorder/core/result.dart';
+import 'package:brecorder/core/result.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
 final log = Logger('Audio-Agent');
 
 class AudioServiceAgent {
-  final platform = const MethodChannel('libmuy.com/bb_recorder');
+  final platform = const MethodChannel('libmuy.com/brecorder');
 
   Future<Result<int, ErrInfo>> getDuration(String path) async {
     var ret = 0;

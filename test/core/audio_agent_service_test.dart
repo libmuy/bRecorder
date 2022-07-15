@@ -1,4 +1,4 @@
-import 'package:bb_recorder/core/audio_agent.dart';
+import 'package:brecorder/core/audio_agent.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

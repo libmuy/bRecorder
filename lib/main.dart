@@ -1,6 +1,7 @@
-import 'package:bb_recorder/core/audio_agent.dart';
+import 'package:brecorder/core/audio_agent.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
+import 'package:path_provider/path_provider.dart';
 
 final log = Logger('ExampleLogger');
 
@@ -63,8 +64,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void _incrementCounter() async {
     AudioServiceAgent agent = AudioServiceAgent();
     final result = await agent.getDuration("/");
-    log.info("got result:$result");
+    log.info("got result:${result.successValue}");
+    final doc = getApplicationDocumentsDirectory();
 
+    log.info("document path:$doc");
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
