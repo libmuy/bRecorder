@@ -1,17 +1,17 @@
+#define __ENABLE_METHODCHANNEL	1
+
+
 #include "flutter_window.h"
 
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+
+#if __ENABLE_METHODCHANNEL
 #include <flutter/binary_messenger.h>
 #include <flutter/standard_method_codec.h>
 #include <flutter/method_channel.h>
 #include <flutter/method_result_functions.h>
-
-FlutterWindow::FlutterWindow(const flutter::DartProject &project)
-	: project_(project) {}
-
-FlutterWindow::~FlutterWindow() {}
 
 void initMethodChannel(flutter::FlutterEngine *flutter_instance)
 {
@@ -40,6 +40,12 @@ void initMethodChannel(flutter::FlutterEngine *flutter_instance)
 			}
 		});
 }
+#endif
+
+FlutterWindow::FlutterWindow(const flutter::DartProject &project)
+	: project_(project) {}
+
+FlutterWindow::~FlutterWindow() {}
 
 bool FlutterWindow::OnCreate()
 {
@@ -60,16 +66,10 @@ bool FlutterWindow::OnCreate()
 		return false;
 	}
 	RegisterPlugins(flutter_controller_->engine());
-	SetChildContent(flutter_controller_->view()->GetNativeWindow());
-
-	// other codes
-	// the plugins registrations
-	RegisterPlugins(flutter_controller_->engine());
-	// initialize method channel here
+#if __ENABLE_METHODCHANNEL
 	initMethodChannel(flutter_controller_->engine());
-
-	run_loop_->RegisterFlutterInstance(flutter_controller_->engine());
-	// other codes
+#endif
+	SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
 	return true;
 }

@@ -23,7 +23,8 @@ abstract class Result<Success, Failure> {
   bool isFailure();
   Success? get successValue;
   Failure? get failureValue;
-  void fold(void Function(Success) sf, void Function(Failure) ff);
+  void fold(void Function(Success) successHandler,
+      void Function(Failure) failureHandler);
 }
 
 class Succeed<S, F> extends Result<S, F> {

@@ -2,33 +2,13 @@ import 'dart:io';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
-import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/home/domain/entities.dart';
 import 'package:brecorder/home/domain/abstract_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
-final log = Logger('FsRepo');
-
-class FilesystemRepository extends AbstractRepository {
-  String? _rootPath;
-
-  Future<String> get rootPath async {
-    if (_rootPath != null) {
-      return _rootPath!;
-    } else {
-      final docDir = await getApplicationDocumentsDirectory();
-      _rootPath = join(docDir.path, "brecorder/data");
-      return _rootPath!;
-    }
-  }
-
-  Future<String> _trimRoot(String path) async {
-    final String root = await rootPath;
-    return path.substring(root.length);
-  }
-
+class ICloudRepository extends AbstractRepository {
   @override
   Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path) async {
     final audioAgent = GetIt.instance.get<AudioServiceAgent>();
@@ -38,32 +18,28 @@ class FilesystemRepository extends AbstractRepository {
     var audios = List<AudioInfo>.empty(growable: true);
 
     if (path == "/") {
-      dir = Directory(await rootPath);
+      dir = Directory(join(
+          (await getApplicationDocumentsDirectory()).path, "brecorder/data"));
     } else {
-      dir = Directory("${await rootPath}$path");
+      dir = Directory(path);
     }
 
     if (!await dir.exists()) {
-      log.error("dirctory(${dir.path}) not exists");
       return Fail(IOFailure());
     }
 
-    for (final e in dir.listSync()) {
-      final realtivePath = await _trimRoot(e.path);
+    dir.listSync().forEach(((e) async {
       if (e is Directory) {
-        log.debug("got directory:${e.path}");
-        subfolders.add(FolderSimpleInfo(realtivePath));
+        subfolders.add(FolderSimpleInfo(e.path));
       } else if (e is File) {
-        log.debug("got file:${e.path}");
         final duration = await audioAgent.getDuration(e.path);
         duration.fold((r) {
-          log.debug("duration:$r");
-          audios.add(AudioInfo(r, realtivePath));
+          audios.add(AudioInfo(r, e.path));
         }, (_) {
           log.warning("failed to get audio(${e.path})'s duration");
         });
       }
-    }
+    }));
 
     return Succeed(FolderInfo(path, subfolders, audios));
   }
@@ -97,7 +73,7 @@ class FilesystemRepository extends AbstractRepository {
         File(f).renameSync(newPath);
       }
     } catch (e) {
-      log.critical("got a file IO exception: $e");
+      log.severe("got a file IO exception: $e");
       return Fail(IOFailure());
     }
 

@@ -1,15 +1,15 @@
 import 'package:equatable/equatable.dart';
 
-class FilesystemObject extends Equatable {
+class AudioObject extends Equatable {
   final String path;
 
-  const FilesystemObject(this.path);
+  const AudioObject(this.path);
 
   @override
   List<Object> get props => [path];
 }
 
-class AudioInfo extends FilesystemObject {
+class AudioInfo extends AudioObject {
   final int durationMS;
 
   const AudioInfo(this.durationMS, path) : super(path);
@@ -18,13 +18,13 @@ class AudioInfo extends FilesystemObject {
   List<Object> get props => [durationMS, path];
 }
 
-class FolderInfo extends FilesystemObject {
+class FolderInfo extends AudioObject {
   final List<FolderSimpleInfo> subfolders;
   final List<AudioInfo> audios;
 
   const FolderInfo(path, this.subfolders, this.audios) : super(path);
 }
 
-class FolderSimpleInfo extends FilesystemObject {
+class FolderSimpleInfo extends AudioObject {
   const FolderSimpleInfo(path) : super(path);
 }

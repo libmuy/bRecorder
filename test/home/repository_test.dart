@@ -13,7 +13,7 @@ void main() {
       final s = record.time.second.toString().padLeft(2, "0");
       final ms = record.time.millisecond.toString().padLeft(3, "0");
       debugPrint(
-          '[$h:$m:$s.$ms][${record.level.name.padRight(5)}] ${record.message}');
+          '[$h:$m:$s.$ms][${record.loggerName.padRight(10)}][${record.level.name.padRight(5)}] ${record.message}');
     });
   });
 
