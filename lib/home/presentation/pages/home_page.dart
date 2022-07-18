@@ -1,3 +1,4 @@
+import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/home/domain/entities.dart';
 import 'package:brecorder/home/presentation/ploc/home_page_state.dart';
@@ -17,6 +18,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final getIt = GetIt.instance;
   final stateManager = GetIt.instance.get<HomePageState>();
 
   @override
@@ -105,7 +107,18 @@ class _MyHomePageState extends State<MyHomePage> {
             );
           }),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          final agent = getIt.get<AudioServiceAgent>();
+          agent.test("").then(
+            (result) {
+              result.fold((s) {
+                log.debug("audio agent return: $s");
+              }, (f) {
+                log.debug("audio agent return: fail");
+              });
+            },
+          );
+        },
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),
