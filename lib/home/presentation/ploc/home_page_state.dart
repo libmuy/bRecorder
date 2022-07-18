@@ -1,8 +1,8 @@
+import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/home/data/repository_type.dart';
 import 'package:brecorder/home/domain/entities.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logging/logging.dart';
 
 import '../../domain/entities_manager.dart';
 
@@ -27,7 +27,7 @@ class HomePageState {
       result.fold((folderInfo) {
         filesystemFolderNotifier.value = folderInfo;
       }, (err) {
-        log.severe("Failed to get folder($path) info");
+        log.critical("Failed to get folder($path) info");
       });
     });
   }

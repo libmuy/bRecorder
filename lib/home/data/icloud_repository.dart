@@ -73,7 +73,7 @@ class ICloudRepository extends AbstractRepository {
         File(f).renameSync(newPath);
       }
     } catch (e) {
-      log.severe("got a file IO exception: $e");
+      log.critical("got a file IO exception: $e");
       return Fail(IOFailure());
     }
 
