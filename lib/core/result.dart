@@ -79,6 +79,12 @@ abstract class ErrInfo extends Equatable {
 }
 
 // General failures
-class PlatformFailure extends ErrInfo {}
+class PlatformFailure extends ErrInfo {
+  @override
+  String toString() => "PlatformFailure";
+}
 
-class IOFailure extends ErrInfo {}
+class IOFailure extends ErrInfo {
+  @override
+  String toString() => "IOFailure";
+}

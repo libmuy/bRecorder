@@ -20,6 +20,7 @@ class FilesystemRepository extends AbstractRepository {
     } else {
       final docDir = await getApplicationDocumentsDirectory();
       _rootPath = join(docDir.path, "brecorder/data");
+      Directory(_rootPath!).create(recursive: true);
       return _rootPath!;
     }
   }

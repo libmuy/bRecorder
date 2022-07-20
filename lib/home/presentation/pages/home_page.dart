@@ -1,6 +1,7 @@
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/home/domain/entities.dart';
+import 'package:brecorder/home/presentation/pages/test_page.dart';
 import 'package:brecorder/home/presentation/ploc/home_page_state.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -74,7 +75,20 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Row(
+          children: [
+            Text(widget.title),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const MyTestPage(title: "Rec Test Page")));
+                },
+                child: const Text("Test"))
+          ],
+        ),
       ),
       body: ValueListenableBuilder<FolderInfo>(
           valueListenable: stateManager.filesystemFolderNotifier,
