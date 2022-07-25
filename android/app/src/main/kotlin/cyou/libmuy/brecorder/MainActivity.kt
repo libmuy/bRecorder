@@ -1,16 +1,19 @@
 package cyou.libmuy.brecorder
 
+import android.os.Build
 import android.os.Bundle
+import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
 
 
 class MainActivity: FlutterActivity() {
-    private var methodCallHandler: MethodCallHandler? = null
+    private var platformChannelsHandler: PlatformChannelsHandler? = null
 
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        methodCallHandler = MethodCallHandler(this, flutterEngine)
-        methodCallHandler!!.handleMethodCalls()
+        platformChannelsHandler = PlatformChannelsHandler(this, flutterEngine)
+        platformChannelsHandler!!.initialize()
     }
 
 }
