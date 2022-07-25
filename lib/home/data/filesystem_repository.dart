@@ -56,13 +56,13 @@ class FilesystemRepository extends AbstractRepository {
         subfolders.add(FolderSimpleInfo(realtivePath));
       } else if (e is File) {
         log.debug("got file:${e.path}");
-        final duration = await audioAgent.getDuration(e.path);
-        duration.fold((r) {
-          log.debug("duration:$r");
-          audios.add(AudioInfo(r, realtivePath));
-        }, (_) {
-          log.warning("failed to get audio(${e.path})'s duration");
-        });
+        // final duration = await audioAgent.getDuration(e.path);
+        // duration.fold((r) {
+        //   log.debug("duration:$r");
+        //   audios.add(AudioInfo(r, realtivePath));
+        // }, (_) {
+        //   log.warning("failed to get audio(${e.path})'s duration");
+        // });
       }
     }
 

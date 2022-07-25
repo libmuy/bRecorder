@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:brecorder/core/result.dart';
 import 'package:brecorder/core/utils.dart';
 import 'package:flutter/services.dart';
@@ -5,12 +8,50 @@ import 'package:flutter/services.dart';
 final log = Logger('Audio-Agent');
 
 class AudioServiceAgent {
-  final platform = const MethodChannel('libmuy.com/brecorder');
+  static const _methodChannel =
+      MethodChannel('libmuy.com/brecorder/methodchannel');
+  static const _eventChannel =
+      EventChannel('libmuy.com/brecorder/eventchannel');
+
+  StreamSubscription? _streamSubscription;
+
+  // true : success
+  // false: failure
+  bool startListenWaveformSample(
+      Function(Int32List eventData) onEvent, Function(String error) onError) {
+    bool ret = true;
+    if (_streamSubscription != null) {
+      log.warning("Waveform sample already listening");
+      return ret;
+    }
+
+    try {
+      _streamSubscription = _eventChannel
+          .receiveBroadcastStream("waveform,100")
+          .listen((dynamic event) {
+        onEvent(event);
+      }, onError: (dynamic error) {
+        onError(error.message);
+      }, cancelOnError: true);
+    } catch (e) {
+      log.error("register event channel failed");
+      ret = false;
+    }
+
+    return ret;
+  }
+
+  void stopListenWaveformSample() {
+    if (_streamSubscription != null) {
+      _streamSubscription!.cancel();
+      _streamSubscription = null;
+    }
+  }
 
   Future<Result<int, ErrInfo>> getDuration(String path) async {
     var ret = 0;
     try {
-      ret = await platform.invokeMethod('getDuration', path);
+      ret = await _methodChannel.invokeMethod('getDuration', path);
     } on PlatformException catch (e) {
       log.critical("Got exception: $e");
       ret = -1;
@@ -24,7 +65,7 @@ class AudioServiceAgent {
 // Recording
   Future<Result<Void, ErrInfo>> startRecord(String path) async {
     try {
-      await platform.invokeMethod('startRecord', path);
+      await _methodChannel.invokeMethod('startRecord', path);
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -35,7 +76,7 @@ class AudioServiceAgent {
 
   Future<Result<Void, ErrInfo>> stopRecord() async {
     try {
-      await platform.invokeMethod('stopRecord');
+      await _methodChannel.invokeMethod('stopRecord');
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -47,7 +88,7 @@ class AudioServiceAgent {
 // Playing
   Future<Result<Void, ErrInfo>> startPlay(String path) async {
     try {
-      await platform.invokeMethod('startPlay', path);
+      await _methodChannel.invokeMethod('startPlay', path);
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -58,7 +99,7 @@ class AudioServiceAgent {
 
   Future<Result<Void, ErrInfo>> stopPlay() async {
     try {
-      await platform.invokeMethod('stopPlay');
+      await _methodChannel.invokeMethod('stopPlay');
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -70,7 +111,7 @@ class AudioServiceAgent {
 // Set playback parameters
   Future<Result<Void, ErrInfo>> setPitch(double pitch) async {
     try {
-      await platform.invokeMethod('setPitch', pitch);
+      await _methodChannel.invokeMethod('setPitch', pitch);
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -81,7 +122,7 @@ class AudioServiceAgent {
 
   Future<Result<Void, ErrInfo>> setSpeed(double speed) async {
     try {
-      await platform.invokeMethod('setSpeed', speed);
+      await _methodChannel.invokeMethod('setSpeed', speed);
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());
@@ -90,10 +131,38 @@ class AudioServiceAgent {
     return Succeed(Void());
   }
 
+  Future<Result<int, ErrInfo>> startRecordWav(String path) async {
+    var ret = 0;
+    try {
+      await _methodChannel.invokeMethod('recordWav', path);
+    } on PlatformException catch (e) {
+      log.critical("Got exception: ${e.message}");
+      ret = -1;
+    }
+
+    if (ret < 0) return Fail(PlatformFailure());
+
+    return Succeed(ret);
+  }
+
+  Future<Result<int, ErrInfo>> stopRecordWav() async {
+    var ret = 0;
+    try {
+      await _methodChannel.invokeMethod('stopRecordWav');
+    } on PlatformException catch (e) {
+      log.critical("Got exception: ${e.message}");
+      ret = -1;
+    }
+
+    if (ret < 0) return Fail(PlatformFailure());
+
+    return Succeed(ret);
+  }
+
   Future<Result<int, ErrInfo>> test(String path) async {
     var ret = 0;
     try {
-      ret = await platform.invokeMethod('test', path);
+      ret = await _methodChannel.invokeMethod('test', path);
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       ret = -1;
