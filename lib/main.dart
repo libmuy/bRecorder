@@ -2,7 +2,7 @@ import 'package:brecorder/home/presentation/pages/home_page.dart';
 import 'package:flutter/material.dart';
 
 import 'core/service_locator.dart';
-import 'core/utils.dart';
+import 'core/logging.dart';
 
 final log = Logger('Main');
 

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
-import 'package:brecorder/core/utils.dart';
+import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/home/domain/entities.dart';
 import 'package:brecorder/home/domain/abstract_repository.dart';
 import 'package:get_it/get_it.dart';
