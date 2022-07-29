@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/utils.dart';
+import 'package:brecorder/core/logging.dart';
+import 'package:brecorder/recording/presentation/widgets/painted_waveform.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
@@ -24,6 +26,8 @@ class _MyTestPageState extends State<MyTestPage> {
   var _pitchValue = 1.0;
   var _speedValue = 1.0;
   String audioPath = "";
+  ValueNotifier<List<double>> waveformNotifier =
+      ValueNotifier(List<double>.empty());
 
   @override
   void initState() {
@@ -110,6 +114,15 @@ class _MyTestPageState extends State<MyTestPage> {
             ),
           ),
         ]),
+        ValueListenableBuilder<List<double>>(
+            valueListenable: waveformNotifier,
+            builder: (context, waveformData, _) {
+              return PaintedWaveform(
+                waveformData,
+                // scrollable: false,
+                key: const Key("test_page_painted_wave_form"),
+              );
+            }),
         Card(
           child: InkWell(
             onTap: () {
@@ -118,29 +131,28 @@ class _MyTestPageState extends State<MyTestPage> {
               if (f.existsSync()) {
                 f.deleteSync();
               }
-              // var ret = agent.startListenWaveformSample((eventData) {
-              //   final sampleList = eventData;
-              //   final maxShort = pow(2, 15).toDouble();
-              //   debugPrint(
-              //       "======================== Got waveform sample data =====================");
-              //   for (int i = 0; i < sampleList.length; i++) {
-              //     var sample = sampleList[i];
-              //     double max = (sample >> 16).toDouble() / maxShort;
-              //     double min = (sample & 0xFFFF).toDouble() / maxShort;
+              var ret = agent.startListenWaveformSample((eventData) {
+                // final sampleList = eventData;
+                // debugPrint(
+                //     "======================== Got waveform sample data =====================");
+                // for (int i = 0; i < sampleList.length; i += 2) {
+                //   double max = eventData[i];
+                //   double min = eventData[i + 1];
 
-              //     if (max > 1.0) max = 1.0;
-              //     if (min < -1.0) min = -1.0;
-
-              //     debugPrint(
-              //         "MAX:${"$max".padRight(5)}, MIN:${"$min".padRight(5)}");
-              //   }
-              // }, (error) {
-              //   log.error("Got error: $error");
-              // });
-              // if (ret) {
-              //   agent.startRecord(audioPath);
-              // }
-              agent.startRecord(audioPath);
+                //   debugPrint(
+                //       "MAX:${"$max".padRight(5)}, MIN:${"$min".padRight(5)}");
+                // }
+                // log.debug("Flutter received:$eventData");
+                waveformNotifier.value +=
+                    eventData.map((e) => e.toDouble()).toList();
+                // log.debug(
+                //     "waveform data length:${waveformNotifier.value.length}");
+              }, (error) {
+                log.error("Got error: $error");
+              });
+              if (ret) {
+                agent.startRecord(audioPath);
+              }
             },
             splashColor: Colors.pink,
             child: const ListTile(title: Text("Rec Start")),
@@ -151,35 +163,36 @@ class _MyTestPageState extends State<MyTestPage> {
             onTap: () {
               log.info("Stop recording");
               agent.stopRecord();
+              agent.stopListenWaveformSample();
             },
             splashColor: Colors.pink,
             child: const ListTile(title: Text("Rec Stop")),
           ),
         ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Start recording WAV");
-              final f = File("$audioPath.wav");
-              if (f.existsSync()) {
-                f.deleteSync();
-              }
-              agent.startRecordWav("$audioPath.wav");
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Rec Start WAV")),
-          ),
-        ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Stop recording WAV");
-              agent.stopRecordWav();
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Rec Stop WAV")),
-          ),
-        ),
+        // Card(
+        //   child: InkWell(
+        //     onTap: () {
+        //       log.info("Start recording WAV");
+        //       final f = File("$audioPath.wav");
+        //       if (f.existsSync()) {
+        //         f.deleteSync();
+        //       }
+        //       agent.startRecordWav("$audioPath.wav");
+        //     },
+        //     splashColor: Colors.pink,
+        //     child: const ListTile(title: Text("Rec Start WAV")),
+        //   ),
+        // ),
+        // Card(
+        //   child: InkWell(
+        //     onTap: () {
+        //       log.info("Stop recording WAV");
+        //       agent.stopRecordWav();
+        //     },
+        //     splashColor: Colors.pink,
+        //     child: const ListTile(title: Text("Rec Stop WAV")),
+        //   ),
+        // ),
         Card(
           child: InkWell(
             onTap: () {
@@ -224,20 +237,6 @@ class _MyTestPageState extends State<MyTestPage> {
             },
             splashColor: Colors.pink,
             child: const ListTile(title: Text("List Root Directory")),
-          ),
-        ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              agent.startListenWaveformSample((eventData) {
-                final sampleList = eventData;
-                log.info("sample list length:${sampleList.length}");
-              }, (error) {
-                log.error("Got error:$error");
-              });
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("event channel")),
           ),
         ),
       ]),

@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.media.*
-import android.media.AudioRecord.READ_BLOCKING
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -20,12 +19,14 @@ import java.nio.ByteBuffer
 
 const val PERMISSIONS_REQ = 1
 const val SAMPLE_RATE = 44100                   // サンプリングレート (Hz)、// 全デバイスサポート保障は44100のみ
-const val RECORDER_READ_INTERVAL = 100          // 1秒間に何回音声データを処理したいか
+const val RECORDER_READ_INTERVAL = 50          // 1秒間に何回音声データを処理したいか
 const val RECORDER_READ_FRAME_COUNT = SAMPLE_RATE / RECORDER_READ_INTERVAL  //1回処理するフレーム数
 const val CHANNEL_COUNT = 1
 const val RECORDER_READ_BYTES = RECORDER_READ_FRAME_COUNT * 2 * CHANNEL_COUNT  //1回処理するバイト数
 const val BIT_RATE = 64000
 const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
+private const val SKIP_INITIAL_PCM_MS = 0
+const val LOG_TAG = "Audio-Mgr"
 
 
 @RequiresApi(Build.VERSION_CODES.M)
@@ -35,15 +36,18 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
     private var mRecorder: AudioRecord? = null
     private var mPlayer: MediaPlayer? = null
-    private var mEncoder: MediaCodec? = null
-    private var mEncoderCallback: AudioEncoderProcessor? = null
-    private var mDecoder: MediaCodec? = null
-    private var mMuxer: MediaMuxer? = null
-    private var mFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, CHANNEL_COUNT)
+    private var mPcmToMp4: PcmToMp4? = null
+    private var initialPCM = true
+    private val mWaveformGenerator = WaveformGenerator {data ->
+        if (mWaveSampleRate > 0)
+            mChannelsHandler.sendEvent(data)
+    }
+
+//    private var mDecoder: MediaCodec? = null
 
     private var mState: AudioState = AudioState.Idle
-    private var mStartTimeNs: Long = 0
     private var mWaveSampleRate = 0         //WAVEFORM サンプリングレート（Hz）、1秒間何回をサンプリングする
+    private var mWaveSendRate = 0           //WAVEFORM 1秒間何回をFlutterへ送信する
 
 
     // FOR DEBUG
@@ -54,31 +58,30 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     init {
         mActivity = act
 
-        mFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
-        mFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, RECORDER_READ_BYTES)
-        mFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, CHANNEL_CONFIG);
-        mFormat.setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
     }
 
-    fun eventListenStart(sampleRate: Int) {
+    fun eventListenStart(sampleRate: Int, sendRate: Int) {
         mWaveSampleRate = sampleRate
+        mWaveSendRate = sendRate
+        Log.d(LOG_TAG, "Set waveform sample rate to $sampleRate")
     }
 
     fun eventListenStop() {
         mWaveSampleRate = 0
+        mWaveSendRate = 0
     }
 
-    private fun short2ByteArray(sa: ShortArray): ByteArray {
-        var ba = ByteArray(sa.size * 2)
-        var i = 0;
-        sa.forEachIndexed { i, s ->
-            val intVal = s.toInt()
-            ba[(i * 2) + 0] = (intVal and 0xFF).toByte()
-            ba[(i * 2) + 1] = ((intVal ushr 8) and 0xFF).toByte()
-        }
-
-        return ba
-    }
+//    private fun short2ByteArray(sa: ShortArray): ByteArray {
+//        val ba = ByteArray(sa.size * 2)
+//        var i = 0;
+//        sa.forEachIndexed { i, s ->
+//            val intVal = s.toInt()
+//            ba[(i * 2) + 0] = (intVal and 0xFF).toByte()
+//            ba[(i * 2) + 1] = ((intVal ushr 8) and 0xFF).toByte()
+//        }
+//
+//        return ba
+//    }
 
     private fun requestPermissions(): Boolean{
         val permissionsRequired = mutableListOf<String>()
@@ -107,7 +110,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
 
     fun getDuration(path: String): AudioResult<Int> {
-        var duration = 0
+        val duration: Int
 
         //check state
         if (mState != AudioState.Idle) {
@@ -124,7 +127,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             val durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             duration = durationStr!!.toInt()
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "GetDuration Got Exception:$e")
+            Log.e(LOG_TAG, "GetDuration Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
         return AudioResult(AudioErrorInfo.OK, duration)
@@ -151,30 +154,43 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         try {
             //Recorder setup
             val audioBufferSizeInByte = max(RECORDER_READ_BYTES * 10, // 適当に10フレーム分のバッファを持たせた
-                    android.media.AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
+                    AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
             mRecorder = AudioRecord(MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT, audioBufferSizeInByte)
 
             //Encoder Setup
-            mEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
-            mEncoder!!.configure(mFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            mEncoderCallback = AudioEncoderProcessor(mWaveSampleRate, mRecorder!!, mChannelsHandler, path)
-            mEncoder!!.setCallback(mEncoderCallback)
-
-//            mMuxer = MediaMuxer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            initialPCM = true
+            mPcmToMp4 = PcmToMp4(path) { pcmBuffer ->
+                // skip first pcm data
+                if (initialPCM) {
+                    val timesToSkip = SKIP_INITIAL_PCM_MS * SAMPLE_RATE * 2 / RECORDER_READ_BYTES / 1000
+                    Log.w(LOG_TAG, "Skip $timesToSkip times read of PCM")
+                    (0 until timesToSkip).forEach() { _ ->
+                        val size = mRecorder!!.read(pcmBuffer, RECORDER_READ_BYTES)
+                        if (size != RECORDER_READ_BYTES) {
+                            Log.w(LOG_TAG, "Read $size Bytes from AudioRecorder, wanted:$RECORDER_READ_BYTES")
+                        }
+                    }
+                    initialPCM = false
+                }
+                val size = mRecorder!!.read(pcmBuffer, RECORDER_READ_BYTES)
+                if (size != RECORDER_READ_BYTES) {
+                    Log.w(LOG_TAG, "Read $size Bytes from AudioRecorder, wanted:$RECORDER_READ_BYTES")
+                }
+                if (mWaveSampleRate > 0) mWaveformGenerator.feedPCM(pcmBuffer, size, mWaveSampleRate, mWaveSendRate)
+                size
+            }
 
             mRecorder!!.startRecording()
-            mEncoder!!.start()
             mState = AudioState.Recording
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Recording Got Exception:$e")
+            Log.e(LOG_TAG, "Recording Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
         return AudioResult(AudioErrorInfo.OK)
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun stopRecord(): AudioResult<NoValue>{
         //check state
         if (mState != AudioState.Recording) {
@@ -182,22 +198,16 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         }
 
         try {
-            mEncoder!!.stop()
-            mEncoder!!.release()
-            mEncoder = null
+            mPcmToMp4!!.stop()
+            mPcmToMp4 = null
 
             mRecorder!!.stop()
             mRecorder!!.release()
             mRecorder = null
 
-            mEncoderCallback!!.stop()
-            mEncoderCallback = null
-
-            if (mWaveSampleRate > 0) mChannelsHandler.sendEventEnd()
-
             mState = AudioState.Idle
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Stop Recording Got Exception:$e")
+            Log.e(LOG_TAG, "Stop Recording Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
@@ -218,11 +228,11 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             mPlayer = MediaPlayer()
             mPlayer?.setDataSource(path)
             mPlayer?.setOnCompletionListener {
-                Log.d("Audio-Mgr", "Playback complete")
+                Log.d(LOG_TAG, "Playback complete")
                 mState = AudioState.Idle
             }
             mPlayer?.setOnErrorListener { _, _, _ ->
-                Log.d("Audio-Mgr", "Playback error")
+                Log.d(LOG_TAG, "Playback error")
                 mState = AudioState.Idle
                 true
             }
@@ -232,7 +242,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
             mState = AudioState.Playing
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Start Playback Got Exception:$e")
+            Log.e(LOG_TAG, "Start Playback Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
@@ -253,14 +263,13 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
             mState = AudioState.Idle
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Stop Playback Got Exception:$e")
+            Log.e(LOG_TAG, "Stop Playback Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
         return AudioResult(AudioErrorInfo.OK)
     }
 
-    @RequiresApi(Build.VERSION_CODES.M)
     fun setPitch(pitch: Double): AudioResult<NoValue>{
         //check state
         if (mState != AudioState.Playing) {
@@ -268,12 +277,12 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         }
 
         try {
-            var param = mPlayer?.playbackParams
+            val param = mPlayer?.playbackParams
             param!!.pitch = pitch.toFloat()
             mPlayer?.playbackParams = param
 
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Set pitch Got Exception:$e")
+            Log.e(LOG_TAG, "Set pitch Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
@@ -288,12 +297,12 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         }
 
         try {
-            var param = mPlayer?.playbackParams
+            val param = mPlayer?.playbackParams
             param!!.speed = speed.toFloat()
             mPlayer?.playbackParams = param
 
         } catch (e: Exception) {
-            Log.e("Audio-Mgr", "Set Speed Got Exception:$e")
+            Log.e(LOG_TAG, "Set Speed Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
         }
 
@@ -321,29 +330,29 @@ class RecordWavThread(path: String): Thread() {
     var recording = false
 
     @SuppressLint("MissingPermission")
-    public override fun run() {
+    override fun run() {
         //Recorder setup
         val audioBufferSizeInByte = max(RECORDER_READ_BYTES * 10, // 適当に10フレーム分のバッファを持たせた
-            android.media.AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
+            AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
         mRecorder = AudioRecord(MediaRecorder.AudioSource.MIC,
             SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT, audioBufferSizeInByte)
 
-        var buf = ByteBuffer.allocateDirect(4096)
+        val buf = ByteBuffer.allocateDirect(4096)
 
         mRecorder!!.startRecording()
         recording = true
         while (recording) {
-            var size = mRecorder!!.read(buf, RECORDER_READ_BYTES)
+            val size = mRecorder!!.read(buf, RECORDER_READ_BYTES)
 
             if (size <= 0) {
-                Log.e("Audio-Mgr", "AudioRecorder read: $size bytes")
+                Log.e(LOG_TAG, "AudioRecorder read: $size bytes")
             } else {
                 mOutputFile.write(buf.array(), 0, size)
-                Log.d("Audio-Mgr", "writing $size bytes wave to file")
+                Log.d(LOG_TAG, "writing $size bytes wave to file")
             }
         }
 
-        Log.i("Audio-Mgr", "Recording stop, save wave to file")
+        Log.i(LOG_TAG, "Recording stop, save wave to file")
         mOutputFile.flush()
         mOutputFile.close()
     }
@@ -366,17 +375,17 @@ enum class AudioErrorInfo(val code: Int, val msg: String) {
     FileNotFound(-7, "File Not Found"),
 }
 
-class AudioResult <Result>(error: AudioErrorInfo, result: Result? = null, extraString: String = "") {
+class AudioResult <Result>(error: AudioErrorInfo, var result: Result? = null,
+                           private val extraString: String = ""
+) {
     private val errorInfo = error
-    private val extraString = extraString
-    public val errorCode = error.code.toString()
-    public val errorMessage = error.msg
+    val errorCode = error.code.toString()
+    val errorMessage = error.msg
     get() {
         if (extraString == "") return field
 
         return "$field: $extraString"
     }
-    public var result = result
 
 
     fun isOK(): Boolean {

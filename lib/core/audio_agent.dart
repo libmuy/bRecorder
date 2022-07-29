@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/result.dart';
-import 'package:brecorder/core/utils.dart';
+import 'package:brecorder/core/logging.dart';
 import 'package:flutter/services.dart';
 
 final log = Logger('Audio-Agent');
@@ -18,21 +19,30 @@ class AudioServiceAgent {
   // true : success
   // false: failure
   bool startListenWaveformSample(
-      Function(Int32List eventData) onEvent, Function(String error) onError) {
+      Function(Float32List eventData) onEvent, Function(String error) onError) {
     bool ret = true;
     if (_streamSubscription != null) {
       log.warning("Waveform sample already listening");
       return ret;
     }
 
+    var arguments = "waveform";
+    arguments += ",${GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND}";
+    arguments += ",${GlobalInfo.WAVEFORM_SEND_PER_SECOND}";
+
     try {
       _streamSubscription = _eventChannel
-          .receiveBroadcastStream("waveform,100")
+          .receiveBroadcastStream(arguments)
           .listen((dynamic event) {
         onEvent(event);
       }, onError: (dynamic error) {
         onError(error.message);
-      }, cancelOnError: true);
+        log.error("event channel error" + error.message);
+      }, onDone: () async {
+        log.info("eventchannel done: retry");
+        await stopListenWaveformSample();
+        startListenWaveformSample(onEvent, onError);
+      }, cancelOnError: false);
     } catch (e) {
       log.error("register event channel failed");
       ret = false;
@@ -41,9 +51,9 @@ class AudioServiceAgent {
     return ret;
   }
 
-  void stopListenWaveformSample() {
+  Future<void> stopListenWaveformSample() async {
     if (_streamSubscription != null) {
-      _streamSubscription!.cancel();
+      await _streamSubscription!.cancel();
       _streamSubscription = null;
     }
   }

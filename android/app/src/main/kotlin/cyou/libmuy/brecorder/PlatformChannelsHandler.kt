@@ -1,7 +1,6 @@
 package cyou.libmuy.brecorder
 
 import android.os.Build
-import android.os.Environment
 import android.util.Log
 import androidx.annotation.RequiresApi
 import io.flutter.embedding.android.FlutterActivity
@@ -9,6 +8,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.Result
+
 
 @RequiresApi(Build.VERSION_CODES.M)
 class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngine?){
@@ -49,7 +49,6 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
         waveformEventSink?.endOfStream()
     }
 
-    @RequiresApi(Build.VERSION_CODES.M)
     fun initialize() {
         handleMethodCalls()
         handleEventChannel()
@@ -62,30 +61,51 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
                     val args = (arguments as String).split(",")
                     var sampleRate = 0
+                    var sendRate = 0
                     if (args[0] == "waveform") {
-                        if (args.size != 2) {
+                        Log.i(LOG_TAG, "EventChannel: waveform")
+                        if (args.size < 3) {
                             events.error("-1", "Parameter count error", null)
+                            Log.i(LOG_TAG, "EventChannel: waveform: Parameter count error")
                             return
                         }
                         try {
                             sampleRate = args[1].toInt()
                         } catch (e: Exception) {
                             events.error("-1", "Parameter parse error", null)
+                            Log.i(LOG_TAG, "EventChannel: waveform: Parameter parse error")
                             return
                         }
 
-                        if (sampleRate <= 10) {
+                        try {
+                            sendRate = args[2].toInt()
+                        } catch (e: Exception) {
+                            events.error("-1", "Parameter parse error", null)
+                            Log.i(LOG_TAG, "EventChannel: waveform: Parameter parse error")
+                            return
+                        }
+
+                        if (sampleRate <= 0) {
                             events.error("-1", "Parameter error: waveform sample rate too small", null)
+                            Log.i(LOG_TAG, "EventChannel: waveform: sample rate too small")
+                            return
+                        }
+
+                        if (sendRate <= 0) {
+                            events.error("-1", "Parameter error: waveform send rate too small", null)
+                            Log.i(LOG_TAG, "EventChannel: waveform: send rate too small")
                             return
                         }
                         waveformEventSink = events
-                        audioManager.eventListenStart(sampleRate)
+                        audioManager.eventListenStart(sampleRate, sendRate)
                     }
-                    Log.d("Android", "EventChannel onListen called")
                 }
                 override fun onCancel(arguments: Any?) {
+                    val args = arguments as String
                     audioManager.eventListenStop()
-                    Log.w("Android", "EventChannel onCancel called")
+                    waveformEventSink!!.endOfStream()
+                    waveformEventSink = null
+                    Log.w(LOG_TAG, "EventChannel onCancel called, args:$args")
                 }
             })
 
