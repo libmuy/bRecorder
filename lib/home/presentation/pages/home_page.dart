@@ -1,6 +1,7 @@
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/home/domain/entities.dart';
+import 'package:brecorder/home/presentation/pages/listener_test_page.dart';
 import 'package:brecorder/home/presentation/pages/test_page.dart';
 import 'package:brecorder/home/presentation/ploc/home_page_state.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +78,6 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Row(
           children: [
-            Text(widget.title),
             ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -86,7 +86,15 @@ class _MyHomePageState extends State<MyHomePage> {
                           builder: (context) =>
                               const MyTestPage(title: "Rec Test Page")));
                 },
-                child: const Text("Test"))
+                child: const Text("Test")),
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ListenerTestPage()));
+                },
+                child: const Text("ListenerTest")),
           ],
         ),
       ),
