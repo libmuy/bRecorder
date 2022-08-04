@@ -26,6 +26,7 @@ class _MyTestPageState extends State<MyTestPage> {
   var _pitchValue = 1.0;
   var _speedValue = 1.0;
   String audioPath = "";
+  List<bool> audioButtonsState = [false, false];
   ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
 
@@ -54,13 +55,45 @@ class _MyTestPageState extends State<MyTestPage> {
     listDir(Directory(dirname(audioPath)), 0);
   }
 
+  void _startRecording() {
+    log.info("Start recording");
+    final f = File(audioPath);
+    if (f.existsSync()) {
+      f.deleteSync();
+    }
+    var ret = agent.startListenWaveformSample((eventData) {
+      waveformNotifier.value += eventData.map((e) => e.toDouble()).toList();
+    }, (error) {
+      log.error("Got error: $error");
+    });
+    if (ret) {
+      agent.startRecord(audioPath);
+    }
+  }
+
+  void _stopRecording() {
+    log.info("Stop recording");
+    agent.stopRecord();
+    agent.stopListenWaveformSample();
+  }
+
+  void _startPlay() {
+    log.info("Start Play");
+    agent.startPlay(audioPath);
+  }
+
+  void _stopPlay() {
+    log.info("Stop Play");
+    agent.stopPlay();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: ListView(children: <Widget>[
+      body: Column(children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(children: [
@@ -74,6 +107,15 @@ class _MyTestPageState extends State<MyTestPage> {
             ),
           ]),
         ),
+        ValueListenableBuilder<List<double>>(
+            valueListenable: waveformNotifier,
+            builder: (context, waveformData, _) {
+              return PaintedWaveform(
+                waveformData,
+                // scrollable: false,
+                key: const Key("test_page_painted_wave_form"),
+              );
+            }),
         Row(children: [
           Text("Pitch:${_pitchValue.toStringAsFixed(1)}"),
           Expanded(
@@ -114,130 +156,68 @@ class _MyTestPageState extends State<MyTestPage> {
             ),
           ),
         ]),
-        ValueListenableBuilder<List<double>>(
-            valueListenable: waveformNotifier,
-            builder: (context, waveformData, _) {
-              return PaintedWaveform(
-                waveformData,
-                // scrollable: false,
-                key: const Key("test_page_painted_wave_form"),
-              );
-            }),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Start recording");
-              final f = File(audioPath);
-              if (f.existsSync()) {
-                f.deleteSync();
+        ToggleButtons(
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+          borderWidth: 2,
+          onPressed: (int index) {
+            if (index == 0) {
+              if (audioButtonsState[index] == false) {
+                _startRecording();
+              } else {
+                _stopRecording();
               }
-              var ret = agent.startListenWaveformSample((eventData) {
-                // final sampleList = eventData;
-                // debugPrint(
-                //     "======================== Got waveform sample data =====================");
-                // for (int i = 0; i < sampleList.length; i += 2) {
-                //   double max = eventData[i];
-                //   double min = eventData[i + 1];
+            } else if (index == 1) {
+              if (audioButtonsState[index] == false) {
+                _startPlay();
+              } else {
+                _stopPlay();
+              }
+            }
 
-                //   debugPrint(
-                //       "MAX:${"$max".padRight(5)}, MIN:${"$min".padRight(5)}");
-                // }
-                // log.debug("Flutter received:$eventData");
-                waveformNotifier.value +=
-                    eventData.map((e) => e.toDouble()).toList();
-                // log.debug(
-                //     "waveform data length:${waveformNotifier.value.length}");
-              }, (error) {
-                log.error("Got error: $error");
-              });
-              if (ret) {
-                agent.startRecord(audioPath);
-              }
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Rec Start")),
-          ),
+            setState(() {
+              audioButtonsState[index] = !audioButtonsState[index];
+            });
+          },
+          isSelected: audioButtonsState,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: audioButtonsState[0]
+                  ? const Text("Rec Stop")
+                  : const Text("Rec Start"),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: audioButtonsState[1]
+                  ? const Text("Play Stop")
+                  : const Text("Play Start"),
+            ),
+          ],
         ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Stop recording");
-              agent.stopRecord();
-              agent.stopListenWaveformSample();
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Rec Stop")),
-          ),
-        ),
-        // Card(
-        //   child: InkWell(
-        //     onTap: () {
-        //       log.info("Start recording WAV");
-        //       final f = File("$audioPath.wav");
-        //       if (f.existsSync()) {
-        //         f.deleteSync();
-        //       }
-        //       agent.startRecordWav("$audioPath.wav");
-        //     },
-        //     splashColor: Colors.pink,
-        //     child: const ListTile(title: Text("Rec Start WAV")),
-        //   ),
-        // ),
-        // Card(
-        //   child: InkWell(
-        //     onTap: () {
-        //       log.info("Stop recording WAV");
-        //       agent.stopRecordWav();
-        //     },
-        //     splashColor: Colors.pink,
-        //     child: const ListTile(title: Text("Rec Stop WAV")),
-        //   ),
-        // ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Start Play");
-              agent.startPlay(audioPath);
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Play Start")),
-          ),
-        ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Stop Play");
-              agent.stopPlay();
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Play Stop")),
-          ),
-        ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              log.info("Get Duration");
-              final d = agent.getDuration(audioPath);
-              d.then((result) => {
-                    result.fold((duration) {
-                      log.info("Duration: $duration");
-                    }, (err) {
-                      log.info("got error:$err");
-                    })
-                  });
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("Get Duration")),
-          ),
-        ),
-        Card(
-          child: InkWell(
-            onTap: () {
-              listAllFiles();
-            },
-            splashColor: Colors.pink,
-            child: const ListTile(title: Text("List Root Directory")),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                log.info("Get Duration");
+                final d = agent.getDuration(audioPath);
+                d.then((result) => {
+                      result.fold((duration) {
+                        log.info("Duration: $duration");
+                      }, (err) {
+                        log.info("got error:$err");
+                      })
+                    });
+              },
+              child: const Text("Get Duration"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                listAllFiles();
+              },
+              child: const Text("ls rootDir"),
+            ),
+          ],
         ),
       ]),
     );

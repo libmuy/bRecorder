@@ -1,1 +1,10 @@
-{}
+{
+    "cmake.configureOnOpen": false,
+    "dart.flutterSdkPath": "/Volumes/Data/Dev/Software/flutter_sdk/flutter_sdk_mac",
+    "svn.ignoreMissingSvnWarning": true,
+    "editor.fontSize": 11,
+    "terminal.integrated.fontFamily": "MS Gothic",
+    "terminal.integrated.fontSize": 12,
+    "debug.console.fontFamily": "MS Gothic",
+    "debug.console.fontSize": 12
+}
