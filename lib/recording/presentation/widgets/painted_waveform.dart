@@ -1,4 +1,6 @@
+import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
+import 'package:brecorder/recording/domain/waveform_data_model.dart';
 import 'package:brecorder/recording/presentation/widgets/waveform_painter.dart';
 import 'package:flutter/material.dart';
 
@@ -17,12 +19,14 @@ class PaintedWaveform extends StatefulWidget {
   final double zoomLevel;
   final double height;
   final bool scrollable;
+  final Function(double postion)? positionListener;
 
   const PaintedWaveform(this.waveformData,
       {required Key key,
       this.zoomLevel = 1.0,
       this.height = 100,
-      this.scrollable = true})
+      this.scrollable = true,
+      this.positionListener})
       : super(key: key);
 
   @override
@@ -36,7 +40,6 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
   late double _zoom;
   bool _isScaleMode = false;
   late ScrollController _scrollController;
-  double _width = 0;
   double _screenWidth = 0;
   final _pointers = <int, _PointerInfo>{};
   double _startScrollPosition = 0;
@@ -47,7 +50,7 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     super.initState();
     _zoom = widget.zoomLevel;
     _scrollController = ScrollController();
-    // _scrollController.addListener(_scrollListener); // ←追加
+    _scrollController.addListener(_scrollListener); // ←追加
     log.debug("initState()");
   }
 
@@ -61,17 +64,17 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     return _defaultDx * _zoom;
   }
 
-  double get edge {
-    if (_isScaleMode) {
-      return _screenWidth / _minZoom * _zoom;
-    } else {
-      double screenEdge;
-      if (_width < _screenWidth) {
-        screenEdge = (_screenWidth - _width) / 2;
-      } else {
-        screenEdge = 0;
-      }
-      return screenEdge + (_screenWidth / 2);
+  double get _width {
+    return _calcWidth(_zoom);
+  }
+
+  void _scrollListener() {
+    if (widget.positionListener != null) {
+      final pos = _scrollController.offset /
+          _dx /
+          GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND *
+          1000;
+      widget.positionListener!(pos);
     }
   }
 
@@ -83,6 +86,12 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     } else {
       return zoom;
     }
+  }
+
+  double _calcWidth(double zoom) {
+    final ret = _defaultDx * zoom * widget.waveformData.length;
+    // log.debug("zoom:$zoom, width:$ret");
+    return ret;
   }
 
   Widget _addScrollWrapper(Widget child) {
@@ -101,10 +110,29 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     }
   }
 
-  double _calcWidth(double zoom) {
-    final ret = _defaultDx * zoom * widget.waveformData.length;
-    // log.debug("zoom:$zoom, width:$ret");
-    return ret;
+  /*=======================================================================*\ 
+    Calculate Edge in different MODE
+  \*=======================================================================*/
+  double get _edge {
+    // No scroll Mode
+    if (!widget.scrollable) {
+      return 0;
+
+      // Scale Mode
+    } else if (_isScaleMode) {
+      return _screenWidth / _minZoom * _zoom;
+
+      // Normal Mode
+    } else {
+      // double screenEdge;
+      // if (_width < _screenWidth) {
+      //   screenEdge = (_screenWidth - _width) / 2;
+      // } else {
+      //   screenEdge = 0;
+      // }
+      // return screenEdge + (_screenWidth / 2);
+      return _screenWidth / 2;
+    }
   }
 
   /*=======================================================================*\ 
@@ -161,9 +189,9 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     // 2 Pointers Down: Entering Scale Mode
     if (_pointers.length == 2) {
       setState(() {
-        final normalEdge = edge;
+        final normalEdge = _edge;
         _isScaleMode = true;
-        final diff = edge - normalEdge;
+        final diff = _edge - normalEdge;
         _startScrollPosition = _scrollController.offset + diff;
         _startZoom = _zoom;
         // var dbgStr =
@@ -180,9 +208,9 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
     // Ending Scale Mode
     if (_pointers.length == 2) {
       setState(() {
-        final scaleEdge = edge;
+        final scaleEdge = _edge;
         _isScaleMode = false;
-        final diff = edge - scaleEdge;
+        final diff = _edge - scaleEdge;
         _scrollController.jumpTo(_scrollController.offset + diff);
         // if (edge > 0) {
         //   _scrollController.jumpTo(0);
@@ -211,8 +239,8 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
   \*=======================================================================*/
   @override
   Widget build(context) {
-    _width = _calcWidth(_zoom);
     int fromIndex = 0;
+    double startX = 0;
 
     return Listener(
       onPointerDown: _pointerDown,
@@ -226,19 +254,25 @@ class _PaintedWaveformState extends State<PaintedWaveform> {
           if (!widget.scrollable) {
             final drawableCount = _screenWidth / _dx;
             fromIndex = widget.waveformData.length - drawableCount.toInt();
-            if (fromIndex < 0) fromIndex = 0;
+            if (fromIndex <= 0) {
+              fromIndex = 0;
+              startX = _dx * (drawableCount - widget.waveformData.length);
+            }
           }
-
-          log.debug("[BUILD] edge:$edge, zoom:$_zoom, width:$_width");
+          double dxDuration = 1000 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
+          double duration = dxDuration * widget.waveformData.length / 1000;
+          var dbgStr = "[BUILD] duration:${duration.toStringAsFixed(2)} secs";
+          dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
+          log.debug(dbgStr);
           return _addScrollWrapper(CustomPaint(
             size: Size(
-              _width + (edge * 2),
+              widget.scrollable ? _width + (_edge * 2) : _screenWidth,
               widget.height,
             ),
             foregroundPainter: WaveformPainter(
               widget.waveformData,
               _dx,
-              edge,
+              _edge + startX,
               fromIndex: fromIndex,
               color: const Color(0xff3994DB),
               // painterRuler: true,

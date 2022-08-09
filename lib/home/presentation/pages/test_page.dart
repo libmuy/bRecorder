@@ -29,6 +29,7 @@ class _MyTestPageState extends State<MyTestPage> {
   List<bool> audioButtonsState = [false, false];
   ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
+  bool _recording = false;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _MyTestPageState extends State<MyTestPage> {
     if (f.existsSync()) {
       f.deleteSync();
     }
+    _recording = true;
     var ret = agent.startListenWaveformSample((eventData) {
       waveformNotifier.value += eventData.map((e) => e.toDouble()).toList();
     }, (error) {
@@ -73,6 +75,7 @@ class _MyTestPageState extends State<MyTestPage> {
 
   void _stopRecording() {
     log.info("Stop recording");
+    _recording = false;
     agent.stopRecord();
     agent.stopListenWaveformSample();
   }
@@ -112,7 +115,7 @@ class _MyTestPageState extends State<MyTestPage> {
             builder: (context, waveformData, _) {
               return PaintedWaveform(
                 waveformData,
-                // scrollable: false,
+                scrollable: _recording ? false : true,
                 key: const Key("test_page_painted_wave_form"),
               );
             }),
