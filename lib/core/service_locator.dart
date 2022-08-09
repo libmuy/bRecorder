@@ -1,5 +1,5 @@
 import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/logging.dart';
+// import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/home/data/filesystem_repository.dart';
 import 'package:brecorder/home/data/icloud_repository.dart';
 import 'package:brecorder/home/data/playlist_repository.dart';
@@ -16,6 +16,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => ICloudRepository());
   sl.registerLazySingleton(() => PlaylistRepository());
   sl.registerLazySingleton(() => const EntitiesManager());
+  // sl.registerLazySingleton(() => AudioPlayer());
   // sl.registerLazySingleton(() {
   //   final g = GlobalInfo();
   //   g.init();

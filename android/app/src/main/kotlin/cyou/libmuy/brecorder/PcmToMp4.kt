@@ -2,11 +2,13 @@ package cyou.libmuy.brecorder
 
 import android.media.*
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import androidx.annotation.RequiresApi
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
+
 
 private const val WRITE_WAV_TO_FILE = false
 
@@ -22,11 +24,15 @@ class PcmToMp4 (mp4Path: String, feedPcmCallback: (buffer: ByteBuffer) -> Int): 
     private val readPCM: (buffer: ByteBuffer) -> Int = feedPcmCallback
     private var mFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, CHANNEL_COUNT)
 
+    private var mExtractor = MediaExtractor()
+
     init {
         mFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
         mFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, RECORDER_READ_BYTES)
-        mFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, CHANNEL_CONFIG);
+        mFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, CHANNEL_CONFIG)
         mFormat.setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
+//        mFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0);
+
 
         mEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
         mEncoder!!.configure(mFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -34,6 +40,7 @@ class PcmToMp4 (mp4Path: String, feedPcmCallback: (buffer: ByteBuffer) -> Int): 
 
         mMuxer = MediaMuxer(mp4Path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
         mEncoder!!.start()
+
     }
 
     fun stop() {
@@ -64,15 +71,18 @@ class PcmToMp4 (mp4Path: String, feedPcmCallback: (buffer: ByteBuffer) -> Int): 
         var sampleSize = readPCM(inputBuffer)
 
         if (mStartTimeNs == 0L) mStartTimeNs = System.nanoTime();
-        val timeStamp = System.nanoTime() - mStartTimeNs;
+        val timeStamp = (System.nanoTime() - mStartTimeNs) / 1000;
 
         //write wav to file
         if (WRITE_WAV_TO_FILE) {
             mOutputFileWav.write(inputBuffer.array(), 0, sampleSize)
         }
 
+//        val b = Bundle()
+//        b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0)
+//        encoder.setParameters(b)
         //Return buffer back to Encoder
-        encoder!!.queueInputBuffer(bufId, 0, sampleSize, timeStamp, 0)
+        encoder!!.queueInputBuffer(bufId, 0, sampleSize, timeStamp, MediaCodec.BUFFER_FLAG_KEY_FRAME)
     }
 
     override fun onOutputBufferAvailable(encoder: MediaCodec, bufId: Int, bufInfo: MediaCodec.BufferInfo) {
@@ -81,11 +91,11 @@ class PcmToMp4 (mp4Path: String, feedPcmCallback: (buffer: ByteBuffer) -> Int): 
             mOutputByteArray = ByteArray(bufInfo.size + 7)
 
         when (bufInfo.flags) {
-            MediaCodec.BUFFER_FLAG_KEY_FRAME ->
-                Log.d("Audio-Mgr", "BUFFER_FLAG_KEY_FRAME: $bufInfo")
-            MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {
-                Log.d("Audio-Mgr", "BUFFER_FLAG_CODEC_CONFIG: $bufInfo")
-            }
+//            MediaCodec.BUFFER_FLAG_KEY_FRAME ->
+//                Log.d("Audio-Mgr", "BUFFER_FLAG_KEY_FRAME: $bufInfo")
+//            MediaCodec.BUFFER_FLAG_CODEC_CONFIG -> {
+//                Log.d("Audio-Mgr", "BUFFER_FLAG_CODEC_CONFIG: $bufInfo")
+//            }
             MediaCodec.BUFFER_FLAG_END_OF_STREAM -> {
                 Log.d("Audio-Mgr", "BUFFER_FLAG_END_OF_STREAM: $bufInfo")
                 encoder.releaseOutputBuffer(bufId, false)
@@ -96,7 +106,8 @@ class PcmToMp4 (mp4Path: String, feedPcmCallback: (buffer: ByteBuffer) -> Int): 
 
             // No flags, write data to Muxer
             else -> {
-//                Log.d("Audio-Mgr", "Audio Data, write to Muxer: $bufInfo")
+                bufInfo.flags = MediaCodec.BUFFER_FLAG_KEY_FRAME
+                Log.d("Audio-Mgr", "Audio Data, write to Muxer: ${bufInfo.flags}")
                 outputBuffer.position(bufInfo.offset)
                 outputBuffer.limit(bufInfo.offset + bufInfo.size)
                 outputBuffer.get(mOutputByteArray, 7, bufInfo.size)
