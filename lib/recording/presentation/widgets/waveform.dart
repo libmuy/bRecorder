@@ -31,14 +31,19 @@ class Waveform extends StatefulWidget {
   final double height;
   final bool scrollable;
   final Function(WaveformMetrics metircs)? positionListener;
+  final Function(WaveformMetrics metircs)? startSeek;
+  final Function(WaveformMetrics metircs)? endSeek;
 
-  const Waveform(this.waveformData,
-      {required Key key,
-      this.zoomLevel = 1.0,
-      this.height = 100,
-      this.scrollable = true,
-      this.positionListener})
-      : super(key: key);
+  const Waveform(
+    this.waveformData, {
+    required Key key,
+    this.zoomLevel = 1.0,
+    this.height = 100,
+    this.scrollable = true,
+    this.positionListener,
+    this.startSeek,
+    this.endSeek,
+  }) : super(key: key);
 
   @override
   State<Waveform> createState() => _WaveformState();
@@ -85,7 +90,7 @@ class _WaveformState extends State<Waveform> {
     return duration;
   }
 
-  void _scrollListener() {
+  WaveformMetrics? get _metrics {
     if (widget.positionListener != null) {
       double pos;
       if (_scrollController.hasClients) {
@@ -98,7 +103,16 @@ class _WaveformState extends State<Waveform> {
         pos = 0;
       }
       // log.debug("duration:$_duration, position:$pos");
-      widget.positionListener!(WaveformMetrics(_duration, pos));
+      return WaveformMetrics(_duration, pos);
+    }
+
+    return null;
+  }
+
+  void _scrollListener() {
+    final metrics = _metrics;
+    if (metrics != null) {
+      widget.positionListener!(metrics);
     }
   }
 
@@ -120,35 +134,6 @@ class _WaveformState extends State<Waveform> {
     final ret = _defaultDx * zoom * widget.waveformData.length;
     // log.debug("zoom:$zoom, width:$ret");
     return ret;
-  }
-
-  Widget _addScrollWrapper(Widget child) {
-    if (widget.scrollable) {
-      return SizedBox(
-          height: widget.height,
-          child: Stack(
-            children: [
-              ListView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  physics: _isScaleMode
-                      ? const NeverScrollableScrollPhysics()
-                      : const BouncingScrollPhysics(),
-                  children: [child]),
-              Center(
-                child: CustomPaint(
-                  size: Size(
-                    4,
-                    widget.height,
-                  ),
-                  foregroundPainter: CenterBarPainter(),
-                ),
-              ),
-            ],
-          ));
-    } else {
-      return child;
-    }
   }
 
   /*=======================================================================*\ 
@@ -220,8 +205,15 @@ class _WaveformState extends State<Waveform> {
         startX: details.position.dx,
         endX: details.position.dx);
 
-    // 2 Pointers Down: Entering Scale Mode
-    if (_pointers.length == 2) {
+    // 1 Pointers Down: Entering Scroll Mode
+    if (_pointers.length == 1) {
+      final metrics = _metrics;
+      if (widget.startSeek != null && metrics != null) {
+        widget.startSeek!(_metrics!);
+      }
+
+      // 2 Pointers Down: Entering Scale Mode
+    } else if (_pointers.length == 2) {
       setState(() {
         final normalEdge = _edge;
         _isScaleMode = true;
@@ -239,8 +231,15 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerUp(PointerEvent details) {
-    // Ending Scale Mode
-    if (_pointers.length == 2) {
+    // Ending Scoll Mode
+    if (_pointers.length == 1) {
+      final metrics = _metrics;
+      if (widget.endSeek != null && metrics != null) {
+        widget.endSeek!(_metrics!);
+      }
+
+      // Ending Scale Mode
+    } else if (_pointers.length == 2) {
       setState(() {
         final scaleEdge = _edge;
         _isScaleMode = false;
@@ -273,48 +272,73 @@ class _WaveformState extends State<Waveform> {
   \*=======================================================================*/
   @override
   Widget build(context) {
-    int fromIndex = 0;
-    double startX = 0;
-
-    // compute(_notifierWhenBuild, null);
     Timer.run(() => _scrollListener());
 
-    return Listener(
-      onPointerDown: _pointerDown,
-      onPointerMove: _pointerMove,
-      onPointerUp: _pointerUp,
-      child: Container(
-        color: Colors.black87,
-        child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-          _screenWidth = constraints.maxWidth;
-          if (!widget.scrollable) {
-            final drawableCount = _screenWidth / _dx;
-            fromIndex = widget.waveformData.length - drawableCount.toInt();
-            if (fromIndex <= 0) {
-              fromIndex = 0;
-              startX = _dx * (drawableCount - widget.waveformData.length);
-            }
+    return Container(
+      color: Colors.black87,
+      child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+        int fromIndex = 0;
+        double startX = 0;
+        _screenWidth = constraints.maxWidth;
+
+        if (!widget.scrollable) {
+          final drawableCount = _screenWidth / _dx;
+          fromIndex = widget.waveformData.length - drawableCount.toInt();
+          if (fromIndex <= 0) {
+            fromIndex = 0;
+            startX = _dx * (drawableCount - widget.waveformData.length);
           }
-          // var dbgStr = "[BUILD] duration:${_duration.toStringAsFixed(2)} secs";
-          // dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
-          // log.debug(dbgStr);
-          return _addScrollWrapper(CustomPaint(
-            size: Size(
-              widget.scrollable ? _width + (_edge * 2) : _screenWidth,
-              widget.height,
-            ),
-            foregroundPainter: WaveformPainter(
-              widget.waveformData,
-              _dx,
-              _edge + startX,
-              fromIndex: fromIndex,
-              color: const Color(0xff3994DB),
-              // painterRuler: true,
-            ),
-          ));
-        }),
-      ),
+        }
+
+        Widget waveformWidget = CustomPaint(
+          size: Size(
+            widget.scrollable ? _width + (_edge * 2) : _screenWidth,
+            widget.height,
+          ),
+          foregroundPainter: WaveformPainter(
+            widget.waveformData,
+            _dx,
+            _edge + startX,
+            fromIndex: fromIndex,
+            color: const Color(0xff3994DB),
+            // painterRuler: true,
+          ),
+        );
+
+        if (widget.scrollable) {
+          waveformWidget = Listener(
+              onPointerDown: _pointerDown,
+              onPointerMove: _pointerMove,
+              onPointerUp: _pointerUp,
+              child: SizedBox(
+                  height: widget.height,
+                  child: Stack(
+                    children: [
+                      ListView(
+                          controller: _scrollController,
+                          scrollDirection: Axis.horizontal,
+                          physics: _isScaleMode
+                              ? const NeverScrollableScrollPhysics()
+                              : const BouncingScrollPhysics(),
+                          children: [waveformWidget]),
+                      Center(
+                        child: CustomPaint(
+                          size: Size(
+                            4,
+                            widget.height,
+                          ),
+                          foregroundPainter: CenterBarPainter(),
+                        ),
+                      ),
+                    ],
+                  )));
+        }
+        // var dbgStr = "[BUILD] duration:${_duration.toStringAsFixed(2)} secs";
+        // dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
+        // log.debug(dbgStr);
+        return waveformWidget;
+      }),
     );
   }
 }

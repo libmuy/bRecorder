@@ -39,7 +39,7 @@ class _MyTestPageState extends State<MyTestPage> {
     super.initState();
     getApplicationDocumentsDirectory().then((value) {
       setState(() {
-        audioPath = join(value.path, "test.aac");
+        audioPath = join(value.path, "test.mp4");
       });
     });
   }
@@ -66,31 +66,37 @@ class _MyTestPageState extends State<MyTestPage> {
       f.deleteSync();
     }
     _recording = true;
-    var ret = agent.startListenWaveformSample((eventData) {
+    agent.onWaveformData = (eventData) {
       waveformNotifier.value += eventData.map((e) => e.toDouble()).toList();
-    }, (error) {
-      log.error("Got error: $error");
-    });
-    if (ret) {
-      agent.startRecord(audioPath);
-    }
+    };
+    agent.startRecord(audioPath);
   }
 
   void _stopRecording() {
     log.info("Stop recording");
     _recording = false;
     agent.stopRecord();
-    agent.stopListenWaveformSample();
+    agent.onWaveformData = null;
   }
 
-  void _startPlay() {
+  void _startPlay() async {
     log.info("Start Play");
     _playing = true;
-    agent.startPlay(audioPath);
     final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
     if (ms != 0) {
       agent.seekTo(ms);
+      await Future.delayed(const Duration(seconds: 1));
     }
+    agent.onPlayEvent = (event) {
+      if (event == "PlayComplete") {
+        if (audioButtonsState[1] == true) {
+          setState(() {
+            audioButtonsState[1] = false;
+          });
+        }
+      }
+    };
+    agent.startPlay(audioPath);
   }
 
   void _stopPlay() {
@@ -101,8 +107,23 @@ class _MyTestPageState extends State<MyTestPage> {
 
   void _waveformPositionListener(WaveformMetrics metrics) {
     waveformMetricsNotifier.value = metrics;
+    // if (_playing) {
+    //   agent.seekTo((metrics.position * 1000).toInt());
+    // }
+  }
+
+  void _waveformStartSeek(WaveformMetrics metrics) {
+    if (_playing) agent.pausePlay();
+  }
+
+  void _waveformEndSeek(WaveformMetrics metrics) async {
     if (_playing) {
-      agent.seekTo((metrics.position * 1000).toInt());
+      final ms = (metrics.position * 1000).toInt();
+      if (ms != 0) {
+        agent.seekTo(ms);
+        // await Future.delayed(const Duration(seconds: 1));
+      }
+      agent.resumePlay();
     }
   }
 
@@ -134,6 +155,8 @@ class _MyTestPageState extends State<MyTestPage> {
                 scrollable: _recording ? false : true,
                 key: const Key("test_page_painted_wave_form"),
                 positionListener: _waveformPositionListener,
+                startSeek: _waveformStartSeek,
+                endSeek: _waveformEndSeek,
               );
             }),
         ValueListenableBuilder<WaveformMetrics>(

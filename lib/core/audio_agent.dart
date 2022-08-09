@@ -14,47 +14,55 @@ class AudioServiceAgent {
   static const _eventChannel =
       EventChannel('libmuy.com/brecorder/eventchannel');
 
-  StreamSubscription? _streamSubscription;
+  StreamSubscription? _eventStream;
+  Function(Float32List eventData)? onWaveformData;
+  Function(dynamic)? onPlayEvent;
 
-  // true : success
-  // false: failure
-  bool startListenWaveformSample(
-      Function(Float32List eventData) onEvent, Function(String error) onError) {
-    bool ret = true;
-    if (_streamSubscription != null) {
+  AudioServiceAgent() {
+    _startListenEvent();
+  }
+
+  void _startListenEvent() {
+    if (_eventStream != null) {
       log.warning("Waveform sample already listening");
-      return ret;
+      return;
     }
 
-    var arguments = "waveform";
-    arguments += ",${GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND}";
-    arguments += ",${GlobalInfo.WAVEFORM_SEND_PER_SECOND}";
+    var args = {
+      "samplesPerSecond": GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND,
+      "sendPerSecond": GlobalInfo.WAVEFORM_SEND_PER_SECOND,
+    };
 
     try {
-      _streamSubscription = _eventChannel
-          .receiveBroadcastStream(arguments)
-          .listen((dynamic event) {
-        onEvent(event);
+      _eventStream =
+          _eventChannel.receiveBroadcastStream(args).listen((dynamic map) {
+        if (map.containsKey("waveform")) {
+          if (onWaveformData != null) {
+            onWaveformData!(map["waveform"]);
+          }
+        }
+        if (map.containsKey("playEvent")) {
+          log.debug("Got Player Event:${map['playEvent']}");
+          if (onPlayEvent != null) {
+            onPlayEvent!(map["playEvent"]);
+          }
+        }
       }, onError: (dynamic error) {
-        onError(error.message);
         log.error("event channel error" + error.message);
       }, onDone: () async {
         log.info("eventchannel done: retry");
-        await stopListenWaveformSample();
-        startListenWaveformSample(onEvent, onError);
+        await _stopListenEvent();
+        _startListenEvent();
       }, cancelOnError: false);
     } catch (e) {
       log.error("register event channel failed");
-      ret = false;
     }
-
-    return ret;
   }
 
-  Future<void> stopListenWaveformSample() async {
-    if (_streamSubscription != null) {
-      await _streamSubscription!.cancel();
-      _streamSubscription = null;
+  Future<void> _stopListenEvent() async {
+    if (_eventStream != null) {
+      await _eventStream!.cancel();
+      _eventStream = null;
     }
   }
 
@@ -110,6 +118,28 @@ class AudioServiceAgent {
   Future<Result<Void, ErrInfo>> stopPlay() async {
     try {
       await _methodChannel.invokeMethod('stopPlay');
+    } on PlatformException catch (e) {
+      log.critical("Got exception: ${e.message}");
+      return Fail(PlatformFailure());
+    }
+
+    return Succeed(Void());
+  }
+
+  Future<Result<Void, ErrInfo>> pausePlay() async {
+    try {
+      await _methodChannel.invokeMethod('pausePlay');
+    } on PlatformException catch (e) {
+      log.critical("Got exception: ${e.message}");
+      return Fail(PlatformFailure());
+    }
+
+    return Succeed(Void());
+  }
+
+  Future<Result<Void, ErrInfo>> resumePlay() async {
+    try {
+      await _methodChannel.invokeMethod('resumePlay');
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
       return Fail(PlatformFailure());

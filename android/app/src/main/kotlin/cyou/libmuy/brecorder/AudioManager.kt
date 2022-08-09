@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.media.*
+import android.media.MediaPlayer.SEEK_CLOSEST
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -15,6 +16,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.lang.Integer.max
 import java.nio.ByteBuffer
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
 
 
 const val PERMISSIONS_REQ = 1
@@ -39,8 +42,11 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     private var mPcmToMp4: PcmToMp4? = null
     private var initialPCM = true
     private val mWaveformGenerator = WaveformGenerator {data ->
-        if (mWaveSampleRate > 0)
-            mChannelsHandler.sendEvent(data)
+        if (mWaveSampleRate > 0) {
+            val map = HashMap<String, FloatArray>()
+            map["waveform"] = data
+            mChannelsHandler.sendEvent(map)
+        }
     }
 
 //    private var mDecoder: MediaCodec? = null
@@ -49,9 +55,10 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     private var mWaveSampleRate = 0         //WAVEFORM サンプリングレート（Hz）、1秒間何回をサンプリングする
     private var mWaveSendRate = 0           //WAVEFORM 1秒間何回をFlutterへ送信する
 
-
+    private var mPlayStartPosition = 0
     // FOR DEBUG
     private var mRecordWavThread: RecordWavThread? = null
+//    private var mExoPlayer: ExoPlayer? = null
 
 
 
@@ -214,6 +221,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         return AudioResult(AudioErrorInfo.OK)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun startPlay(path: String): AudioResult<NoValue>{
         //check state
         if (mState != AudioState.Idle) {
@@ -229,6 +237,9 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             mPlayer?.setDataSource(path)
             mPlayer?.setOnCompletionListener {
                 Log.d(LOG_TAG, "Playback complete")
+                val map = HashMap<String, String>()
+                map["playEvent"] = "PlayComplete"
+                mChannelsHandler.sendEvent(hashMapOf("playEvent" to "PlayComplete"))
                 mState = AudioState.Idle
             }
             mPlayer?.setOnErrorListener { _, _, _ ->
@@ -238,7 +249,14 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             }
 
             mPlayer?.prepare()
+            if (mPlayStartPosition > 0)
+                mPlayer?.seekTo(mPlayStartPosition)
             mPlayer?.start()
+
+//            mExoPlayer = ExoPlayer.Builder(mActivity.context).build()
+//            mExoPlayer?.addMediaItem(MediaItem.fromUri(path))
+//            mExoPlayer?.prepare()
+//            mExoPlayer?.play()
 
             mState = AudioState.Playing
         } catch (e: Exception) {
@@ -252,7 +270,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
     fun stopPlay(): AudioResult<NoValue>{
         //check state
-        if (mState != AudioState.Playing) {
+        if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
         }
 
@@ -260,6 +278,10 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             mPlayer?.stop()
             mPlayer?.release()
             mPlayer = null
+//            mExoPlayer?.stop()
+//            mExoPlayer?.release()
+//            mExoPlayer = null
+            mPlayStartPosition = 0
 
             mState = AudioState.Idle
         } catch (e: Exception) {
@@ -270,14 +292,53 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         return AudioResult(AudioErrorInfo.OK)
     }
 
-    fun seekTo(position: Int): AudioResult<NoValue>{
+    fun pausePlay(): AudioResult<NoValue>{
         //check state
         if (mState != AudioState.Playing) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
         }
 
         try {
+            mPlayer?.pause()
+//            mExoPlayer?.pause()
+            mState = AudioState.PlayPaused
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Stop Playback Got Exception:$e")
+            return AudioResult(AudioErrorInfo.NG)
+        }
+
+        return AudioResult(AudioErrorInfo.OK)
+    }
+
+    fun resumePlay(): AudioResult<NoValue>{
+        //check state
+        if (mState != AudioState.PlayPaused) {
+            return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
+        }
+
+        try {
+            mPlayer?.start()
+//            mExoPlayer?.play()
+            mState = AudioState.Playing
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Stop Playback Got Exception:$e")
+            return AudioResult(AudioErrorInfo.NG)
+        }
+
+        return AudioResult(AudioErrorInfo.OK)
+    }
+
+    fun seekTo(position: Int): AudioResult<NoValue>{
+        //check state
+        if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
+            mPlayStartPosition = position
+            return AudioResult(AudioErrorInfo.OK)
+        }
+
+        try {
             mPlayer?.seekTo(position)
+//            mExoPlayer?.seekTo(position.toLong())
+            Log.d(LOG_TAG, "Seek to $position, result:${mPlayer?.currentPosition}")
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Stop Playback Got Exception:$e")
             return AudioResult(AudioErrorInfo.NG)
@@ -377,6 +438,7 @@ class RecordWavThread(path: String): Thread() {
 
 enum class AudioState {
     Playing,
+    PlayPaused,
     Recording,
     Idle
 }
