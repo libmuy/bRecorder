@@ -31,7 +31,7 @@ class WaveformPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = getPath(size);
+    final path = getWaveformPath(size);
     canvas.drawPath(path, painter);
   }
 
@@ -44,7 +44,7 @@ class WaveformPainter extends CustomPainter {
     return false;
   }
 
-  Path getPath(Size size) {
+  Path getWaveformPath(Size size) {
     final middle = size.height / 2;
     final path = Path();
     double max = 0.012;

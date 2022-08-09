@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/recording/presentation/widgets/painted_waveform.dart';
+import 'package:brecorder/recording/presentation/widgets/waveform.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
@@ -113,7 +113,7 @@ class _MyTestPageState extends State<MyTestPage> {
         ValueListenableBuilder<List<double>>(
             valueListenable: waveformNotifier,
             builder: (context, waveformData, _) {
-              return PaintedWaveform(
+              return Waveform(
                 waveformData,
                 scrollable: _recording ? false : true,
                 key: const Key("test_page_painted_wave_form"),
