@@ -30,6 +30,9 @@ class _MyTestPageState extends State<MyTestPage> {
   ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
   bool _recording = false;
+  bool _playing = false;
+
+  final waveformMetricsNotifier = ValueNotifier(WaveformMetrics(0, 0));
 
   @override
   void initState() {
@@ -82,12 +85,25 @@ class _MyTestPageState extends State<MyTestPage> {
 
   void _startPlay() {
     log.info("Start Play");
+    _playing = true;
     agent.startPlay(audioPath);
+    final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
+    if (ms != 0) {
+      agent.seekTo(ms);
+    }
   }
 
   void _stopPlay() {
     log.info("Stop Play");
+    _playing = false;
     agent.stopPlay();
+  }
+
+  void _waveformPositionListener(WaveformMetrics metrics) {
+    waveformMetricsNotifier.value = metrics;
+    if (_playing) {
+      agent.seekTo((metrics.position * 1000).toInt());
+    }
   }
 
   @override
@@ -117,6 +133,30 @@ class _MyTestPageState extends State<MyTestPage> {
                 waveformData,
                 scrollable: _recording ? false : true,
                 key: const Key("test_page_painted_wave_form"),
+                positionListener: _waveformPositionListener,
+              );
+            }),
+        ValueListenableBuilder<WaveformMetrics>(
+            valueListenable: waveformMetricsNotifier,
+            builder: (context, metrics, _) {
+              return Column(
+                children: [
+                  LinearProgressIndicator(
+                    color: Colors.red,
+                    // backgroundColor: Colors.red,
+                    value: metrics.duration == 0
+                        ? 0
+                        : metrics.position / metrics.duration,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("0.0"),
+                      Text((metrics.position).toStringAsFixed(2)),
+                      Text((metrics.duration).toStringAsFixed(1)),
+                    ],
+                  ),
+                ],
               );
             }),
         Row(children: [

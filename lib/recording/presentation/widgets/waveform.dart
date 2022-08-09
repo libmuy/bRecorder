@@ -1,11 +1,21 @@
+import 'dart:async';
+
 import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/recording/domain/waveform_data_model.dart';
 import 'package:brecorder/recording/presentation/widgets/center_bar_painter.dart';
 import 'package:brecorder/recording/presentation/widgets/waveform_painter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 final log = Logger('WaveForm');
+
+class WaveformMetrics {
+  double duration;
+  double position;
+
+  WaveformMetrics(this.duration, this.position);
+}
 
 class _PointerInfo {
   int id;
@@ -20,7 +30,7 @@ class Waveform extends StatefulWidget {
   final double zoomLevel;
   final double height;
   final bool scrollable;
-  final Function(double postion)? positionListener;
+  final Function(WaveformMetrics metircs)? positionListener;
 
   const Waveform(this.waveformData,
       {required Key key,
@@ -69,15 +79,32 @@ class _WaveformState extends State<Waveform> {
     return _calcWidth(_zoom);
   }
 
+  double get _duration {
+    double dxDuration = 1000 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
+    double duration = dxDuration * widget.waveformData.length / 1000;
+    return duration;
+  }
+
   void _scrollListener() {
     if (widget.positionListener != null) {
-      final pos = _scrollController.offset /
-          _dx /
-          GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND *
-          1000;
-      widget.positionListener!(pos);
+      double pos;
+      if (_scrollController.hasClients) {
+        var percent = _scrollController.offset /
+            _scrollController.position.maxScrollExtent;
+        if (percent < 0) percent = 0;
+        if (percent > 1) percent = 1;
+        pos = _duration * percent;
+      } else {
+        pos = 0;
+      }
+      // log.debug("duration:$_duration, position:$pos");
+      widget.positionListener!(WaveformMetrics(_duration, pos));
     }
   }
+
+  // void _notifierWhenBuild(dynamic arg) {
+  //   _scrollListener();
+  // }
 
   double _availableZoom(double zoom) {
     if (zoom > _maxZoom) {
@@ -106,7 +133,7 @@ class _WaveformState extends State<Waveform> {
                   scrollDirection: Axis.horizontal,
                   physics: _isScaleMode
                       ? const NeverScrollableScrollPhysics()
-                      : const ScrollPhysics(),
+                      : const BouncingScrollPhysics(),
                   children: [child]),
               Center(
                 child: CustomPaint(
@@ -138,13 +165,6 @@ class _WaveformState extends State<Waveform> {
 
       // Normal Mode
     } else {
-      // double screenEdge;
-      // if (_width < _screenWidth) {
-      //   screenEdge = (_screenWidth - _width) / 2;
-      // } else {
-      //   screenEdge = 0;
-      // }
-      // return screenEdge + (_screenWidth / 2);
       return _screenWidth / 2;
     }
   }
@@ -256,6 +276,9 @@ class _WaveformState extends State<Waveform> {
     int fromIndex = 0;
     double startX = 0;
 
+    // compute(_notifierWhenBuild, null);
+    Timer.run(() => _scrollListener());
+
     return Listener(
       onPointerDown: _pointerDown,
       onPointerMove: _pointerMove,
@@ -273,11 +296,9 @@ class _WaveformState extends State<Waveform> {
               startX = _dx * (drawableCount - widget.waveformData.length);
             }
           }
-          double dxDuration = 1000 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
-          double duration = dxDuration * widget.waveformData.length / 1000;
-          var dbgStr = "[BUILD] duration:${duration.toStringAsFixed(2)} secs";
-          dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
-          log.debug(dbgStr);
+          // var dbgStr = "[BUILD] duration:${_duration.toStringAsFixed(2)} secs";
+          // dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
+          // log.debug(dbgStr);
           return _addScrollWrapper(CustomPaint(
             size: Size(
               widget.scrollable ? _width + (_edge * 2) : _screenWidth,

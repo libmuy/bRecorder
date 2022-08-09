@@ -270,6 +270,22 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         return AudioResult(AudioErrorInfo.OK)
     }
 
+    fun seekTo(position: Int): AudioResult<NoValue>{
+        //check state
+        if (mState != AudioState.Playing) {
+            return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
+        }
+
+        try {
+            mPlayer?.seekTo(position)
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Stop Playback Got Exception:$e")
+            return AudioResult(AudioErrorInfo.NG)
+        }
+
+        return AudioResult(AudioErrorInfo.OK)
+    }
+
     fun setPitch(pitch: Double): AudioResult<NoValue>{
         //check state
         if (mState != AudioState.Playing) {
