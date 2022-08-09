@@ -118,6 +118,17 @@ class AudioServiceAgent {
     return Succeed(Void());
   }
 
+  Future<Result<Void, ErrInfo>> seekTo(int ms) async {
+    try {
+      await _methodChannel.invokeMethod('seekTo', ms);
+    } on PlatformException catch (e) {
+      log.critical("Got exception: ${e.message}");
+      return Fail(PlatformFailure());
+    }
+
+    return Succeed(Void());
+  }
+
 // Set playback parameters
   Future<Result<Void, ErrInfo>> setPitch(double pitch) async {
     try {

@@ -139,6 +139,11 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val ret = audioManager!!.stopPlay()
                     endCallWithoutResult(result, ret)
                 }
+                "seekTo" -> {
+                    val position = call.arguments as Int;
+                    val ret = audioManager!!.seekTo(position)
+                    endCallWithoutResult(result, ret)
+                }
                 "setPitch" -> {
                     val pitch = call.arguments as Double;
                     val ret = audioManager!!.setPitch(pitch)
