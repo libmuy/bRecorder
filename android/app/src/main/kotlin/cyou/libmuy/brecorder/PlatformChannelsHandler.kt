@@ -29,24 +29,12 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
         }
     }
 
-    private fun <T>endCallWithoutResult(result: Result, ret: AudioResult<T>) {
-        if (ret.isOK()) {
-            result.success(ret.result)
-        } else {
-            result.error(ret.errorCode, ret.errorMessage, null)
-        }
+    private fun endCallWithParamError(result: Result, message: String) {
+        endCallWithResult(result, AudioResult<NoValue>(AudioErrorInfo.ParamError, extraString = message))
     }
 
     fun <T>sendEvent(data: T) {
         waveformEventSink?.success(data)
-    }
-
-    fun sendEventFail(errorMessage: String) {
-        waveformEventSink?.error("", errorMessage, null)
-    }
-
-    fun sendEventEnd() {
-        waveformEventSink?.endOfStream()
     }
 
     fun initialize() {
@@ -59,16 +47,11 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
         eventChannel.setStreamHandler(
             object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
-                    val args = (arguments as HashMap<String, Any>)
-                    var sampleRate = args["samplesPerSecond"] as Int
-                    var sendRate = args["sendPerSecond"] as Int
                         Log.i(LOG_TAG, "EventChannel: waveform")
                         waveformEventSink = events
-                        audioManager.eventListenStart(sampleRate, sendRate)
                 }
                 override fun onCancel(arguments: Any?) {
                     val args = arguments as String
-                    audioManager.eventListenStop()
                     waveformEventSink!!.endOfStream()
                     waveformEventSink = null
                     Log.w(LOG_TAG, "EventChannel onCancel called, args:$args")
@@ -80,62 +63,103 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
     private fun handleMethodCalls() {
 
         MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, "libmuy.com/brecorder/methodchannel").setMethodCallHandler { call, result ->
-//            val dbgpath = "$downloadFolder/test.aac"
             when (call.method) {
+                /*=======================================================================*\
+                  Recording
+                \*=======================================================================*/
+                "startRecord" -> {
+                    val sampleRate: Int? = call.argument("samplesPerSecond")
+                    val sendRate: Int? = call.argument("sendPerSecond")
+                    val path: String? = call.argument("path")
+                    if (sampleRate == null || sendRate == null || path == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
+                    val ret = audioManager!!.startRecord(path!!, sampleRate!!, sendRate!!)
+                    endCallWithResult(result, ret)
+                }
+                "stopRecord" -> {
+                    val ret = audioManager!!.stopRecord()
+                    endCallWithResult(result, ret)
+                }
+                "pauseRecord" -> {
+                    val ret = audioManager!!.pauseRecord()
+                    endCallWithResult(result, ret)
+                }
+                "resumeRecord" -> {
+                    val ret = audioManager!!.resumeRecord()
+                    endCallWithResult(result, ret)
+                }
+
+                /*=======================================================================*\
+                  Playing
+                \*=======================================================================*/
+                "startPlay" -> {
+                    val positionNotifyIntervalMs: Int? = call.argument("positionNotifyIntervalMs")
+                    val path: String? = call.argument("path")
+                    if (path == null || positionNotifyIntervalMs == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
+                    val ret = audioManager!!.startPlay(path!!, positionNotifyIntervalMs!!)
+                    endCallWithResult(result, ret)
+                }
+                "stopPlay" -> {
+                    val ret = audioManager!!.stopPlay()
+                    endCallWithResult(result, ret)
+                }
+                "pausePlay" -> {
+                    val ret = audioManager!!.pausePlay()
+                    endCallWithResult(result, ret)
+                }
+                "resumePlay" -> {
+                    val ret = audioManager!!.resumePlay()
+                    endCallWithResult(result, ret)
+                }
+                "seekTo" -> {
+                    val position: Int? = call.argument("position")
+                    val sync: Boolean? = call.argument("sync")
+                    if (position == null || sync == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
+                    if (sync!!) {
+                        audioManager!!.seekTo(position!!) {
+                            endCallWithResult(result, AudioResult<NoValue>(AudioErrorInfo.OK))
+                        }
+                    } else {
+                        val ret = audioManager!!.seekTo(position!!, null)
+                        endCallWithResult(result, ret)
+                    }
+                }
+                "setPitch" -> {
+                    val pitch = call.arguments as Double;
+                    val ret = audioManager!!.setPitch(pitch)
+                    endCallWithResult(result, ret)
+                }
+                "setSpeed" -> {
+                    val speed = call.arguments as Double;
+                    val ret = audioManager!!.setSpeed(speed)
+                    endCallWithResult(result, ret)
+                }
+
+                /*=======================================================================*\
+                  Other
+                \*=======================================================================*/
                 "getDuration" -> {
                     val path: String = call.arguments as String;
                     val ret = audioManager!!.getDuration(path)
                     endCallWithResult(result, ret)
                 }
-                "startRecord" -> {
-                    val path: String = call.arguments as String;
-                    val ret = audioManager!!.startRecord(path)
-                    endCallWithoutResult(result, ret)
-                }
-                "stopRecord" -> {
-                    val ret = audioManager!!.stopRecord()
-                    endCallWithoutResult(result, ret)
-                }
-                "startPlay" -> {
-                    val path: String = call.arguments as String;
-                    val ret = audioManager!!.startPlay(path)
-                    endCallWithoutResult(result, ret)
-                }
-                "stopPlay" -> {
-                    val ret = audioManager!!.stopPlay()
-                    endCallWithoutResult(result, ret)
-                }
-                "pausePlay" -> {
-                    val ret = audioManager!!.pausePlay()
-                    endCallWithoutResult(result, ret)
-                }
-                "resumePlay" -> {
-                    val ret = audioManager!!.resumePlay()
-                    endCallWithoutResult(result, ret)
-                }
-                "seekTo" -> {
-                    val position = call.arguments as Int;
-                    val ret = audioManager!!.seekTo(position)
-                    endCallWithoutResult(result, ret)
-                }
-                "setPitch" -> {
-                    val pitch = call.arguments as Double;
-                    val ret = audioManager!!.setPitch(pitch)
-                    endCallWithoutResult(result, ret)
-                }
-                "setSpeed" -> {
-                    val speed = call.arguments as Double;
-                    val ret = audioManager!!.setSpeed(speed)
-                    endCallWithoutResult(result, ret)
-                }
+
+                /*=======================================================================*\
+                  For Debugging
+                \*=======================================================================*/
                 "recordWav" -> {
                     val path: String = call.arguments as String;
                     val ret = audioManager!!.recordWav(path)
-                    endCallWithoutResult(result, ret)
+                    endCallWithResult(result, ret)
                 }
                 "stopRecordWav" -> {
                     val ret = audioManager!!.stopRecordWav()
-                    endCallWithoutResult(result, ret)
+                    endCallWithResult(result, ret)
                 }
                 "test" -> {
                     result.success(0)

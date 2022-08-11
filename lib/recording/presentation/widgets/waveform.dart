@@ -2,19 +2,38 @@ import 'dart:async';
 
 import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/recording/domain/waveform_data_model.dart';
 import 'package:brecorder/recording/presentation/widgets/center_bar_painter.dart';
 import 'package:brecorder/recording/presentation/widgets/waveform_painter.dart';
-import 'package:flutter/foundation.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
 final log = Logger('WaveForm');
 
-class WaveformMetrics {
-  double duration;
-  double position;
+class WaveformMetrics extends Equatable {
+  /// Unit: Seconds
+  final double duration;
 
-  WaveformMetrics(this.duration, this.position);
+  /// Unit: Seconds
+  final double position;
+
+  @override
+  List<Object> get props => [duration, position];
+
+  const WaveformMetrics(this.duration, this.position);
+}
+
+class WaveformDelegate {
+  Function(double, bool)? _setPosition;
+  Function(double, bool)? _setPositionByPercent;
+
+  void setPosition(double positionSec, {bool dispatchNotification = false}) {
+    _setPosition?.call(positionSec, dispatchNotification);
+  }
+
+  void setPositionByPercent(double percent,
+      {bool dispatchNotification = false}) {
+    _setPositionByPercent?.call(percent, dispatchNotification);
+  }
 }
 
 class _PointerInfo {
@@ -33,6 +52,7 @@ class Waveform extends StatefulWidget {
   final Function(WaveformMetrics metircs)? positionListener;
   final Function(WaveformMetrics metircs)? startSeek;
   final Function(WaveformMetrics metircs)? endSeek;
+  final WaveformDelegate? delegate;
 
   const Waveform(
     this.waveformData, {
@@ -43,6 +63,7 @@ class Waveform extends StatefulWidget {
     this.positionListener,
     this.startSeek,
     this.endSeek,
+    this.delegate,
   }) : super(key: key);
 
   @override
@@ -60,6 +81,9 @@ class _WaveformState extends State<Waveform> {
   final _pointers = <int, _PointerInfo>{};
   double _startScrollPosition = 0;
   double _startZoom = 0;
+  bool _noDispatchNotification = false;
+  WaveformMetrics? _notifiedMetrics;
+  bool _seeking = false;
 
   @override
   initState() {
@@ -67,6 +91,8 @@ class _WaveformState extends State<Waveform> {
     _zoom = widget.zoomLevel;
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener); // ←追加
+    widget.delegate?._setPosition = _setPosition;
+    widget.delegate?._setPositionByPercent = _setPositionByPercent;
     log.debug("initState()");
   }
 
@@ -84,12 +110,15 @@ class _WaveformState extends State<Waveform> {
     return _calcWidth(_zoom);
   }
 
+  ///Unit : Second
   double get _duration {
-    double dxDuration = 1000 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
-    double duration = dxDuration * widget.waveformData.length / 1000;
+    double dxDuration = 1 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
+    double duration = dxDuration * widget.waveformData.length;
+    // log.debug("duration:$duration, dx:$dxDuration");
     return duration;
   }
 
+  ///Unit : Second
   WaveformMetrics? get _metrics {
     if (widget.positionListener != null) {
       double pos;
@@ -109,11 +138,39 @@ class _WaveformState extends State<Waveform> {
     return null;
   }
 
+  void _setPosition(double seconds, bool dispatchNotification) {
+    if (_pointers.isNotEmpty) return;
+
+    final percent = seconds / _duration;
+    // log.debug("set position to $seconds ms, $percent%");
+    _setPositionByPercent(percent, dispatchNotification);
+  }
+
+  void _setPositionByPercent(double percent, bool dispatchNotification) {
+    // No scroll Mode
+    if (!widget.scrollable) {
+      return;
+
+      // Scale Mode
+    } else if (_isScaleMode) {
+      return;
+
+      // Normal Mode
+    } else {
+      _noDispatchNotification = !dispatchNotification;
+      _scrollController
+          .jumpTo(_scrollController.position.maxScrollExtent * percent);
+    }
+  }
+
   void _scrollListener() {
     final metrics = _metrics;
-    if (metrics != null) {
+    if (_noDispatchNotification == true) {
+      _noDispatchNotification = false;
+    } else if (metrics != null && _notifiedMetrics != metrics) {
       widget.positionListener!(metrics);
     }
+    _notifiedMetrics = metrics;
   }
 
   // void _notifierWhenBuild(dynamic arg) {
@@ -190,6 +247,7 @@ class _WaveformState extends State<Waveform> {
     // dbgStr += ", Offset:${targetScrollOffset.toStringAsFixed(2)}";
     // dbgStr += ", TargetWidth:${targetWidth.toStringAsFixed(2)}";
     // log.debug(dbgStr);
+    // log.debug("build waveform from scale");
     setState(() {
       _zoom = targetZoom;
       _scrollController.jumpTo(targetScrollOffset);
@@ -210,10 +268,12 @@ class _WaveformState extends State<Waveform> {
       final metrics = _metrics;
       if (widget.startSeek != null && metrics != null) {
         widget.startSeek!(_metrics!);
+        _seeking = true;
       }
 
       // 2 Pointers Down: Entering Scale Mode
     } else if (_pointers.length == 2) {
+      // log.debug("build waveform from pointer down");
       setState(() {
         final normalEdge = _edge;
         _isScaleMode = true;
@@ -231,15 +291,9 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerUp(PointerEvent details) {
-    // Ending Scoll Mode
-    if (_pointers.length == 1) {
-      final metrics = _metrics;
-      if (widget.endSeek != null && metrics != null) {
-        widget.endSeek!(_metrics!);
-      }
-
-      // Ending Scale Mode
-    } else if (_pointers.length == 2) {
+    // Ending Scale Mode
+    if (_pointers.length == 2) {
+      // log.debug("build waveform from pointer up");
       setState(() {
         final scaleEdge = _edge;
         _isScaleMode = false;
@@ -307,32 +361,47 @@ class _WaveformState extends State<Waveform> {
         );
 
         if (widget.scrollable) {
-          waveformWidget = Listener(
-              onPointerDown: _pointerDown,
-              onPointerMove: _pointerMove,
-              onPointerUp: _pointerUp,
-              child: SizedBox(
-                  height: widget.height,
-                  child: Stack(
-                    children: [
-                      ListView(
-                          controller: _scrollController,
-                          scrollDirection: Axis.horizontal,
-                          physics: _isScaleMode
-                              ? const NeverScrollableScrollPhysics()
-                              : const BouncingScrollPhysics(),
-                          children: [waveformWidget]),
-                      Center(
-                        child: CustomPaint(
-                          size: Size(
-                            4,
-                            widget.height,
+          waveformWidget = NotificationListener<ScrollEndNotification>(
+            // スクロールの状態をlisten
+
+            onNotification: (notification) {
+              // Ending Scoll Mode
+              final metrics = _metrics;
+              if (widget.endSeek != null && metrics != null && _seeking) {
+                widget.endSeek!(_metrics!);
+                _seeking = false;
+              }
+
+              return true;
+            },
+            // 初期状態でのマウススクロールを検知
+            child: Listener(
+                onPointerDown: _pointerDown,
+                onPointerMove: _pointerMove,
+                onPointerUp: _pointerUp,
+                child: SizedBox(
+                    height: widget.height,
+                    child: Stack(
+                      children: [
+                        ListView(
+                            controller: _scrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: _isScaleMode
+                                ? const NeverScrollableScrollPhysics()
+                                : const BouncingScrollPhysics(),
+                            children: [waveformWidget]),
+                        Center(
+                          child: CustomPaint(
+                            size: Size(
+                              4,
+                              widget.height,
+                            ),
+                            foregroundPainter: CenterBarPainter(),
                           ),
-                          foregroundPainter: CenterBarPainter(),
                         ),
-                      ),
-                    ],
-                  )));
+                      ],
+                    ))),
+          );
         }
         // var dbgStr = "[BUILD] duration:${_duration.toStringAsFixed(2)} secs";
         // dbgStr += ", edge:$_edge, zoom:$_zoom, width:$_width";
