@@ -30,7 +30,11 @@ class _MyTestPageState extends State<MyTestPage> {
   ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
   bool _recording = false;
-  bool _playing = false;
+  bool get _playing {
+    return audioButtonsState[1];
+  }
+
+  WaveformDelegate waveformDelegate = WaveformDelegate();
 
   final waveformMetricsNotifier = ValueNotifier(WaveformMetrics(0, 0));
 
@@ -66,46 +70,56 @@ class _MyTestPageState extends State<MyTestPage> {
       f.deleteSync();
     }
     _recording = true;
-    agent.onWaveformData = (eventData) {
-      waveformNotifier.value += eventData.map((e) => e.toDouble()).toList();
-    };
-    agent.startRecord(audioPath);
+    agent.startRecord(audioPath, onWaveformData: (waveformData) {
+      // log.debug("waveform date upddate:$waveformData");
+      waveformNotifier.value += waveformData.map((e) => e.toDouble()).toList();
+    });
   }
 
   void _stopRecording() {
     log.info("Stop recording");
     _recording = false;
     agent.stopRecord();
-    agent.onWaveformData = null;
   }
 
   void _startPlay() async {
     log.info("Start Play");
-    _playing = true;
     final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
     if (ms != 0) {
-      agent.seekTo(ms);
-      await Future.delayed(const Duration(seconds: 1));
+      await agent.seekTo(ms);
+      // await Future.delayed(const Duration(seconds: 1));
     }
-    agent.onPlayEvent = (event) {
-      if (event == "PlayComplete") {
-        if (audioButtonsState[1] == true) {
-          setState(() {
-            audioButtonsState[1] = false;
-          });
-        }
+    agent.startPlay(audioPath, positionNotifyIntervalMs: 10,
+        onPlayEvent: (data) {
+      switch (data["event"]) {
+        case "PlayComplete":
+          if (audioButtonsState[1] == true) {
+            setState(() {
+              audioButtonsState[1] = false;
+            });
+          }
+          break;
+        case "PositionUpdate":
+          int? positionMs = data["position"];
+          if (positionMs == null) {
+            positionMs = 0;
+            log.error("position updated with null");
+          }
+          double positionSec = positionMs / 1000;
+          waveformDelegate.setPosition(positionSec, dispatchNotification: true);
+          break;
+        default:
       }
-    };
-    agent.startPlay(audioPath);
+    });
   }
 
   void _stopPlay() {
     log.info("Stop Play");
-    _playing = false;
     agent.stopPlay();
   }
 
   void _waveformPositionListener(WaveformMetrics metrics) {
+    // log.debug("metrics updated: pos:${metrics.position.toStringAsFixed(2)}");
     waveformMetricsNotifier.value = metrics;
     // if (_playing) {
     //   agent.seekTo((metrics.position * 1000).toInt());
@@ -113,10 +127,12 @@ class _MyTestPageState extends State<MyTestPage> {
   }
 
   void _waveformStartSeek(WaveformMetrics metrics) {
+    log.debug("start seek");
     if (_playing) agent.pausePlay();
   }
 
   void _waveformEndSeek(WaveformMetrics metrics) async {
+    log.debug("end seek");
     if (_playing) {
       final ms = (metrics.position * 1000).toInt();
       if (ms != 0) {
@@ -150,6 +166,7 @@ class _MyTestPageState extends State<MyTestPage> {
         ValueListenableBuilder<List<double>>(
             valueListenable: waveformNotifier,
             builder: (context, waveformData, _) {
+              // log.debug("build waveform from test page");
               return Waveform(
                 waveformData,
                 scrollable: _recording ? false : true,
@@ -157,6 +174,7 @@ class _MyTestPageState extends State<MyTestPage> {
                 positionListener: _waveformPositionListener,
                 startSeek: _waveformStartSeek,
                 endSeek: _waveformEndSeek,
+                delegate: waveformDelegate,
               );
             }),
         ValueListenableBuilder<WaveformMetrics>(
@@ -164,19 +182,28 @@ class _MyTestPageState extends State<MyTestPage> {
             builder: (context, metrics, _) {
               return Column(
                 children: [
-                  LinearProgressIndicator(
-                    color: Colors.red,
-                    // backgroundColor: Colors.red,
-                    value: metrics.duration == 0
-                        ? 0
-                        : metrics.position / metrics.duration,
-                  ),
+                  Slider(
+                      value: metrics.duration == 0
+                          ? 0
+                          : metrics.position / metrics.duration,
+                      onChanged: (val) {
+                        log.debug("change to $val");
+                        waveformDelegate.setPositionByPercent(val,
+                            dispatchNotification: true);
+                      }),
+                  // LinearProgressIndicator(
+                  //   color: Colors.red,
+                  //   // backgroundColor: Colors.red,
+                  //   value: metrics.duration == 0
+                  //       ? 0
+                  //       : metrics.position / metrics.duration,
+                  // ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("0.0"),
+                      const Text("0.00"),
                       Text((metrics.position).toStringAsFixed(2)),
-                      Text((metrics.duration).toStringAsFixed(1)),
+                      Text((metrics.duration).toStringAsFixed(2)),
                     ],
                   ),
                 ],
