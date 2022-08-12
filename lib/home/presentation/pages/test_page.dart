@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
@@ -26,17 +25,21 @@ class _MyTestPageState extends State<MyTestPage> {
   var _pitchValue = 1.0;
   var _speedValue = 1.0;
   String audioPath = "";
-  List<bool> audioButtonsState = [false, false];
+  List<bool> audioButtonsState = [false, false, false];
   ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
   bool _recording = false;
   bool get _playing {
-    return audioButtonsState[1];
+    return audioButtonsState[2];
+  }
+
+  set _playing(bool value) {
+    audioButtonsState[2] = value;
   }
 
   WaveformDelegate waveformDelegate = WaveformDelegate();
 
-  final waveformMetricsNotifier = ValueNotifier(WaveformMetrics(0, 0));
+  final waveformMetricsNotifier = ValueNotifier(const WaveformMetrics(0, 0));
 
   @override
   void initState() {
@@ -63,7 +66,7 @@ class _MyTestPageState extends State<MyTestPage> {
     listDir(Directory(dirname(audioPath)), 0);
   }
 
-  void _startRecording() {
+  bool _startRecording() {
     log.info("Start recording");
     final f = File(audioPath);
     if (f.existsSync()) {
@@ -74,28 +77,43 @@ class _MyTestPageState extends State<MyTestPage> {
       // log.debug("waveform date upddate:$waveformData");
       waveformNotifier.value += waveformData.map((e) => e.toDouble()).toList();
     });
+
+    return true;
   }
 
-  void _stopRecording() {
+  bool _stopRecording() {
     log.info("Stop recording");
     _recording = false;
     agent.stopRecord();
+    return true;
   }
 
-  void _startPlay() async {
+  bool _pauseRecording() {
+    log.info("Pause recording");
+    agent.pauseRecord();
+    return true;
+  }
+
+  bool _resumeRecording() {
+    log.info("Resume recording");
+    agent.resumeRecord();
+    return true;
+  }
+
+  bool _startPlay() {
     log.info("Start Play");
     final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
     if (ms != 0) {
-      await agent.seekTo(ms);
+      agent.seekTo(ms);
       // await Future.delayed(const Duration(seconds: 1));
     }
     agent.startPlay(audioPath, positionNotifyIntervalMs: 10,
         onPlayEvent: (data) {
       switch (data["event"]) {
         case "PlayComplete":
-          if (audioButtonsState[1] == true) {
+          if (_playing == true) {
             setState(() {
-              audioButtonsState[1] = false;
+              _playing = false;
             });
           }
           break;
@@ -105,17 +123,20 @@ class _MyTestPageState extends State<MyTestPage> {
             positionMs = 0;
             log.error("position updated with null");
           }
+          log.debug("position update notification: $positionMs ms");
           double positionSec = positionMs / 1000;
           waveformDelegate.setPosition(positionSec, dispatchNotification: true);
           break;
         default:
       }
     });
+    return true;
   }
 
-  void _stopPlay() {
+  bool _stopPlay() {
     log.info("Stop Play");
     agent.stopPlay();
+    return true;
   }
 
   void _waveformPositionListener(WaveformMetrics metrics) {
@@ -132,12 +153,14 @@ class _MyTestPageState extends State<MyTestPage> {
   }
 
   void _waveformEndSeek(WaveformMetrics metrics) async {
-    log.debug("end seek");
     if (_playing) {
       final ms = (metrics.position * 1000).toInt();
       if (ms != 0) {
         agent.seekTo(ms);
+        log.debug("end seek, seek to: $ms");
         // await Future.delayed(const Duration(seconds: 1));
+      } else {
+        log.debug("end seek, seek to: $ms");
       }
       agent.resumePlay();
     }
@@ -250,26 +273,27 @@ class _MyTestPageState extends State<MyTestPage> {
           ),
         ]),
         ToggleButtons(
-          borderRadius: BorderRadius.all(Radius.circular(5)),
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
           borderWidth: 2,
           onPressed: (int index) {
+            bool toggle = false;
             if (index == 0) {
-              if (audioButtonsState[index] == false) {
-                _startRecording();
-              } else {
-                _stopRecording();
-              }
+              toggle = audioButtonsState[index]
+                  ? _stopRecording()
+                  : _startRecording();
             } else if (index == 1) {
-              if (audioButtonsState[index] == false) {
-                _startPlay();
-              } else {
-                _stopPlay();
-              }
+              toggle = audioButtonsState[index]
+                  ? _resumeRecording()
+                  : _pauseRecording();
+            } else if (index == 2) {
+              toggle = audioButtonsState[index] ? _stopPlay() : _startPlay();
             }
 
-            setState(() {
-              audioButtonsState[index] = !audioButtonsState[index];
-            });
+            if (toggle) {
+              setState(() {
+                audioButtonsState[index] = !audioButtonsState[index];
+              });
+            }
           },
           isSelected: audioButtonsState,
           children: <Widget>[
@@ -282,6 +306,12 @@ class _MyTestPageState extends State<MyTestPage> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: audioButtonsState[1]
+                  ? const Text("Rec Resume")
+                  : const Text("Rec Pause"),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: audioButtonsState[2]
                   ? const Text("Play Stop")
                   : const Text("Play Start"),
             ),
@@ -309,6 +339,12 @@ class _MyTestPageState extends State<MyTestPage> {
                 listAllFiles();
               },
               child: const Text("ls rootDir"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                agent.test("path");
+              },
+              child: const Text("Test"),
             ),
           ],
         ),

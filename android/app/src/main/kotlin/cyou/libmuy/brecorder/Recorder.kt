@@ -24,9 +24,9 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
     private val mActivity: FlutterActivity = act
     private val mChannelsHandler = channelsHandler
     private val mOnCleanupCallback = onCleanupCallback
-
     private var mRecorder: AudioRecord? = null
     private var mPcmToMp4: PcmToMp4? = null
+    private var mWorkerThread: WorkerThread? = null
     private val mWaveformGenerator = WaveformGenerator(waveformOutputCallback =  {data ->
         if (mWaveSampleRate > 0) {
             val map = HashMap<String, FloatArray>()
@@ -47,7 +47,7 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
         mWaveSendRate = 0
         try {
             if (mPcmToMp4 != null) {
-                mPcmToMp4!!.stop()
+                mPcmToMp4!!.endEncode()
                 mPcmToMp4 = null
             }
             if (mRecorder != null) {
@@ -94,8 +94,24 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
         return AudioResult(AudioErrorInfo.NoPermission)
     }
 
-
     @SuppressLint("MissingPermission")
+    private fun setupRecorderAndStartWorkerThread() {
+        //Recorder setup
+        val audioBufferSizeInByte = max(RECORDER_READ_BYTES * 10, // 適当に10フレーム分のバッファを持たせた
+            AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
+        mRecorder = AudioRecord(MediaRecorder.AudioSource.MIC,
+            SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT, audioBufferSizeInByte)
+
+        mRecorder!!.startRecording()
+
+        mWorkerThread = WorkerThread(
+            mRecorder!!,mPcmToMp4!!,mWaveformGenerator,mWaveSampleRate,mWaveSendRate
+        ) {
+            cleanup()
+        }
+        mWorkerThread!!.start()
+    }
+
     fun startRecord(path : String, waveSampleRate: Int, waveSendRate: Int): AudioResult<NoValue> {
         // Request Permissions
         val result = checkPermissions()
@@ -107,23 +123,11 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
         mWaveSendRate = waveSendRate
 
         try {
-            //Recorder setup
-            val audioBufferSizeInByte = max(RECORDER_READ_BYTES * 10, // 適当に10フレーム分のバッファを持たせた
-                    AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT))
-            mRecorder = AudioRecord(MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE, CHANNEL_CONFIG, AudioFormat.ENCODING_PCM_16BIT, audioBufferSizeInByte)
-
             //Encoder Setup
-            mPcmToMp4 = PcmToMp4(path) { pcmBuffer ->
-                val size = mRecorder!!.read(pcmBuffer, RECORDER_READ_BYTES)
-                if (size != RECORDER_READ_BYTES) {
-                    Log.w(LOG_TAG, "Read $size Bytes from AudioRecorder, wanted:$RECORDER_READ_BYTES")
-                }
-                if (mWaveSampleRate > 0) mWaveformGenerator.feedPCM(pcmBuffer, size, mWaveSampleRate, mWaveSendRate)
-                size
-            }
+            mPcmToMp4 = PcmToMp4(path)
 
-            mRecorder!!.startRecording()
+            //Encoder Recorder and Start work thread
+            setupRecorderAndStartWorkerThread()
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Recording Got Exception:$e")
             cleanup()
@@ -134,6 +138,10 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
     }
 
     fun stopRecord(): AudioResult<NoValue>{
+        mWorkerThread!!.end()
+        mWorkerThread!!.join()
+        mPcmToMp4!!.endEncode()
+
         if (!cleanup()) {
             return AudioResult(AudioErrorInfo.NG)
         }
@@ -143,11 +151,26 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
 
     fun pauseRecord(): AudioResult<NoValue>{
 
+        mWorkerThread!!.end()
+        mWorkerThread!!.join()
+        if (mRecorder != null) {
+            mRecorder?.stop()
+            mRecorder?.release()
+            mRecorder = null
+        }
 
         return AudioResult(AudioErrorInfo.OK)
     }
     fun resumeRecord(): AudioResult<NoValue>{
 
+        try {
+            //Encoder Recorder and Start work thread
+            setupRecorderAndStartWorkerThread()
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Recording Got Exception:$e")
+            cleanup()
+            return AudioResult(AudioErrorInfo.NG)
+        }
         return AudioResult(AudioErrorInfo.OK)
     }
 
@@ -164,6 +187,58 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
 
         return AudioResult(AudioErrorInfo.OK)
     }
+
+    class WorkerThread(recorder:AudioRecord,
+                       pcmToMp4:PcmToMp4,
+                       waveformGenerator: WaveformGenerator,
+                       waveSampleRate: Int,
+                       waveSendRate: Int,
+                       cleanup: () -> Unit
+    ): Thread() {
+        private var mThreadAlive = true
+        private var mRecorder = recorder
+        private var mPcmToMp4 = pcmToMp4
+        private val mWaveformGenerator = waveformGenerator
+        private var mWaveSampleRate = waveSampleRate
+        private var mWaveSendRate = waveSendRate
+        private var mCleanup = cleanup
+
+        fun end() {
+            mThreadAlive = false
+        }
+
+        override fun run() {
+            Log.i(LOG_TAG, "Start Recording Thread")
+            mThreadAlive = true
+            while (mThreadAlive) {
+                try {
+                    mPcmToMp4!!.feedPCM { pcmBuffer ->
+                        val size = mRecorder!!.read(pcmBuffer, RECORDER_READ_BYTES)
+                        if (size != RECORDER_READ_BYTES) {
+                            Log.w(
+                                LOG_TAG,
+                                "Read $size Bytes from AudioRecorder, wanted:$RECORDER_READ_BYTES"
+                            )
+                        }
+                        if (mWaveSampleRate > 0) mWaveformGenerator.feedPCM(
+                            pcmBuffer,
+                            size,
+                            mWaveSampleRate,
+                            mWaveSendRate
+                        )
+
+                        size
+                    }
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Recording Thread Got Exception:$e")
+                    mCleanup()
+                    mThreadAlive = false
+                }
+            }
+            Log.i(LOG_TAG, "Recording stop, save wave to file")
+        }
+    }
+
 }
 
 @RequiresApi(Build.VERSION_CODES.M)

@@ -44,8 +44,8 @@ class Succeed<S, F> extends Result<S, F> {
   F? get failureValue => null;
 
   @override
-  void fold(void Function(S) sf, void Function(F) ff) {
-    sf(value);
+  void fold(void Function(S) successHandler, void Function(F) failureHandler) {
+    successHandler(value);
   }
 }
 
@@ -66,8 +66,8 @@ class Fail<S, F> extends Result<S, F> {
   F get failureValue => value;
 
   @override
-  void fold(void Function(S) sf, void Function(F) ff) {
-    ff(value);
+  void fold(void Function(S) successHandler, void Function(F) failureHandler) {
+    failureHandler(value);
   }
 }
 

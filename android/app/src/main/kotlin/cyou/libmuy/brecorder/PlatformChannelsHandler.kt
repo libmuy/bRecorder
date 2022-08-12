@@ -162,6 +162,8 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     endCallWithResult(result, ret)
                 }
                 "test" -> {
+                    val t = Test()
+                    t.test1()
                     result.success(0)
                 }
                 else -> {

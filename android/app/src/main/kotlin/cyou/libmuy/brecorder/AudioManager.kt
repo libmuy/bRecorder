@@ -63,6 +63,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
     @SuppressLint("MissingPermission")
     fun startRecord(path : String, waveSampleRate: Int, waveSendRate: Int): AudioResult<NoValue> {
+        Log.i(LOG_TAG, "Record Start")
         //check state
         if (mState != AudioState.Idle) {
             return AudioResult(AudioErrorInfo.StateErrNotIdle, extraString = "current state:${mState.name}")
@@ -77,6 +78,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun stopRecord(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Record Stop")
         //check state
         if (mState != AudioState.Recording) {
             return AudioResult(AudioErrorInfo.StateErrNotRecording, extraString = "current state:${mState.name}")
@@ -87,6 +89,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun pauseRecord(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Record Pause")
         //check state
         if (mState != AudioState.Recording) {
             return AudioResult(AudioErrorInfo.StateErrNotRecording, extraString = "current state:${mState.name}")
@@ -101,6 +104,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun resumeRecord(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Record Resume")
         //check state
         if (mState != AudioState.RecordPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotRecording, extraString = "current state:${mState.name}")
@@ -115,6 +119,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun startPlay(path: String, positionNotifyIntervalMs: Int): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Start")
         //check state
         if (mState != AudioState.Idle) {
             return AudioResult(AudioErrorInfo.StateErrNotIdle, extraString = "current state:${mState.name}")
@@ -129,6 +134,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun stopPlay(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Stop")
         //check state
         if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
@@ -139,6 +145,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun pausePlay(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Pause")
         //check state
         if (mState != AudioState.Playing) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
@@ -153,6 +160,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun resumePlay(): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Resume")
         //check state
         if (mState != AudioState.PlayPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
@@ -167,6 +175,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun seekTo(position: Int, onComplete: (() -> Unit)?): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Seek")
         //No state check, set the next play position when not playing
         val result = mPlayer.seekTo(position, onComplete)
         if (!result.isOK()) mState = AudioState.Idle
@@ -174,6 +183,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     }
 
     fun setPitch(pitch: Double): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Set Pitch")
         //check state
         if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
@@ -186,6 +196,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
 
     fun setSpeed(speed: Double): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Set Speed")
         //check state
         if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
