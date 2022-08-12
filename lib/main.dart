@@ -1,5 +1,4 @@
 import 'package:brecorder/home/presentation/pages/home_page.dart';
-import 'package:brecorder/home/presentation/pages/test_page.dart';
 import 'package:flutter/material.dart';
 
 import 'core/service_locator.dart';
@@ -23,8 +22,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: const MyTestPage(title: 'Test Page'),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      // home: const MyTestPage(title: 'Test Page'),
     );
   }
 }

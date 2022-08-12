@@ -1,5 +1,7 @@
 package cyou.libmuy.brecorder
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import java.nio.ByteBuffer
 import kotlin.math.abs
@@ -88,7 +90,9 @@ class WaveformGenerator(waveformOutputCallback: (waveformData: FloatArray) -> Un
 //            allZeroFlag = true
 //            bigDebugStr = ""
 //            smallDebugStr = ""
-                    sendWaveform(eventData!!)
+                    Handler(Looper.getMainLooper()).post {
+                        sendWaveform(eventData!!)
+                    }
                     dataIndex = 0
                 }
             }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';

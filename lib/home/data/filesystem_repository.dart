@@ -1,11 +1,9 @@
 import 'dart:io';
 
-import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/home/domain/entities.dart';
 import 'package:brecorder/home/domain/abstract_repository.dart';
-import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -32,8 +30,6 @@ class FilesystemRepository extends AbstractRepository {
 
   @override
   Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path) async {
-    final audioAgent = GetIt.instance.get<AudioServiceAgent>();
-
     Directory dir;
     var subfolders = List<FolderSimpleInfo>.empty(growable: true);
     var audios = List<AudioInfo>.empty(growable: true);

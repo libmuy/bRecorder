@@ -100,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: ValueListenableBuilder<FolderInfo>(
           valueListenable: stateManager.filesystemFolderNotifier,
-          builder: (context, folderInfo, _child) {
+          builder: (context, folderInfo, _) {
             return Column(
               children: [
                 _positionBar(folderInfo.path),
