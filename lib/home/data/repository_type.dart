@@ -1,1 +1,1 @@
-enum RepoType { filesystem, iCloud, playlist }
+enum RepoType { filesystem, iCloud, playlist, trash }

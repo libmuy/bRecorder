@@ -112,7 +112,7 @@ class _WaveformState extends State<Waveform> {
 
   ///Unit : Second
   double get _duration {
-    double dxDuration = 1 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND;
+    double dxDuration = 1.0 / GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND.toDouble();
     double duration = dxDuration * widget.waveformData.length;
     // log.debug("duration:$duration, dx:$dxDuration");
     return duration;

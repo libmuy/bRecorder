@@ -22,6 +22,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final getIt = GetIt.instance;
   final stateManager = GetIt.instance.get<HomePageState>();
+  var _value = "one";
 
   @override
   void initState() {
@@ -76,27 +77,41 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              const MyTestPage(title: "Rec Test Page")));
-                },
-                child: const Text("Test")),
-            ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const ListenerTestPage()));
-                },
-                child: const Text("ListenerTest")),
-          ],
-        ),
+        title: Text("Title"),
+        // title: Row(
+        //   children: [
+        //     ElevatedButton(
+        //         onPressed: () {
+        //           Navigator.push(
+        //               context,
+        //               MaterialPageRoute(
+        //                   builder: (context) =>
+        //                       const MyTestPage(title: "Rec Test Page")));
+        //         },
+        //         child: const Text("Test")),
+        //     ElevatedButton(
+        //         onPressed: () {
+        //           Navigator.push(
+        //               context,
+        //               MaterialPageRoute(
+        //                   builder: (context) => const ListenerTestPage()));
+        //         },
+        //         child: const Text("ListenerTest")),
+        //   ],
+        // ),
+        // title: DropdownButton<String>(
+        //   value: _value,
+        //   items: const <DropdownMenuItem<String>>[
+        //     DropdownMenuItem(
+        //       value: 'one',
+        //       child: Text('one'),
+        //     ),
+        //     DropdownMenuItem(value: 'two', child: Text('two')),
+        //   ],
+        //   onChanged: (value) {
+        //     setState(() => _value = value!);
+        //   },
+        // ),
       ),
       body: ValueListenableBuilder<FolderInfo>(
           valueListenable: stateManager.filesystemFolderNotifier,

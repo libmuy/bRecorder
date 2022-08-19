@@ -71,6 +71,7 @@ class Player constructor(
             },0, mPositionNotifyIntervalMs)
         }
     }
+    
     fun startPlay(path: String, positionNotifyIntervalMs: Int): AudioResult<NoValue> {
         if (!File(path).exists()) {
             return AudioResult(AudioErrorInfo.FileNotFound)

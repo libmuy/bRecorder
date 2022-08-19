@@ -17,9 +17,12 @@ class AudioServiceAgent {
   StreamSubscription? _eventStream;
   Function(Float32List eventData)? _onWaveformData;
   Function(dynamic)? _onPlayEvent;
+  bool _gotPlatformParams = false;
+  Completer? _platformParamCompleter;
 
   AudioServiceAgent() {
     _startListenEvent();
+    setParams();
   }
 
   void _startListenEvent() {
@@ -34,9 +37,31 @@ class AudioServiceAgent {
         if (map.containsKey("waveform")) {
           _onWaveformData?.call(map["waveform"]);
         }
+
         if (map.containsKey("playEvent")) {
           // log.debug("Got Player Event:${map['playEvent']}");
           _onPlayEvent?.call(map["playEvent"]);
+        }
+
+        if (map.containsKey("platformPametersEvent")) {
+          final params = map["platformPametersEvent"];
+          GlobalInfo.PLATFORM_PITCH_MAX_VALUE =
+              params["PLATFORM_PITCH_MAX_VALUE"];
+          GlobalInfo.PLATFORM_PITCH_MIN_VALUE =
+              params["PLATFORM_PITCH_MIN_VALUE"];
+          GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE =
+              params["PLATFORM_PITCH_DEFAULT_VALUE"];
+          _gotPlatformParams = true;
+          if (_platformParamCompleter != null) {
+            _platformParamCompleter!.complete();
+            _platformParamCompleter = null;
+          }
+        }
+
+        if (map.containsKey("testEvent")) {
+          log.debug("Got Test Event:${map['testEvent']}");
+          // final floatArray = map['testEvent'] as Float64List;
+          // log.debug("array len:" + floatArray.length.toString());
         }
       }, onError: (dynamic error) {
         log.error("event channel error${error.message}");
@@ -48,6 +73,13 @@ class AudioServiceAgent {
     } catch (e) {
       log.error("register event channel failed");
     }
+  }
+
+  Future waitPlatformParams() async {
+    if (_gotPlatformParams) return;
+
+    _platformParamCompleter = Completer();
+    return _platformParamCompleter!.future;
   }
 
   Future<void> _stopListenEvent() async {
@@ -68,28 +100,12 @@ class AudioServiceAgent {
     return true;
   }
 
-  Future<Result<int, ErrInfo>> getDuration(String path) async {
-    var ret = 0;
-    try {
-      ret = await _methodChannel.invokeMethod('getDuration', path);
-    } on PlatformException catch (e) {
-      log.critical("Got exception: $e");
-      ret = -1;
-    }
-
-    if (ret < 0) return Fail(PlatformFailure());
-
-    return Succeed(ret);
-  }
-
   /*=======================================================================*\ 
     Recording
   \*=======================================================================*/
   Future<Result<Void, ErrInfo>> startRecord(String path,
       {Function(Float32List eventData)? onWaveformData}) async {
     final ret = await _callVoidPlatformMethod("startRecord", {
-      "samplesPerSecond": GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND,
-      "sendPerSecond": GlobalInfo.WAVEFORM_SEND_PER_SECOND,
       "path": path,
     });
     if (ret == false) {
@@ -131,7 +147,6 @@ class AudioServiceAgent {
       {Function(dynamic)? onPlayEvent,
       int positionNotifyIntervalMs = 0}) async {
     if (!await _callVoidPlatformMethod("startPlay", {
-      "positionNotifyIntervalMs": positionNotifyIntervalMs,
       "path": path,
     })) {
       return Fail(PlatformFailure());
@@ -184,14 +199,59 @@ class AudioServiceAgent {
 
 // Set playback parameters
   Future<Result<Void, ErrInfo>> setPitch(double pitch) async {
-    if (!await _callVoidPlatformMethod("setPitch", pitch)) {
+    if (!await _callVoidPlatformMethod("setPitch", {"pitch": pitch})) {
       return Fail(PlatformFailure());
     }
     return Succeed(Void());
   }
 
   Future<Result<Void, ErrInfo>> setSpeed(double speed) async {
-    if (!await _callVoidPlatformMethod("setSpeed", speed)) {
+    if (!await _callVoidPlatformMethod("setSpeed", {"speed": speed})) {
+      return Fail(PlatformFailure());
+    }
+    return Succeed(Void());
+  }
+
+  Future<Result<Void, ErrInfo>> setVolume(double volume) async {
+    if (!await _callVoidPlatformMethod("setVolume", {"volume": volume})) {
+      return Fail(PlatformFailure());
+    }
+    return Succeed(Void());
+  }
+
+  /*=======================================================================*\ 
+    Other
+  \*=======================================================================*/
+  Future<Result<int, ErrInfo>> getDuration(String path) async {
+    var ret = 0;
+    try {
+      ret = await _methodChannel.invokeMethod('getDuration', {"path": path});
+    } on PlatformException catch (e) {
+      log.critical("Got exception: $e");
+      ret = -1;
+    }
+
+    if (ret < 0) return Fail(PlatformFailure());
+
+    return Succeed(ret);
+  }
+
+  Future<Result<Void, ErrInfo>> setParams() async {
+    final ret = await _callVoidPlatformMethod("setParams", {
+      //Recording
+      "samplesPerSecond": GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND,
+      "sendPerSecond": GlobalInfo.WAVEFORM_SEND_PER_SECOND,
+      "recordFormat": GlobalInfo.RECORD_FORMAT,
+      "recordChannelCount": GlobalInfo.RECORD_CHANNEL_COUNT,
+      "recordSampleRate": GlobalInfo.RECORD_SAMPLE_RATE,
+      "recordBitRate": GlobalInfo.RECORD_BIT_RATE,
+      "recordFrameReadPerSecond": GlobalInfo.RECORD_FRAME_READ_PER_SECOND,
+
+      //Playback
+      "playbackPositionNotifyIntervalMS":
+          GlobalInfo.PLAYBACK_POSITION_NOTIFY_INTERVAL_MS,
+    });
+    if (ret == false) {
       return Fail(PlatformFailure());
     }
     return Succeed(Void());
@@ -228,16 +288,13 @@ class AudioServiceAgent {
     return Succeed(ret);
   }
 
-  Future<Result<int, ErrInfo>> test(String path) async {
-    var ret = 0;
+  Future<Result<String, ErrInfo>> test(String path) async {
+    String ret = "";
     try {
-      ret = await _methodChannel.invokeMethod('test', path);
+      ret = await _methodChannel.invokeMethod('test', {"name": "Jhon"});
     } on PlatformException catch (e) {
       log.critical("Got exception: ${e.message}");
-      ret = -1;
     }
-
-    if (ret < 0) return Fail(PlatformFailure());
 
     return Succeed(ret);
   }
