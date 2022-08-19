@@ -130,12 +130,18 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     }
                 }
                 "setPitch" -> {
-                    val pitch = call.arguments as Double;
+                    val pitch: Double? = call.argument("pitch")
+                    if (pitch == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
                     val ret = audioManager!!.setPitch(pitch)
                     endCallWithResult(result, ret)
                 }
                 "setSpeed" -> {
-                    val speed = call.arguments as Double;
+                    val speed: Double? = call.argument("speed")
+                    if (speed == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
                     val ret = audioManager!!.setSpeed(speed)
                     endCallWithResult(result, ret)
                 }
@@ -144,7 +150,10 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                   Other
                 \*=======================================================================*/
                 "getDuration" -> {
-                    val path: String = call.arguments as String;
+                    val path: String? = call.argument("path")
+                    if (path == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    }
                     val ret = audioManager!!.getDuration(path)
                     endCallWithResult(result, ret)
                 }

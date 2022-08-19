@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:brecorder/core/audio_agent.dart';
+import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/recording/presentation/widgets/waveform.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ class _MyTestPageState extends State<MyTestPage> {
   final agent = GetIt.instance.get<AudioServiceAgent>();
   var _pitchValue = 1.0;
   var _speedValue = 1.0;
+  var _volumeValue = 1.0;
   String audioPath = "";
   List<bool> audioButtonsState = [false, false, false];
   ValueNotifier<List<double>> waveformNotifier =
@@ -46,7 +48,7 @@ class _MyTestPageState extends State<MyTestPage> {
     super.initState();
     getApplicationDocumentsDirectory().then((value) {
       setState(() {
-        audioPath = join(value.path, "test.mp4");
+        audioPath = join(value.path, "test.m4a");
       });
     });
   }
@@ -102,11 +104,16 @@ class _MyTestPageState extends State<MyTestPage> {
 
   bool _startPlay() {
     log.info("Start Play");
-    final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
-    if (ms != 0) {
-      agent.seekTo(ms);
-      // await Future.delayed(const Duration(seconds: 1));
+    try {
+      final ms = (waveformMetricsNotifier.value.position * 1000).toInt();
+      if (ms != 0) {
+        agent.seekTo(ms);
+        // await Future.delayed(const Duration(seconds: 1));
+      }
+    } catch (e) {
+      //do nothing
     }
+
     agent.startPlay(audioPath, positionNotifyIntervalMs: 10,
         onPlayEvent: (data) {
       switch (data["event"]) {
@@ -118,12 +125,12 @@ class _MyTestPageState extends State<MyTestPage> {
           }
           break;
         case "PositionUpdate":
-          int? positionMs = data["position"];
+          int? positionMs = data["data"];
           if (positionMs == null) {
             positionMs = 0;
             log.error("position updated with null");
           }
-          log.debug("position update notification: $positionMs ms");
+          // log.debug("position update notification: $positionMs ms");
           double positionSec = positionMs / 1000;
           waveformDelegate.setPosition(positionSec, dispatchNotification: true);
           break;
@@ -153,15 +160,17 @@ class _MyTestPageState extends State<MyTestPage> {
   }
 
   void _waveformEndSeek(WaveformMetrics metrics) async {
+    final ms = (metrics.position * 1000).toInt();
+    // if (ms != 0) {
+    //   agent.seekTo(ms);
+    //   log.debug("end seek, seek to: $ms");
+    //   // await Future.delayed(const Duration(seconds: 1));
+    // } else {
+    //   log.debug("end seek, seek to: $ms");
+    // }
+    agent.seekTo(ms);
+    log.debug("end seek, seek to: $ms");
     if (_playing) {
-      final ms = (metrics.position * 1000).toInt();
-      if (ms != 0) {
-        agent.seekTo(ms);
-        log.debug("end seek, seek to: $ms");
-        // await Future.delayed(const Duration(seconds: 1));
-      } else {
-        log.debug("end seek, seek to: $ms");
-      }
       agent.resumePlay();
     }
   }
@@ -232,34 +241,42 @@ class _MyTestPageState extends State<MyTestPage> {
                 ],
               );
             }),
-        Row(children: [
-          Text("Pitch:${_pitchValue.toStringAsFixed(1)}"),
-          Expanded(
-            child: Slider(
-              value: _pitchValue,
-              min: 0,
-              max: 5,
-              divisions: 50,
-              onChanged: (v) {
-                setState(() {
-                  _pitchValue = v;
-                });
-              },
-              onChangeEnd: (v) {
-                log.debug("Pitch changed to:$v");
-                agent.setPitch(_pitchValue);
-              },
-            ),
-          ),
-        ]),
+        FutureBuilder(
+          future: agent.waitPlatformParams(),
+          builder: (_, AsyncSnapshot<dynamic> snapshot) {
+            if (snapshot.hasData) {
+              _pitchValue = GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE;
+            }
+            return Row(children: [
+              Text("Pitch:${_pitchValue.toStringAsFixed(1)}"),
+              Expanded(
+                child: Slider(
+                  value: _pitchValue,
+                  min: GlobalInfo.PLATFORM_PITCH_MIN_VALUE,
+                  max: GlobalInfo.PLATFORM_PITCH_MAX_VALUE,
+                  divisions: 50,
+                  onChanged: (v) {
+                    setState(() {
+                      _pitchValue = v;
+                    });
+                  },
+                  onChangeEnd: (v) {
+                    log.debug("Pitch changed to:$v");
+                    agent.setPitch(_pitchValue);
+                  },
+                ),
+              ),
+            ]);
+          },
+        ),
         Row(children: [
           Text("Speed:${_speedValue.toStringAsFixed(1)}"),
           Expanded(
             child: Slider(
               value: _speedValue,
-              min: 0,
-              max: 5,
-              divisions: 50,
+              min: 0.25,
+              max: 3.0,
+              divisions: 100,
               onChanged: (v) {
                 setState(() {
                   _speedValue = v;
@@ -268,6 +285,26 @@ class _MyTestPageState extends State<MyTestPage> {
               onChangeEnd: (v) {
                 log.debug("Speed changed to:$v");
                 agent.setSpeed(_speedValue);
+              },
+            ),
+          ),
+        ]),
+        Row(children: [
+          Text("Volume:${_volumeValue.toStringAsFixed(1)}"),
+          Expanded(
+            child: Slider(
+              value: _volumeValue,
+              min: 0.0,
+              max: 10.0,
+              divisions: 100,
+              onChanged: (v) {
+                setState(() {
+                  _volumeValue = v;
+                });
+              },
+              onChangeEnd: (v) {
+                log.debug("Volume changed to:$v");
+                agent.setVolume(_volumeValue);
               },
             ),
           ),
@@ -342,7 +379,13 @@ class _MyTestPageState extends State<MyTestPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                agent.test("path");
+                agent.test("path").then((value) {
+                  value.fold((p0) {
+                    log.debug("test return:$p0");
+                  }, (p0) {
+                    log.debug("exception");
+                  });
+                });
               },
               child: const Text("Test"),
             ),
