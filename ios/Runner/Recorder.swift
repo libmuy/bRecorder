@@ -111,9 +111,15 @@ class Recorder {
     }
     
     func pauseRecord()-> AudioResult<NoValue>{
+        mAudioEngine.pause()
         return AudioResult(type: .OK)
     }
     func resumeRecord()-> AudioResult<NoValue>{
+        do {
+            try mAudioEngine.start()
+        } catch let error {
+            return errorResult("Resume Record: Got Exception \(error)")
+        }
         return AudioResult(type: .OK)
     }
     
