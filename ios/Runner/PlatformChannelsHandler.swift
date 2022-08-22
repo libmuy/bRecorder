@@ -17,7 +17,7 @@ class PlatformChannelsHandler {
     
     /*======================================================================================================*\
      Initializing
-     \*======================================================================================================*/
+    \*======================================================================================================*/
     func initialize(window: UIWindow?) {
         let controller : FlutterViewController = window?.rootViewController as! FlutterViewController
         let methodChannel = FlutterMethodChannel(name: "libmuy.com/brecorder/methodchannel",
@@ -37,7 +37,7 @@ class PlatformChannelsHandler {
     
     /*======================================================================================================*\
      Method Channel Handling
-     \*======================================================================================================*/
+    \*======================================================================================================*/
     private func endCallWithResult<T>(result: @escaping FlutterResult, ret: AudioResult<T>) {
         if (ret.isOK()) {
             result(ret.value)
@@ -104,7 +104,7 @@ class PlatformChannelsHandler {
         switch call.method {
             /*=======================================================================*\
              Recording
-             \*=======================================================================*/
+            \*=======================================================================*/
         case "startRecord":
             guard let path: String = unwrapParamString(result: result, args: call.arguments, name: "path") else {return}
             guard let ret = mAudioManager?.startRecord(path: path) else {
@@ -137,7 +137,7 @@ class PlatformChannelsHandler {
             
             /*=======================================================================*\
              Playing
-             \*=======================================================================*/
+            \*=======================================================================*/
         case "startPlay":
             guard let path: String = unwrapParamString(result: result, args: call.arguments, name: "path") else {return}
             guard let ret = mAudioManager?.startPlay(path: path) else {
@@ -211,7 +211,7 @@ class PlatformChannelsHandler {
             
             /*=======================================================================*\
              Other
-             \*=======================================================================*/
+            \*=======================================================================*/
         case "getDuration":
             guard let path: String = unwrapParamString(result: result, args: call.arguments, name: "path") else {return}
             guard let ret = mAudioManager?.getDuration(path: path) else {
@@ -245,7 +245,7 @@ class PlatformChannelsHandler {
 
             /*=======================================================================*\
              For Debugging
-             \*=======================================================================*/
+            \*=======================================================================*/
             
         case "test":
             guard let name: String = unwrapParamString(result: result, args: call.arguments, name: "name") else {return}
@@ -264,7 +264,7 @@ class PlatformChannelsHandler {
     
     /*======================================================================================================*\
      Event Channel Handling
-     \*======================================================================================================*/
+    \*======================================================================================================*/
     func sendEvent(data: [String: Any]) {
         mEventSink?(data)
     }

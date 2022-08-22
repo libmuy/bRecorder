@@ -39,10 +39,9 @@ class Recorder {
     }
     
     
-    private func errorResult(result: AudioResultType = .NG, _ message: String) -> AudioResult<NoValue> {
-        return AudioResult(type: result, extraString: message)
-    }
-    
+    /*======================================================================================================*\
+     Public Methods
+    \*======================================================================================================*/
     func startRecord(path : String)-> AudioResult<NoValue> {
         //Create Output File
         guard let url: URL = URL(string: path) else {
@@ -114,6 +113,7 @@ class Recorder {
         mAudioEngine.pause()
         return AudioResult(type: .OK)
     }
+    
     func resumeRecord()-> AudioResult<NoValue>{
         do {
             try mAudioEngine.start()
@@ -123,6 +123,15 @@ class Recorder {
         return AudioResult(type: .OK)
     }
     
+    /*======================================================================================================*\
+     Private Methods
+    \*======================================================================================================*/
+    /// Rusult value helper
+    private func errorResult(result: AudioResultType = .NG, _ message: String) -> AudioResult<NoValue> {
+        return AudioResult(type: result, extraString: message)
+    }
+    
+    /// Convert PCM Buffer format to [mPcmFormat]
     private func convertPcm(inputBuffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
         var error: NSError? = nil
         
@@ -146,7 +155,7 @@ class Recorder {
         return pcmBuffer
     }
     
-    // Permission
+    /// Setup permission
     private func setupPermission() {
         switch AVAudioSession.sharedInstance().recordPermission {
         case .granted:
