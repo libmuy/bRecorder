@@ -4,7 +4,9 @@ import 'package:brecorder/home/domain/entities.dart';
 import 'package:brecorder/home/presentation/pages/listener_test_page.dart';
 import 'package:brecorder/home/presentation/pages/test_page.dart';
 import 'package:brecorder/home/presentation/ploc/home_page_state.dart';
+import 'package:brecorder/home/presentation/widgets/title_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 
@@ -28,6 +30,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     stateManager.cd("/");
     super.initState();
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
   }
 
   Widget _positionBar(String fullPath) {
@@ -75,89 +80,117 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Title"),
-        // title: Row(
-        //   children: [
-        //     ElevatedButton(
-        //         onPressed: () {
-        //           Navigator.push(
-        //               context,
-        //               MaterialPageRoute(
-        //                   builder: (context) =>
-        //                       const MyTestPage(title: "Rec Test Page")));
-        //         },
-        //         child: const Text("Test")),
-        //     ElevatedButton(
-        //         onPressed: () {
-        //           Navigator.push(
-        //               context,
-        //               MaterialPageRoute(
-        //                   builder: (context) => const ListenerTestPage()));
-        //         },
-        //         child: const Text("ListenerTest")),
-        //   ],
-        // ),
-        // title: DropdownButton<String>(
-        //   value: _value,
-        //   items: const <DropdownMenuItem<String>>[
-        //     DropdownMenuItem(
-        //       value: 'one',
-        //       child: Text('one'),
-        //     ),
-        //     DropdownMenuItem(value: 'two', child: Text('two')),
-        //   ],
-        //   onChanged: (value) {
-        //     setState(() => _value = value!);
-        //   },
-        // ),
-      ),
-      body: ValueListenableBuilder<FolderInfo>(
-          valueListenable: stateManager.filesystemFolderNotifier,
-          builder: (context, folderInfo, _) {
-            return Column(
-              children: [
-                _positionBar(folderInfo.path),
-                const Divider(
-                  height: 3,
-                  thickness: 2,
-                ),
-                ListView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: folderInfo.subfolders
-                            .map((f) => ListTile(
-                                  title: Text(basename(f.path)),
-                                  leading: const Icon(Icons.folder),
-                                  onTap: () {
-                                    stateManager.cd(f.path);
-                                  },
-                                ))
-                            .toList() +
-                        folderInfo.audios
-                            .map((a) => ListTile(
-                                title: Text(basename(a.path)),
-                                leading: const Icon(Icons.audio_file)))
-                            .toList()),
-              ],
-            );
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: TitleBar(
+          leadingOnPressed: (() {
+            log.debug("pressed");
           }),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final agent = getIt.get<AudioServiceAgent>();
-          agent.test("").then(
-            (result) {
-              result.fold((s) {
-                log.debug("audio agent return: $s");
-              }, (f) {
-                log.debug("audio agent return: fail");
-              });
-            },
-          );
-        },
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+          endingOnPressed: (() {
+            log.debug("pressed");
+          }),
+          bottom: const TabBar(
+            tabs: [
+              Tab(
+                icon: Icon(Icons.phone_android),
+                iconMargin: EdgeInsets.all(0),
+              ),
+              Tab(
+                  icon: Icon(Icons.cloud_outlined),
+                  iconMargin: EdgeInsets.all(0)),
+              Tab(
+                  icon: Icon(Icons.delete_outline),
+                  iconMargin: EdgeInsets.all(0)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          physics: const BouncingScrollPhysics(),
+          children: [
+            Column(children: [
+              ValueListenableBuilder<FolderInfo>(
+                  valueListenable: stateManager.filesystemFolderNotifier,
+                  builder: (context, folderInfo, _) {
+                    return Column(
+                      children: [
+                        _positionBar(folderInfo.path),
+                        const Divider(
+                          height: 3,
+                          thickness: 2,
+                        ),
+                        ListView(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: folderInfo.subfolders
+                                    .map((f) => ListTile(
+                                          title: Text(basename(f.path)),
+                                          leading: const Icon(Icons.folder),
+                                          onTap: () {
+                                            stateManager.cd(f.path);
+                                          },
+                                        ))
+                                    .toList() +
+                                folderInfo.audios
+                                    .map((a) => ListTile(
+                                        title: Text(basename(a.path)),
+                                        leading: const Icon(Icons.audio_file)))
+                                    .toList()),
+                      ],
+                    );
+                  })
+            ]),
+            Icon(Icons.directions_transit),
+            Icon(Icons.directions_bike),
+          ],
+        ),
+
+        // body: ValueListenableBuilder<FolderInfo>(
+        //     valueListenable: stateManager.filesystemFolderNotifier,
+        //     builder: (context, folderInfo, _) {
+        //       return Column(
+        //         children: [
+        //           _positionBar(folderInfo.path),
+        //           const Divider(
+        //             height: 3,
+        //             thickness: 2,
+        //           ),
+        //           ListView(
+        //               shrinkWrap: true,
+        //               physics: const NeverScrollableScrollPhysics(),
+        //               children: folderInfo.subfolders
+        //                       .map((f) => ListTile(
+        //                             title: Text(basename(f.path)),
+        //                             leading: const Icon(Icons.folder),
+        //                             onTap: () {
+        //                               stateManager.cd(f.path);
+        //                             },
+        //                           ))
+        //                       .toList() +
+        //                   folderInfo.audios
+        //                       .map((a) => ListTile(
+        //                           title: Text(basename(a.path)),
+        //                           leading: const Icon(Icons.audio_file)))
+        //                       .toList()),
+        //         ],
+        //       );
+        //     }),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            final agent = getIt.get<AudioServiceAgent>();
+            agent.test("").then(
+              (result) {
+                result.fold((s) {
+                  log.debug("audio agent return: $s");
+                }, (f) {
+                  log.debug("audio agent return: fail");
+                });
+              },
+            );
+          },
+          tooltip: 'Increment',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

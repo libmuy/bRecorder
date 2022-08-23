@@ -43,8 +43,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Recording</string>
 	<key>NSLocalNetworkUsageDescription</key>
