@@ -134,7 +134,7 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     if (pitch == null) {
                         endCallWithParamError(result, "params is NULL")
                     }
-                    val ret = audioManager!!.setPitch(pitch)
+                    val ret = audioManager!!.setPitch(pitch!!)
                     endCallWithResult(result, ret)
                 }
                 "setSpeed" -> {
@@ -142,7 +142,7 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     if (speed == null) {
                         endCallWithParamError(result, "params is NULL")
                     }
-                    val ret = audioManager!!.setSpeed(speed)
+                    val ret = audioManager!!.setSpeed(speed!!)
                     endCallWithResult(result, ret)
                 }
 
@@ -154,7 +154,7 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     if (path == null) {
                         endCallWithParamError(result, "params is NULL")
                     }
-                    val ret = audioManager!!.getDuration(path)
+                    val ret = audioManager!!.getDuration(path!!)
                     endCallWithResult(result, ret)
                 }
 
