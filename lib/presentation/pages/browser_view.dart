@@ -1,37 +1,45 @@
-import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
-import '../widgets/title_bar.dart';
 
-final log = Logger('PhoneView');
+final log = Logger('BrowserView');
 
 class BrowserView extends StatefulWidget {
-  const BrowserView({Key? key, required this.title}) : super(key: key);
+  final RepoType repoType;
 
-  final String title;
+  const BrowserView({Key? key, required this.repoType}) : super(key: key);
 
   @override
   State<BrowserView> createState() => _BrowserViewState();
 }
 
 class _BrowserViewState extends State<BrowserView> {
+  late BrowserViewState state;
   final getIt = GetIt.instance;
-  final stateManager = GetIt.instance.get<BrowserViewState>();
-  var _value = "one";
 
   @override
   void initState() {
-    stateManager.cd("/");
     super.initState();
-    SystemChrome.setPreferredOrientations(
-        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+    switch (widget.repoType) {
+      case RepoType.filesystem:
+        state = getIt.get<FilesystemBrowserViewState>();
+        break;
+      case RepoType.iCloud:
+        state = getIt.get<ICloudBrowserViewState>();
+        break;
+      case RepoType.playlist:
+        state = getIt.get<PlaylistBrowserViewState>();
+        break;
+      case RepoType.trash:
+        state = getIt.get<TrashBrowserViewState>();
+        break;
+    }
+    state.cd("/");
   }
 
   Widget _positionBar(String fullPath) {
@@ -59,7 +67,7 @@ class _BrowserViewState extends State<BrowserView> {
         ),
         onPressed: () {
           log.info("Path button:$buttonPath clicked");
-          stateManager.cd(buttonPath);
+          state.cd(buttonPath);
         },
         child: Text(d),
       ));
@@ -79,118 +87,35 @@ class _BrowserViewState extends State<BrowserView> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: TitleBar(
-          leadingOnPressed: (() {
-            log.debug("pressed");
-          }),
-          endingOnPressed: (() {
-            log.debug("pressed");
-          }),
-          bottom: const TabBar(
-            tabs: [
-              Tab(
-                icon: Icon(Icons.phone_android),
-                iconMargin: EdgeInsets.all(0),
+    return ValueListenableBuilder<FolderInfo>(
+        valueListenable: state.folderNotifier,
+        builder: (context, folderInfo, _) {
+          return Column(
+            children: [
+              _positionBar(folderInfo.path),
+              const Divider(
+                height: 3,
+                thickness: 2,
               ),
-              Tab(
-                  icon: Icon(Icons.cloud_outlined),
-                  iconMargin: EdgeInsets.all(0)),
-              Tab(
-                  icon: Icon(Icons.delete_outline),
-                  iconMargin: EdgeInsets.all(0)),
+              ListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: folderInfo.subfolders
+                          .map((f) => ListTile(
+                                title: Text(basename(f.path)),
+                                leading: const Icon(Icons.folder),
+                                onTap: () {
+                                  state.cd(f.path);
+                                },
+                              ))
+                          .toList() +
+                      folderInfo.audios
+                          .map((a) => ListTile(
+                              title: Text(basename(a.path)),
+                              leading: const Icon(Icons.audio_file)))
+                          .toList()),
             ],
-          ),
-        ),
-        body: TabBarView(
-          physics: const BouncingScrollPhysics(),
-          children: [
-            Column(children: [
-              ValueListenableBuilder<FolderInfo>(
-                  valueListenable: stateManager.filesystemFolderNotifier,
-                  builder: (context, folderInfo, _) {
-                    return Column(
-                      children: [
-                        _positionBar(folderInfo.path),
-                        const Divider(
-                          height: 3,
-                          thickness: 2,
-                        ),
-                        ListView(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: folderInfo.subfolders
-                                    .map((f) => ListTile(
-                                          title: Text(basename(f.path)),
-                                          leading: const Icon(Icons.folder),
-                                          onTap: () {
-                                            stateManager.cd(f.path);
-                                          },
-                                        ))
-                                    .toList() +
-                                folderInfo.audios
-                                    .map((a) => ListTile(
-                                        title: Text(basename(a.path)),
-                                        leading: const Icon(Icons.audio_file)))
-                                    .toList()),
-                      ],
-                    );
-                  })
-            ]),
-            Icon(Icons.directions_transit),
-            Icon(Icons.directions_bike),
-          ],
-        ),
-
-        // body: ValueListenableBuilder<FolderInfo>(
-        //     valueListenable: stateManager.filesystemFolderNotifier,
-        //     builder: (context, folderInfo, _) {
-        //       return Column(
-        //         children: [
-        //           _positionBar(folderInfo.path),
-        //           const Divider(
-        //             height: 3,
-        //             thickness: 2,
-        //           ),
-        //           ListView(
-        //               shrinkWrap: true,
-        //               physics: const NeverScrollableScrollPhysics(),
-        //               children: folderInfo.subfolders
-        //                       .map((f) => ListTile(
-        //                             title: Text(basename(f.path)),
-        //                             leading: const Icon(Icons.folder),
-        //                             onTap: () {
-        //                               stateManager.cd(f.path);
-        //                             },
-        //                           ))
-        //                       .toList() +
-        //                   folderInfo.audios
-        //                       .map((a) => ListTile(
-        //                           title: Text(basename(a.path)),
-        //                           leading: const Icon(Icons.audio_file)))
-        //                       .toList()),
-        //         ],
-        //       );
-        //     }),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            final agent = getIt.get<AudioServiceAgent>();
-            agent.test("").then(
-              (result) {
-                result.fold((s) {
-                  log.debug("audio agent return: $s");
-                }, (f) {
-                  log.debug("audio agent return: fail");
-                });
-              },
-            );
-          },
-          tooltip: 'Increment',
-          child: const Icon(Icons.add),
-        ),
-      ),
-    );
+          );
+        });
   }
 }

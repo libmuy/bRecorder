@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData.dark(),
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.dark,
-      home: const HomePage(title: 'bRecorder Home'),
+      home: const HomePage(title: 'bRecorder'),
       // home: const MyTestPage(title: 'Test Page'),
     );
   }
