@@ -13,6 +13,7 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
   final double titleHeight;
   final double bottomHeight;
   final double titleMargin;
+  final double dividerHeight;
 
   const TitleBar(
       {Key? key,
@@ -23,13 +24,15 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
       this.title = const Text("title"),
       this.bottom = const Text(""),
       this.titleHeight = 35,
-      this.bottomHeight = 35,
-      this.titleMargin = 2})
+      this.bottomHeight = 40,
+      this.titleMargin = 2,
+      this.dividerHeight = 1})
       : super(key: key);
 
   @override
   Size get preferredSize {
-    return Size.fromHeight(titleHeight + bottomHeight + (titleMargin * 2));
+    return Size.fromHeight(
+        titleHeight + bottomHeight + (titleMargin * 2) + dividerHeight);
   }
 
   // void _dumpPositions(
@@ -143,6 +146,10 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
               ],
             ),
           ),
+        ),
+        Divider(
+          height: dividerHeight,
+          thickness: dividerHeight,
         ),
         SizedBox(height: bottomHeight, child: bottom),
       ],
