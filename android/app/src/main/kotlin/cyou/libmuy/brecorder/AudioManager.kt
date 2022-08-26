@@ -11,6 +11,15 @@ import java.io.File
 
 @RequiresApi(Build.VERSION_CODES.O)
 class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformChannelsHandler){
+    init {
+        val map = HashMap<String, Any>()
+        map["platformPametersEvent"] = mapOf(
+        "PLATFORM_PITCH_MAX_VALUE" to 2400.0,
+        "PLATFORM_PITCH_MIN_VALUE" to -2400.0,
+        "PLATFORM_PITCH_DEFAULT_VALUE" to 0.0
+        )
+        channelsHandler.sendEvent(map)
+    }
     private var mRecorder = Recorder(
         act, channelsHandler,
 //        onCleanupCallback = { resetState() },
@@ -69,7 +78,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
             return AudioResult(AudioErrorInfo.StateErrNotIdle, extraString = "current state:${mState.name}")
         }
 
-        val result = mRecorder.startRecord(path, waveSampleRate, waveSendRate)
+        val result = mRecorder.startRecord(path)
         mState = if (result.isOK())
             AudioState.Recording
         else

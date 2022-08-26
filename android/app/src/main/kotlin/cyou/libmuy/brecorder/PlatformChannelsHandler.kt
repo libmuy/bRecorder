@@ -73,9 +73,10 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val path: String? = call.argument("path")
                     if (sampleRate == null || sendRate == null || path == null) {
                         endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.startRecord(path!!, sampleRate!!, sendRate!!)
+                        endCallWithResult(result, ret)
                     }
-                    val ret = audioManager!!.startRecord(path!!, sampleRate!!, sendRate!!)
-                    endCallWithResult(result, ret)
                 }
                 "stopRecord" -> {
                     val ret = audioManager!!.stopRecord()
@@ -98,9 +99,10 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val path: String? = call.argument("path")
                     if (path == null || positionNotifyIntervalMs == null) {
                         endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.startPlay(path!!, positionNotifyIntervalMs!!)
+                        endCallWithResult(result, ret)
                     }
-                    val ret = audioManager!!.startPlay(path!!, positionNotifyIntervalMs!!)
-                    endCallWithResult(result, ret)
                 }
                 "stopPlay" -> {
                     val ret = audioManager!!.stopPlay()
@@ -133,17 +135,19 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val pitch: Double? = call.argument("pitch")
                     if (pitch == null) {
                         endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.setPitch(pitch!!)
+                        endCallWithResult(result, ret)
                     }
-                    val ret = audioManager!!.setPitch(pitch!!)
-                    endCallWithResult(result, ret)
                 }
                 "setSpeed" -> {
                     val speed: Double? = call.argument("speed")
                     if (speed == null) {
                         endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.setSpeed(speed!!)
+                        endCallWithResult(result, ret)
                     }
-                    val ret = audioManager!!.setSpeed(speed!!)
-                    endCallWithResult(result, ret)
                 }
 
                 /*=======================================================================*\
@@ -153,9 +157,39 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val path: String? = call.argument("path")
                     if (path == null) {
                         endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.getDuration(path!!)
+                        endCallWithResult(result, ret)
                     }
-                    val ret = audioManager!!.getDuration(path!!)
-                    endCallWithResult(result, ret)
+                }
+                "setParams" -> {
+                    val samplesPerSecond: Int? = call.argument("samplesPerSecond")
+                    val sendPerSecond: Int? = call.argument("sendPerSecond")
+                    val recordFormat: String? = call.argument("recordFormat")
+                    val recordChannelCount: Int? = call.argument("recordChannelCount")
+                    val recordSampleRate: Int? = call.argument("recordSampleRate")
+                    val recordBitRate: Int? = call.argument("recordBitRate")
+                    val recordFrameReadPerSecond: Int? = call.argument("recordFrameReadPerSecond")
+                    if (samplesPerSecond == null ||
+                        sendPerSecond == null ||
+                        recordChannelCount == null ||
+                        recordSampleRate == null ||
+                        recordBitRate == null ||
+                        recordFrameReadPerSecond == null ||
+                        recordFormat == null
+                    ) {
+                        endCallWithParamError(result, "params is NULL")
+                    } else {
+                        WAVEFORM_SAMPLES_PER_SECOND = samplesPerSecond!!
+                        WAVEFORM_SEND_PER_SECOND = sendPerSecond!!
+                        RECORD_FORMAT = recordFormat!!
+                        RECORD_CHANNEL_COUNT = recordChannelCount!!
+                        SAMPLE_RATE = recordSampleRate!!
+                        BIT_RATE = recordBitRate!!
+                        RECORD_FRAME_READ_PER_SECOND = recordFrameReadPerSecond!!
+                        endCallWithResult(result, AudioResult(AudioErrorInfo.OK, NoValue()))
+                        RECORDER_READ_BYTES = SAMPLE_RATE / RECORD_FRAME_READ_PER_SECOND * 2 * RECORD_CHANNEL_COUNT  //1回処理するバイト数
+                    }
                 }
 
                 /*=======================================================================*\

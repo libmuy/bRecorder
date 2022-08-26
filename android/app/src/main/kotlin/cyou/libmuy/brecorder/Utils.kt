@@ -1,24 +1,19 @@
 package cyou.libmuy.brecorder
 
-import android.annotation.SuppressLint
 import android.media.*
-import android.os.Build
-import android.util.Log
-import androidx.annotation.RequiresApi
-import io.flutter.embedding.android.FlutterActivity
-import java.io.File
 
 
 const val PERMISSIONS_REQ = 1
-const val SAMPLE_RATE = 44100                   // サンプリングレート (Hz)、// 全デバイスサポート保障は44100のみ
-const val RECORDER_READ_INTERVAL = 50          // 1秒間に何回音声データを処理したいか
-const val RECORDER_READ_FRAME_COUNT = SAMPLE_RATE / RECORDER_READ_INTERVAL  //1回処理するフレーム数
-const val CHANNEL_COUNT = 1
-const val RECORDER_READ_BYTES = RECORDER_READ_FRAME_COUNT * 2 * CHANNEL_COUNT  //1回処理するバイト数
-const val BIT_RATE = 64000
-const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
+var SAMPLE_RATE = 44100                   // サンプリングレート (Hz)、// 全デバイスサポート保障は44100のみ
+var RECORD_FRAME_READ_PER_SECOND = 50          // 1秒間に何回音声データを処理したいか
+var RECORD_CHANNEL_COUNT = 1
+var RECORDER_READ_BYTES = SAMPLE_RATE / RECORD_FRAME_READ_PER_SECOND * 2 * RECORD_CHANNEL_COUNT  //1回処理するバイト数
+var BIT_RATE = 64000
+var CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
 const val LOG_TAG = "Audio-Mgr"
-
+var WAVEFORM_SAMPLES_PER_SECOND = 40;
+var WAVEFORM_SEND_PER_SECOND = 10;
+var RECORD_FORMAT = "M4A_ACC"
 
 
 enum class AudioState {
