@@ -112,15 +112,15 @@ class Recorder constructor(act: FlutterActivity, channelsHandler: PlatformChanne
         mWorkerThread!!.start()
     }
 
-    fun startRecord(path : String, waveSampleRate: Int, waveSendRate: Int): AudioResult<NoValue> {
+    fun startRecord(path : String): AudioResult<NoValue> {
         // Request Permissions
         val result = checkPermissions()
         if (!result.isOK()) {
             return result
         }
 
-        mWaveSampleRate = waveSampleRate
-        mWaveSendRate = waveSendRate
+        mWaveSampleRate = WAVEFORM_SAMPLES_PER_SECOND
+        mWaveSendRate = WAVEFORM_SEND_PER_SECOND
 
         try {
             //Encoder Setup

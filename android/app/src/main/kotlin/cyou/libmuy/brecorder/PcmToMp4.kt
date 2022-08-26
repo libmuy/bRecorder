@@ -21,7 +21,7 @@ class PcmToMp4 (mp4Path: String): Thread() {
     private var mMuxer: MediaMuxer? = null
     private var mMuxerTrackIdx = -1
     private var mReceivedBytes = 0L
-    private var mFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, CHANNEL_COUNT)
+    private var mFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SAMPLE_RATE, RECORD_CHANNEL_COUNT)
 
     init {
         mFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
@@ -61,7 +61,7 @@ class PcmToMp4 (mp4Path: String): Thread() {
     }
 
     private fun bytes2TimeUs(bytes: Long):Long {
-        val bytesPerSec = SAMPLE_RATE * CHANNEL_COUNT * 2
+        val bytesPerSec = SAMPLE_RATE * RECORD_CHANNEL_COUNT * 2
         val timeUs = bytes * 1000000 / bytesPerSec;
         return timeUs
     }
