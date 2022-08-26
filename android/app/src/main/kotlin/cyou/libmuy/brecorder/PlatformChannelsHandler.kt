@@ -187,8 +187,8 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                         SAMPLE_RATE = recordSampleRate!!
                         BIT_RATE = recordBitRate!!
                         RECORD_FRAME_READ_PER_SECOND = recordFrameReadPerSecond!!
-                        endCallWithResult(result, AudioResult(AudioErrorInfo.OK, NoValue()))
                         RECORDER_READ_BYTES = SAMPLE_RATE / RECORD_FRAME_READ_PER_SECOND * 2 * RECORD_CHANNEL_COUNT  //1回処理するバイト数
+                        endCallWithResult(result, AudioResult<NoValue>(AudioErrorInfo.OK))
                     }
                 }
 
