@@ -12,8 +12,11 @@ import '../domain/entities_manager.dart';
 final sl = GetIt.instance;
 
 Future<void> init() async {
-  sl.registerFactory(() => HomePageState());
-  sl.registerFactory(() => BrowserViewState());
+  sl.registerLazySingleton(() => HomePageState());
+  sl.registerLazySingleton(() => FilesystemBrowserViewState());
+  sl.registerLazySingleton(() => ICloudBrowserViewState());
+  sl.registerLazySingleton(() => PlaylistBrowserViewState());
+  sl.registerLazySingleton(() => TrashBrowserViewState());
   sl.registerLazySingleton(() => AudioServiceAgent());
   sl.registerLazySingleton(() => FilesystemRepository());
   sl.registerLazySingleton(() => ICloudRepository());
