@@ -2,6 +2,7 @@ import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/data/repository_type.dart';
 import 'package:brecorder/presentation/pages/browser_view.dart';
+import 'package:brecorder/presentation/pages/record_page.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -109,15 +110,12 @@ class _HomePageState extends State<HomePage> {
         //     }),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            final agent = getIt.get<AudioServiceAgent>();
-            agent.test("").then(
-              (result) {
-                result.fold((s) {
-                  log.debug("audio agent return: $s");
-                }, (f) {
-                  log.debug("audio agent return: fail");
-                });
-              },
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) {
+                  return const RecordPage(); // 遷移先の画面widgetを指定
+                },
+              ),
             );
           },
           tooltip: 'Increment',
