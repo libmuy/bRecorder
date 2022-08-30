@@ -87,7 +87,7 @@ class HomePageState {
       return;
     }
     editModeNotifier.value = edit;
-    tabsInfo[currentTabIndex].delegate.setEditMode(edit);
+    currentTab.delegate.setEditMode(edit);
   }
 
   void titleBarLeadingOnPressed() {
@@ -109,6 +109,10 @@ class HomePageState {
     _notifyTitle();
     _setEditMode(false);
     log.info("folder changed: $path");
+  }
+
+  void recordDone() {
+    currentBrowserState.refresh();
   }
 }
 

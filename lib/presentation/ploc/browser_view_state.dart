@@ -12,12 +12,14 @@ final log = Logger('HomeState');
 abstract class BrowserViewState {
   final RepoType dataSourceType;
   late final Repository _repo;
+  Map<AudioObject, bool> selectedItems = {};
   ValueNotifier<FolderInfo> folderNotifier = ValueNotifier(FolderInfo(
     "",
     0,
     DateTime(1907),
     List.empty(),
     List.empty(),
+    0,
   ));
   bool editMode = false;
   String newFolderName = "";
@@ -36,11 +38,31 @@ abstract class BrowserViewState {
   void cd(String path) {
     _repo.getFolderInfo(path).then((result) {
       result.fold((folderInfo) {
+        for (final folder in folderInfo.subfolders) {
+          selectedItems[folder] = false;
+        }
+        for (final audio in folderInfo.audios) {
+          selectedItems[audio] = false;
+        }
         folderNotifier.value = folderInfo;
       }, (err) {
         log.critical("Failed to get folder($path) info");
       });
     });
+  }
+
+  bool itemIsSelected(AudioObject key) {
+    if (!selectedItems.containsKey(key)) {
+      return false;
+    }
+    return selectedItems[key]!;
+  }
+
+  void toggleSelected(AudioObject key) {
+    if (!selectedItems.containsKey(key)) {
+      selectedItems[key] = true;
+    }
+    selectedItems[key] = !selectedItems[key]!;
   }
 
   void cdParent() {
@@ -56,6 +78,10 @@ abstract class BrowserViewState {
     }, (ng) {
       log.debug("create folder failed: $ng");
     });
+  }
+
+  void refresh() {
+    cd(folderNotifier.value.path);
   }
 }
 

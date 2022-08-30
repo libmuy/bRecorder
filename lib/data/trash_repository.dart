@@ -15,7 +15,7 @@ class TrashRepository extends Repository {
     var files = List<FolderInfo>.empty(growable: true);
     var dirs = List<AudioInfo>.empty(growable: true);
 
-    return Succeed(FolderInfo(path, 0, DateTime(1907), files, dirs));
+    return Succeed(FolderInfo(path, 0, DateTime(1907), files, dirs, 0));
   }
 
   @override

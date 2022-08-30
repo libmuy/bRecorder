@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/data/repository_type.dart';
+import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
@@ -65,6 +66,8 @@ class RecordPageState {
 
     if (!mounted) return;
     Navigator.of(context).pop();
+
+    sl.get<HomePageState>().recordDone();
   }
 
   void waveformPositionListener(WaveformMetrics metrics) {

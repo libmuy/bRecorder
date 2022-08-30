@@ -10,6 +10,7 @@ import 'package:path/path.dart';
 
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
+import '../widgets/audio_list_item.dart';
 
 final log = Logger('BrowserView');
 
@@ -99,30 +100,37 @@ class _BrowserViewState extends State<BrowserView> {
         builder: (context, folderInfo, _) {
           return Column(
             children: [
-              // _positionBar(folderInfo.path),
-              // const Divider(
-              //   height: 3,
-              //   thickness: 2,
-              // ),
               Expanded(
                 child: ListView(
-                    // shrinkWrap: true,
                     physics: const BouncingScrollPhysics(),
                     children: folderInfo.subfolders
-                            .map((f) => ListTile(
-                                  title: Text(basename(f.path)),
-                                  leading: const Icon(Icons.folder),
+                            .map((folder) => AudioListItem(
+                                  audioItem: folder,
+                                  selectable: state.editMode,
                                   onTap: () {
-                                    state.cd(f.path);
+                                    if (state.editMode) {
+                                      state.toggleSelected(folder);
+                                    } else {
+                                      state.cd(folder.path);
+                                    }
                                   },
                                 ))
                             .toList() +
                         folderInfo.audios
-                            .map((a) => ListTile(
-                                title: Text(basename(a.path)),
-                                leading: const Icon(Icons.audio_file)))
+                            .map((audio) => AudioListItem(
+                                  audioItem: audio,
+                                  selectable: state.editMode,
+                                  onTap: () {
+                                    if (state.editMode) {
+                                      state.toggleSelected(audio);
+                                    } else {
+                                      log.debug("play audio:${audio.path}");
+                                    }
+                                  },
+                                ))
                             .toList()),
               ),
+              // Edit Mode: Bottom Buttons
               state.editMode
                   ? SizedBox(
                       height: 50,
@@ -145,6 +153,7 @@ class _BrowserViewState extends State<BrowserView> {
                               child:
                                   const Icon(Icons.create_new_folder_outlined),
                               onPressed: () {
+                                //New Folder Dialog
                                 showDialog(
                                   context: context,
                                   builder: (BuildContext context) =>
