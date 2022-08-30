@@ -71,7 +71,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
 
     @SuppressLint("MissingPermission")
-    fun startRecord(path : String, waveSampleRate: Int, waveSendRate: Int): AudioResult<NoValue> {
+    fun startRecord(path : String): AudioResult<NoValue> {
         Log.i(LOG_TAG, "Record Start")
         //check state
         if (mState != AudioState.Idle) {
@@ -89,7 +89,7 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
     fun stopRecord(): AudioResult<NoValue>{
         Log.i(LOG_TAG, "Record Stop")
         //check state
-        if (mState != AudioState.Recording) {
+        if (mState != AudioState.Recording && mState != AudioState.RecordPaused) {
             return AudioResult(AudioErrorInfo.StateErrNotRecording, extraString = "current state:${mState.name}")
         }
 

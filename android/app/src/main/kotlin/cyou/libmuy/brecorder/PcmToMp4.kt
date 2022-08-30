@@ -11,11 +11,11 @@ import java.io.FileOutputStream
 import java.nio.ByteBuffer
 
 
-private const val WRITE_WAV_TO_FILE = false
+//private const val WRITE_WAV_TO_FILE = false
 
 @RequiresApi(Build.VERSION_CODES.M)
 class PcmToMp4 (mp4Path: String): Thread() {
-    private val mOutputFileWav = BufferedOutputStream(FileOutputStream("$mp4Path.wav"))
+//    private val mOutputFileWav = BufferedOutputStream(FileOutputStream("$mp4Path"))
     private var mActive = true
     private var mEncoder: MediaCodec? = null
     private var mMuxer: MediaMuxer? = null
@@ -46,10 +46,10 @@ class PcmToMp4 (mp4Path: String): Thread() {
     }
 
     private fun cleanup() {
-        if (WRITE_WAV_TO_FILE) {
-            mOutputFileWav.flush()
-            mOutputFileWav.close()
-        }
+//        if (WRITE_WAV_TO_FILE) {
+//            mOutputFileWav.flush()
+//            mOutputFileWav.close()
+//        }
 
         mEncoder!!.stop()
         mEncoder!!.release()
@@ -76,9 +76,9 @@ class PcmToMp4 (mp4Path: String): Thread() {
 //        Log.d(LOG_TAG, "Got $sampleSize bytes PCM, timestamp:$timestamp")
 
         //write wav to file
-        if (WRITE_WAV_TO_FILE) {
-            mOutputFileWav.write(inputBuffer.array(), 0, sampleSize)
-        }
+//        if (WRITE_WAV_TO_FILE) {
+//            mOutputFileWav.write(inputBuffer.array(), 0, sampleSize)
+//        }
 
         //Return buffer back to Encoder
 //        Log.d(LOG_TAG, "Return input buffer to Encoder")
