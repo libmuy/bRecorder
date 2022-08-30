@@ -9,13 +9,18 @@ import 'package:path_provider/path_provider.dart';
 import '../domain/abstract_repository.dart';
 import '../domain/entities.dart';
 
-class TrashRepository extends AbstractRepository {
+class TrashRepository extends Repository {
   @override
   Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path) async {
     var files = List<FolderInfo>.empty(growable: true);
     var dirs = List<AudioInfo>.empty(growable: true);
 
     return Succeed(FolderInfo(path, 0, DateTime(1907), files, dirs));
+  }
+
+  @override
+  Future<String> get rootPath async {
+    return "";
   }
 
   @override
@@ -52,5 +57,10 @@ class TrashRepository extends AbstractRepository {
     }
 
     return Succeed(Void());
+  }
+
+  @override
+  Future<Result<Void, ErrInfo>> newFolder(String path) async {
+    return Fail(IOFailure());
   }
 }

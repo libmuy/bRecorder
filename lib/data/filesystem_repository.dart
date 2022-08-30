@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
 import 'package:brecorder/core/logging.dart';
-import 'package:get_it/get_it.dart';
+import 'package:brecorder/core/service_locator.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -12,10 +12,11 @@ import '../domain/entities.dart';
 
 final log = Logger('FsRepo');
 
-class FilesystemRepository extends AbstractRepository {
+class FilesystemRepository extends Repository {
   String? _rootPath;
-  final audioAgent = GetIt.instance.get<AudioServiceAgent>();
+  final audioAgent = sl.get<AudioServiceAgent>();
 
+  @override
   Future<String> get rootPath async {
     if (_rootPath != null) {
       return _rootPath!;
@@ -120,6 +121,23 @@ class FilesystemRepository extends AbstractRepository {
         final newPath = join(dstPath, f);
         File(f).renameSync(newPath);
       }
+    } catch (e) {
+      log.critical("got a file IO exception: $e");
+      return Fail(IOFailure());
+    }
+
+    return Succeed(Void());
+  }
+
+  @override
+  Future<Result<Void, ErrInfo>> newFolder(String path) async {
+    final absPath = await absolutePath(path);
+    final dir = Directory(absPath);
+    try {
+      if (await dir.exists()) {
+        return Fail(AlreadExists());
+      }
+      await dir.create();
     } catch (e) {
       log.critical("got a file IO exception: $e");
       return Fail(IOFailure());

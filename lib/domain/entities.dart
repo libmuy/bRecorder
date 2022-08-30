@@ -8,7 +8,7 @@ class AudioObject extends Equatable {
   const AudioObject(this.path, this.bytes, this.timestamp);
 
   @override
-  List<Object> get props => [path];
+  List<Object> get props => [path, bytes, timestamp];
 }
 
 class AudioInfo extends AudioObject {
@@ -18,7 +18,7 @@ class AudioInfo extends AudioObject {
       : super(path, bytes, timestamp);
 
   @override
-  List<Object> get props => [durationMS, path];
+  List<Object> get props => [durationMS, path, bytes, timestamp];
 }
 
 class FolderInfo extends AudioObject {
@@ -28,4 +28,7 @@ class FolderInfo extends AudioObject {
   const FolderInfo(
       String path, int bytes, DateTime timestamp, this.subfolders, this.audios)
       : super(path, bytes, timestamp);
+
+  @override
+  List<Object> get props => [path, bytes, timestamp, subfolders, audios];
 }

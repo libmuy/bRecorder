@@ -1,13 +1,10 @@
-import 'dart:io';
+import 'package:brecorder/core/service_locator.dart';
+import 'package:brecorder/data/repository_type.dart';
+import 'package:brecorder/presentation/ploc/record_page_state.dart';
 
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/presentation/widgets/state_button.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../widgets/editable_text.dart' as brecord;
 import '../widgets/waveform/waveform.dart';
@@ -15,56 +12,122 @@ import '../widgets/waveform/waveform.dart';
 final log = Logger('TestPage');
 
 class RecordPage extends StatefulWidget {
-  const RecordPage({Key? key}) : super(key: key);
+  final String dirPath;
+  final RepoType repoType;
+  const RecordPage({Key? key, required this.dirPath, required this.repoType})
+      : super(key: key);
 
   @override
   State<RecordPage> createState() => _RecordPageState();
 }
 
 class _RecordPageState extends State<RecordPage> {
-  final getIt = GetIt.instance;
-  final agent = GetIt.instance.get<AudioServiceAgent>();
+  final state = sl.get<RecordPageState>();
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  // }
+  @override
+  void initState() {
+    super.initState();
+    state.init(widget.dirPath, widget.repoType);
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text("Recording"),
-          ),
           body: Column(children: <Widget>[
-            const brecord.EditableText(
-              "2022-08-27",
-              height: 30,
-              padding: EdgeInsets.all(10),
-              textAlign: TextAlign.center,
+            // Status Bar space holder
+            SizedBox(
+              height: MediaQuery.of(context).viewPadding.top,
             ),
-            const Card(
-              child: Text("data"),
-            ),
+
+            // Record Page Title
             Container(
-              padding: EdgeInsets.all(10),
-              child: Row(children: [
-                MaterialButton(
-                  onPressed: () {},
-                  child: Icon(Icons.flag),
-                ),
-                StateButton(
-                  state1Widget: const Icon(Icons.mic),
-                  state2Widget: const Icon(Icons.pause),
-                  onPressed: () {},
-                ),
-                MaterialButton(
-                  onPressed: () {},
-                  child: Icon(Icons.stop),
-                ),
-              ]),
+                height: 50,
+                alignment: Alignment.center,
+                child: Text(
+                  "Recording",
+                  style: Theme.of(context).textTheme.titleLarge,
+                )),
+            const Divider(),
+
+            // Audio File Title
+            brecord.EditableText(
+              state.audioTitle,
+              height: 28,
+              padding: const EdgeInsets.all(20),
+              textAlign: TextAlign.center,
+              onTextChanged: (text) {
+                state.audioTitle = text;
+              },
+            ),
+
+            // Waveform widget
+            ValueListenableBuilder<List<double>>(
+                valueListenable: state.waveformNotifier,
+                builder: (context, waveformData, _) {
+                  return Expanded(
+                    child: Waveform(
+                      waveformData,
+                      scrollable: false,
+                      key: const Key("record_page_waveform"),
+                      positionListener: state.waveformPositionListener,
+                      // startSeek: _waveformStartSeek,
+                      // endSeek: _waveformEndSeek,
+                      delegate: state.waveformDelegate,
+                    ),
+                  );
+                }),
+
+            // Duration Text Lable
+            ValueListenableBuilder<WaveformMetrics>(
+                valueListenable: state.waveformMetricsNotifier,
+                builder: (context, metrics, _) {
+                  return Container(
+                    alignment: Alignment.center,
+                    height: 50,
+                    child: Text(
+                      metrics.duration.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 30,
+                      ),
+                    ),
+                  );
+                }),
+
+            // Controll Buttons
+            Container(
+              padding: const EdgeInsets.all(10),
+              child: ValueListenableBuilder<RecordState>(
+                  valueListenable: state.recordStateNotifier,
+                  builder: (context, recordState, _) {
+                    return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          //Flag Button
+                          MaterialButton(
+                            onPressed: () {},
+                            child: const Icon(Icons.flag),
+                          ),
+                          //Start/Pause Button
+                          MaterialButton(
+                            onPressed: state.startPauseButtonOnPressed,
+                            child: recordState == RecordState.recording
+                                ? const Icon(Icons.pause)
+                                : const Icon(Icons.mic),
+                          ),
+                          //Stop Button
+                          MaterialButton(
+                            onPressed: recordState == RecordState.stopped
+                                ? null
+                                : () {
+                                    state.stopButtonOnPressed(context, mounted);
+                                  },
+                            child: const Icon(Icons.stop),
+                          ),
+                        ]);
+                  }),
             )
           ]),
         ));

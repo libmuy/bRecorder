@@ -6,24 +6,26 @@ final log = Logger('TitleBar');
 class TitleBar extends StatelessWidget implements PreferredSizeWidget {
   final void Function()? leadingOnPressed;
   final void Function()? endingOnPressed;
-  final Icon leadingIcon;
-  final Icon endingIcon;
-  final Widget title;
+  final Widget leadingIcon;
+  final Widget endingIcon;
+  final ValueNotifier<String> titleNotifier;
   final Widget bottom;
   final double titleHeight;
+  final double titleFontSizeFactor;
   final double bottomHeight;
   final double titleMargin;
   final double dividerHeight;
 
   const TitleBar(
       {Key? key,
+      required this.titleNotifier,
       this.leadingOnPressed,
       this.endingOnPressed,
       this.leadingIcon = const Icon(Icons.settings),
       this.endingIcon = const Icon(Icons.edit),
-      this.title = const Text("title"),
       this.bottom = const Text(""),
       this.titleHeight = 35,
+      this.titleFontSizeFactor = 0.5,
       this.bottomHeight = 40,
       this.titleMargin = 2,
       this.dividerHeight = 1})
@@ -61,6 +63,7 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
     final buttonHeight = titleHeight;
     final buttonWidth = buttonHeight * 1.3;
     final Color backgroundColor = Theme.of(context).canvasColor;
+    final titleEdge = titleHeight * (1.0 - titleFontSizeFactor) / 2;
 
     // _dumpPositions(statusBarHeight, buttonWidth, buttonHeight);
 
@@ -84,10 +87,19 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
                         width: buttonWidth,
                       ),
                       Container(
-                        padding: EdgeInsets.only(
-                            top: buttonHeight * 0.2,
-                            bottom: buttonHeight * 0.2),
-                        child: FittedBox(fit: BoxFit.fitHeight, child: title),
+                        padding:
+                            EdgeInsets.only(top: titleEdge, bottom: titleEdge),
+                        // child: FittedBox(fit: BoxFit.fitHeight, child: title),
+                        child: ValueListenableBuilder<String>(
+                            valueListenable: titleNotifier,
+                            builder: (context, title, _) {
+                              return Text(
+                                title,
+                                style: TextStyle(
+                                    fontSize: titleHeight * titleFontSizeFactor,
+                                    height: 1),
+                              );
+                            }),
                       ),
                       SizedBox(
                         width: buttonWidth,
