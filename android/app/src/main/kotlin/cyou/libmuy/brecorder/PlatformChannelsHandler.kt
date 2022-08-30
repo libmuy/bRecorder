@@ -68,13 +68,11 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                   Recording
                 \*=======================================================================*/
                 "startRecord" -> {
-                    val sampleRate: Int? = call.argument("samplesPerSecond")
-                    val sendRate: Int? = call.argument("sendPerSecond")
                     val path: String? = call.argument("path")
-                    if (sampleRate == null || sendRate == null || path == null) {
+                    if (path == null) {
                         endCallWithParamError(result, "params is NULL")
                     } else {
-                        val ret = audioManager!!.startRecord(path!!, sampleRate!!, sendRate!!)
+                        val ret = audioManager!!.startRecord(path!!)
                         endCallWithResult(result, ret)
                     }
                 }
