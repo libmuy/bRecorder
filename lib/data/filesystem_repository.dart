@@ -38,6 +38,7 @@ class FilesystemRepository extends Repository {
     var subfolders = List<FolderInfo>.empty(growable: true);
     var audios = List<AudioInfo>.empty(growable: true);
     var folderTimestamp = DateTime(1970);
+    var audioCount = 0;
     var folderBytes = 0;
 
     if (path == "/") {
@@ -61,6 +62,8 @@ class FilesystemRepository extends Repository {
         if (folder.timestamp.compareTo(folderTimestamp) > 0) {
           folderTimestamp = folder.timestamp;
         }
+        audioCount += folder.audioCount;
+        folderBytes += folder.bytes;
       } else if (e is File) {
         log.debug("got file:${e.path}");
         final timestamp = await e.lastModified();
@@ -76,10 +79,17 @@ class FilesystemRepository extends Repository {
         if (timestamp.compareTo(folderTimestamp) > 0) {
           folderTimestamp = timestamp;
         }
+        audioCount += 1;
       }
     }
 
-    return FolderInfo(path, folderBytes, folderTimestamp, subfolders, audios);
+    if (folderTimestamp.compareTo(DateTime(1970)) == 0) {
+      final stat = await dir.stat();
+      folderTimestamp = stat.modified;
+    }
+
+    return FolderInfo(
+        path, folderBytes, folderTimestamp, subfolders, audios, audioCount);
   }
 
   @override

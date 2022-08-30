@@ -24,11 +24,13 @@ class AudioInfo extends AudioObject {
 class FolderInfo extends AudioObject {
   final List<FolderInfo> subfolders;
   final List<AudioInfo> audios;
+  final int audioCount;
 
-  const FolderInfo(
-      String path, int bytes, DateTime timestamp, this.subfolders, this.audios)
+  const FolderInfo(String path, int bytes, DateTime timestamp, this.subfolders,
+      this.audios, this.audioCount)
       : super(path, bytes, timestamp);
 
   @override
-  List<Object> get props => [path, bytes, timestamp, subfolders, audios];
+  List<Object> get props =>
+      [path, bytes, timestamp, subfolders, audios, audioCount];
 }
