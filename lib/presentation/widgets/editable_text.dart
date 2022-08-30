@@ -8,12 +8,14 @@ class EditableText extends StatefulWidget {
   final double height;
   final EdgeInsets padding;
   final TextAlign textAlign;
+  final void Function(String)? onTextChanged;
 
   const EditableText(this.initialText,
       {Key? key,
       this.height = 35,
       this.padding = const EdgeInsets.all(0),
-      this.textAlign = TextAlign.start})
+      this.textAlign = TextAlign.start,
+      this.onTextChanged})
       : super(key: key);
 
   @override
@@ -36,8 +38,7 @@ class _EditableTextState extends State<EditableText> {
     focusNode.addListener(() {
       if (!focusNode.hasFocus) {
         setState(() {
-          textString = _editingController.text;
-          _isEditingText = false;
+          textChanged(_editingController.text);
         });
       }
     });
@@ -49,120 +50,12 @@ class _EditableTextState extends State<EditableText> {
     super.dispose();
   }
 
-  Widget editableText() {
-    return Stack(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: widget.padding,
-            child: SizedBox(
-              height: widget.height,
-              child: Center(
-                child: TextField(
-                  textAlignVertical: TextAlignVertical.center,
-                  textAlign: widget.textAlign,
-                  style: TextStyle(
-                    height: 1,
-                    fontSize: fontSize,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.all(0),
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (newValue) {
-                    setState(() {
-                      textString = newValue;
-                      _isEditingText = false;
-                    });
-                  },
-                  autofocus: true,
-                  controller: _editingController,
-                ),
-              ),
-            ),
-          ),
-        ),
-        GestureDetector(
-            onTap: () {
-              _editingController.clear();
-            },
-            child: Padding(
-              padding: EdgeInsets.all(widget.height * 0.2),
-              child: Icon(size: widget.height * 0.6, Icons.clear),
-            )),
-      ],
-    );
-  }
-
-  Widget notEditableText() {
-    AlignmentGeometry align;
-    switch (widget.textAlign) {
-      case TextAlign.center:
-        align = Alignment.center;
-        break;
-      case TextAlign.left:
-      case TextAlign.start:
-      case TextAlign.justify:
-        align = Alignment.centerLeft;
-        break;
-      case TextAlign.right:
-      case TextAlign.end:
-        align = Alignment.centerRight;
-        break;
+  void textChanged(String newValue) {
+    textString = newValue;
+    _isEditingText = false;
+    if (widget.onTextChanged != null) {
+      widget.onTextChanged!(newValue);
     }
-
-    return Padding(
-      padding: widget.padding,
-      child: SizedBox(
-        height: widget.height,
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _isEditingText = true;
-            });
-          },
-          child: Center(
-            child: TextField(
-              textAlignVertical: TextAlignVertical.center,
-              textAlign: widget.textAlign,
-              style: TextStyle(
-                height: 1,
-                fontSize: fontSize,
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.all(0),
-                border: InputBorder.none,
-              ),
-              enabled: false,
-              controller: _editingController,
-            ),
-          ),
-
-          // child: Align(
-          //   alignment: align,
-          //   child: Text(
-          //     textAlign: widget.textAlign,
-          //     maxLines: 1,
-          //     textString,
-          //     style: TextStyle(
-          //       height: 1,
-          //       fontSize: fontSize,
-          //     ),
-          //   ),
-          // ),
-        ),
-      ),
-    );
-  }
-
-  Widget textWidget() {
-    if (_isEditingText) {
-      return editableText();
-    }
-
-    return notEditableText();
   }
 
   Widget addDelButton(Widget textField) {
@@ -186,6 +79,8 @@ class _EditableTextState extends State<EditableText> {
   }
 
   Widget textWidget2() {
+    // log.debug("font size:$fontSize");
+
     final textField = Padding(
       padding: widget.padding,
       child: SizedBox(

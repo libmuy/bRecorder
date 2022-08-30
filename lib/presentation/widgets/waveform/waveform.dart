@@ -336,6 +336,9 @@ class _WaveformState extends State<Waveform> {
         int fromIndex = 0;
         double startX = 0;
         _screenWidth = constraints.maxWidth;
+        if (_screenWidth == double.infinity) {
+          _screenWidth = MediaQuery.of(context).size.width;
+        }
 
         if (!widget.scrollable) {
           final drawableCount = _screenWidth / _dx;

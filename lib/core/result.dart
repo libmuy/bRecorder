@@ -88,3 +88,8 @@ class IOFailure extends ErrInfo {
   @override
   String toString() => "IOFailure";
 }
+
+class AlreadExists extends ErrInfo {
+  @override
+  String toString() => "AlreadyExists";
+}

@@ -8,7 +8,6 @@ final log = Logger('Main');
 
 void main() {
   Logger.forceLevel = LogLevel.all;
-  init();
   runApp(const MyApp());
 }
 
@@ -23,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData.dark(),
       darkTheme: ThemeData.dark(),
       themeMode: ThemeMode.dark,
-      home: const HomePage(title: 'bRecorder'),
+      home: const HomePage(),
       // home: const MyTestPage(title: 'Test Page'),
     );
   }
