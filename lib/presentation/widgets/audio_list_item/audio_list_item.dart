@@ -3,7 +3,6 @@ import 'package:brecorder/domain/entities.dart';
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart';
 
 final log = Logger('AudioListItem');
 
@@ -55,7 +54,7 @@ class _AudioListItemState extends State<AudioListItem> {
 
   String get _audioCountInfo {
     final folder = widget.audioItem as FolderInfo;
-    return "${folder.audioCount} Audios";
+    return "${folder.allAudioCount} Audios";
   }
 
   String get _durationInfo {
@@ -79,6 +78,8 @@ class _AudioListItemState extends State<AudioListItem> {
       child: ValueListenableBuilder<bool>(
           valueListenable: widget.state.highlightNotifier,
           builder: (context, highlight, _) {
+            // log.debug(
+            //     "build highlight:$highlight, item:${widget.audioItem.path}");
             return Container(
               // Overall Border, Padding
               decoration: BoxDecoration(
@@ -111,8 +112,6 @@ class _AudioListItemState extends State<AudioListItem> {
                         child: ValueListenableBuilder<AudioListItemMode>(
                             valueListenable: widget.state.modeNotifier,
                             builder: (context, mode, _) {
-                              log.debug(
-                                  "build select icon for:${basename(widget.audioItem.path)}");
                               Widget? selectIcon;
                               switch (mode) {
                                 case AudioListItemMode.normal:
@@ -168,8 +167,7 @@ class _AudioListItemState extends State<AudioListItem> {
                                 padding: EdgeInsets.all(widget.titlePadding),
                                 child: Align(
                                     alignment: Alignment.centerLeft,
-                                    child:
-                                        Text(basename(widget.audioItem.path)))),
+                                    child: Text(widget.audioItem.mapKey))),
 
                             // Details
                             Padding(

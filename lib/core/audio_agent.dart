@@ -54,6 +54,23 @@ class AudioServiceAgent {
   }
 
   void _notifyAudioEventListeners(AudioEventType eventType, dynamic data) {
+    if (eventType == AudioEventType.started) {
+      final audio = currentAudio!;
+      Timer.run(() {
+        audio.onPlayStarted?.call();
+      });
+    } else if (eventType == AudioEventType.paused) {
+      final audio = currentAudio!;
+      Timer.run(() {
+        audio.onPlayPaused?.call();
+      });
+    } else if (eventType == AudioEventType.stopped) {
+      final audio = currentAudio!;
+      Timer.run(() {
+        audio.onPlayStopped?.call();
+      });
+    }
+
     if (!_playEventListeners.containsKey(eventType)) {
       return;
     }

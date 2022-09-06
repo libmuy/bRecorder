@@ -1,6 +1,7 @@
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/core/service_locator.dart';
 import 'package:brecorder/data/repository_type.dart';
+import 'package:brecorder/domain/entities.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:flutter/material.dart';
 
@@ -99,8 +100,8 @@ class HomePageState {
     currentBrowserState.refresh();
   }
 
-  void onFolderChanged(String path) {
-    currentTab.currentPath = path;
+  void onFolderChanged(FolderInfo folder) {
+    currentTab.currentPath = folder.path;
   }
 }
 

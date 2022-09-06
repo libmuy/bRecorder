@@ -10,7 +10,7 @@ import 'package:get_it/get_it.dart';
 
 import '../data/filesystem_repository.dart';
 import '../data/trash_repository.dart';
-import '../domain/abstract_repository.dart';
+import '../data/abstract_repository.dart';
 import 'logging.dart';
 
 final sl = ServiceLocator.instance;

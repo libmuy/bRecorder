@@ -11,7 +11,7 @@ import 'package:path/path.dart';
 import '../../core/audio_agent.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils.dart';
-import '../../domain/abstract_repository.dart';
+import '../../data/abstract_repository.dart';
 import '../widgets/waveform/waveform.dart';
 
 final log = Logger('RecordPageState');
@@ -22,6 +22,8 @@ class RecordPageState {
   late String audioTitle;
   late Repository repo;
   late String dirPath;
+  String audioPath = "";
+  String waveformPath = "";
 
   final ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
@@ -60,13 +62,21 @@ class RecordPageState {
     }
   }
 
+  void _saveWaveformData() {
+    final data = Float32List.fromList(waveformNotifier.value);
+    final output = File(waveformPath);
+    output.writeAsBytes(data.buffer.asUint8List());
+  }
+
   void stopButtonOnPressed(BuildContext context, bool mounted) async {
     final ret = await _stopRecording();
     if (!ret) return;
     recordStateNotifier.value = RecordState.stopped;
+    _saveWaveformData();
 
     if (!mounted) return;
     Navigator.of(context).pop();
+    await repo.notifyNewAudio(audioPath);
 
     sl.get<HomePageState>().recordDone();
   }
@@ -81,15 +91,17 @@ class RecordPageState {
   }
 
   Future<bool> _startRecording() async {
-    String path = join(dirPath, "$recordingFileName.m4a");
-    path = await repo.absolutePath(path);
-    log.info("Start recording: $path");
-    final f = File(path);
+    final base = join(dirPath, recordingFileName);
+    audioPath = "$base.m4a";
+    waveformPath = "$base.waveform";
+    final absPath = await repo.absolutePath(audioPath);
+    log.info("Start recording: $audioPath");
+    final f = File(absPath);
     if (f.existsSync()) {
       f.deleteSync();
     }
     agent.addAudioEventListener(AudioEventType.waveform, onWaveformDataUpdate);
-    final agentRet = await agent.startRecord(path);
+    final agentRet = await agent.startRecord(absPath);
 
     if (agentRet.succeed) {
       log.info("record start ok");

@@ -1,6 +1,7 @@
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/core/service_locator.dart';
 import 'package:brecorder/data/repository_type.dart';
+import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:brecorder/presentation/widgets/folder_selector.dart';
 import 'package:brecorder/presentation/widgets/new_folder_dialog.dart';
 import 'package:flutter/material.dart';
@@ -16,8 +17,9 @@ class BrowserView extends StatefulWidget {
   final RepoType repoType;
   final bool folderOnly;
   final bool persistPath;
+  final bool destoryRepoCache;
   final ValueNotifier<String> titleNotifier;
-  final void Function(String path)? onFolderChanged;
+  final void Function(FolderInfo folder)? onFolderChanged;
   final ValueNotifier<BrowserViewMode>? modeNotifier;
   const BrowserView(
       {Key? key,
@@ -26,6 +28,7 @@ class BrowserView extends StatefulWidget {
       this.folderOnly = false,
       this.persistPath = true,
       this.modeNotifier,
+      this.destoryRepoCache = false,
       this.onFolderChanged})
       : super(key: key);
 
@@ -34,25 +37,33 @@ class BrowserView extends StatefulWidget {
 }
 
 class _BrowserViewState extends State<BrowserView>
-    with AutomaticKeepAliveClientMixin<BrowserView> {
+    with
+        AutomaticKeepAliveClientMixin<BrowserView>,
+        SingleTickerProviderStateMixin {
   late BrowserViewState state;
   final _selectStateNotifier =
       ValueNotifier(AudioListItemSelectedState.noSelected);
-  final _folderNotifier = ValueNotifier(FolderInfo.empty);
+  final _folderNotifier = FolderChangeNotifier(FolderInfo.empty);
   late ValueNotifier<BrowserViewMode> modeNotifier;
+  late ScrollController _scrollController;
+  bool _scrollSwitch = false;
+  late AnimationController _controller;
 
   @override
   bool get wantKeepAlive => widget.persistPath;
 
   @override
   void initState() {
+    // log.debug("initState");
     super.initState();
     state = sl.getBrowserViewState(widget.repoType);
-    log.debug("initState");
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
     //     if (persistPath) {
     //   folderNotifier = ValueNotifier(FolderInfo.empty);
     // }
-
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 1));
     modeNotifier = widget.modeNotifier ?? ValueNotifier(BrowserViewMode.normal);
     state.init(
         folderOnly: widget.folderOnly,
@@ -65,52 +76,27 @@ class _BrowserViewState extends State<BrowserView>
 
   @override
   void dispose() {
-    super.dispose();
+    log.debug("dispose");
+    if (widget.destoryRepoCache) state.destoryRepositoryCache();
     state.dispose();
+    _scrollController.dispose();
+
+    super.dispose();
   }
 
-  // Widget _positionBar(String fullPath) {
-  //   List<Widget> buttons = List.empty(growable: true);
-  //   String path = "/";
-  //   bool addSeparator = false;
+  void _scrollListener() {
+    final offset = _scrollController.offset;
 
-  //   log.debug("generating position bar: $fullPath");
-
-  //   for (final d in split(fullPath)) {
-  //     if (d.isEmpty) continue;
-  //     path = join(path, d);
-  //     final buttonPath = path;
-  //     log.debug("sub dir:$path");
-
-  //     if (addSeparator) {
-  //       buttons.add(const Text("/"));
-  //     }
-
-  //     buttons.add(TextButton(
-  //       style: ButtonStyle(
-  //         // padding: MaterialStateProperty.all(EdgeInsets.zero),
-  //         minimumSize: MaterialStateProperty.all(Size.zero),
-  //         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-  //       ),
-  //       onPressed: () {
-  //         log.info("Path button:$buttonPath clicked");
-  //         state.cd(buttonPath);
-  //       },
-  //       child: Text(d),
-  //     ));
-
-  //     if (d != separator && addSeparator == false) {
-  //       addSeparator = true;
-  //     }
-  //   }
-
-  //   return Padding(
-  //     padding: const EdgeInsets.only(left: 15, top: 15, right: 15, bottom: 0),
-  //     child: Row(
-  //       children: buttons,
-  //     ),
-  //   );
-  // }
+    // log.debug("offset:$offset, sw:$_scrollSwitch");
+    if (_scrollSwitch == false) {
+      if (offset < -50.0) {
+        _scrollSwitch = true;
+        _folderNotifier.value.dump();
+      }
+    } else {
+      if (offset > -50.0) _scrollSwitch = false;
+    }
+  }
 
   Widget playbackModeBottomPanel() {
     return PlaybackPanel(
@@ -155,9 +141,9 @@ class _BrowserViewState extends State<BrowserView>
             height: 400,
             // color: Colors.amber,
             child: FolderSelector(
-              folderNotify: (dstRepo, dstPath) {
-                log.debug("selected folder:$dstPath");
-                state.moveSelectedToFolder(dstRepo, dstPath);
+              folderNotify: (folder) {
+                log.debug("selected folder:${folder.path}");
+                state.moveSelectedToFolder(folder);
               },
             ));
       },
@@ -202,54 +188,57 @@ class _BrowserViewState extends State<BrowserView>
         });
   }
 
+  List<Widget> _listItemWidgets(FolderInfo folder) {
+    List<AudioObject> list;
+    if (widget.folderOnly) {
+      list = folder.subfolders as List<AudioObject>;
+    } else {
+      list = folder.subObjects;
+    }
+    return list.map((obj) {
+      final itemState = obj.displayData as AudioListItemState;
+      return AudioListItem(
+        key: itemState.key,
+        audioItem: obj,
+        state: itemState,
+        onTap: (iconOnTapped) {
+          if (obj is FolderInfo) {
+            state.folderOnTap(obj);
+          } else if (obj is AudioInfo) {
+            state.audioOnTap(obj, iconOnTapped);
+          }
+        },
+        onLongPressed: state.onListItemLongPressed,
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return ValueListenableBuilder<FolderInfo>(
         valueListenable: _folderNotifier,
         builder: (context, folderInfo, _) {
-          List<AudioObject> tmpList =
-              // ignore: unnecessary_cast
-              folderInfo.subfolders.map((e) => e as AudioObject).toList();
-          final audioItems = tmpList + folderInfo.audios;
           return Column(
             children: [
               Expanded(
                 child: ListView(
-                    physics: const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics()),
-                    children: audioItems.isEmpty
-                        ? [
-                            Container(
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  "Here is nothing...",
-                                  style: TextStyle(fontSize: 70),
-                                ))
-                          ]
-                        : audioItems
-                            .asMap()
-                            .map((i, v) {
-                              final itemState = state.itemStateList[i];
-                              return MapEntry(
-                                  i,
-                                  AudioListItem(
-                                    key: itemState.key,
-                                    audioItem: v,
-                                    state: itemState,
-                                    onTap: (iconOnTapped) {
-                                      if (v is FolderInfo) {
-                                        state.folderOnTap(itemState);
-                                      } else if (v is AudioInfo) {
-                                        state.audioOnTap(
-                                            itemState, iconOnTapped);
-                                      }
-                                    },
-                                    onLongPressed: state.onListItemLongPressed,
-                                  ));
-                            })
-                            .values
-                            .toList()),
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
+                  children: folderInfo.subObjects.isEmpty ||
+                          (widget.folderOnly &&
+                              folderInfo.subfoldersMap == null)
+                      ? [
+                          Container(
+                              alignment: Alignment.center,
+                              child: const Text(
+                                "Here is nothing...",
+                                style: TextStyle(fontSize: 40),
+                              ))
+                        ]
+                      : _listItemWidgets(folderInfo),
+                ),
               ),
               // Bottom Panels
               ValueListenableBuilder<BrowserViewMode>(
