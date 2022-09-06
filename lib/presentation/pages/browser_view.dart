@@ -4,7 +4,6 @@ import 'package:brecorder/data/repository_type.dart';
 import 'package:brecorder/presentation/widgets/folder_selector.dart';
 import 'package:brecorder/presentation/widgets/new_folder_dialog.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
@@ -17,15 +16,15 @@ class BrowserView extends StatefulWidget {
   final RepoType repoType;
   final bool folderOnly;
   final bool persistPath;
-  final ValueNotifier<String>? titleNotifier;
+  final ValueNotifier<String> titleNotifier;
   final void Function(String path)? onFolderChanged;
   final ValueNotifier<BrowserViewMode>? modeNotifier;
   const BrowserView(
       {Key? key,
       required this.repoType,
+      required this.titleNotifier,
       this.folderOnly = false,
       this.persistPath = true,
-      this.titleNotifier,
       this.modeNotifier,
       this.onFolderChanged})
       : super(key: key);
@@ -37,15 +36,17 @@ class BrowserView extends StatefulWidget {
 class _BrowserViewState extends State<BrowserView>
     with AutomaticKeepAliveClientMixin<BrowserView> {
   late BrowserViewState state;
+  final _selectStateNotifier =
+      ValueNotifier(AudioListItemSelectedState.noSelected);
+  final _folderNotifier = ValueNotifier(FolderInfo.empty);
   late ValueNotifier<BrowserViewMode> modeNotifier;
-  late ValueNotifier<AudioListItemSelectedState> _selectStateNotifier;
+
   @override
   bool get wantKeepAlive => widget.persistPath;
 
   @override
   void initState() {
     super.initState();
-    _selectStateNotifier = ValueNotifier(AudioListItemSelectedState.noSelected);
     state = sl.getBrowserViewState(widget.repoType);
     log.debug("initState");
     //     if (persistPath) {
@@ -58,6 +59,7 @@ class _BrowserViewState extends State<BrowserView>
         modeNotifier: modeNotifier,
         titleNotifier: widget.titleNotifier,
         selectStateNotifier: _selectStateNotifier,
+        folderNotifier: _folderNotifier,
         onFolderChanged: widget.onFolderChanged);
   }
 
@@ -180,13 +182,13 @@ class _BrowserViewState extends State<BrowserView>
                           : null,
                       child: const Icon(Icons.drive_file_move_outline)),
                   MaterialButton(
-                      child: const Icon(Icons.delete_outlined),
                       onPressed: selectState.audioSelected ||
                               selectState.folderSelected
                           ? () {
                               state.deleteSelected();
                             }
-                          : null),
+                          : null,
+                      child: const Icon(Icons.delete_outlined)),
                   MaterialButton(
                       child: const Icon(Icons.create_new_folder_outlined),
                       onPressed: () {
@@ -202,8 +204,9 @@ class _BrowserViewState extends State<BrowserView>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return ValueListenableBuilder<FolderInfo>(
-        valueListenable: state.folderNotifier,
+        valueListenable: _folderNotifier,
         builder: (context, folderInfo, _) {
           List<AudioObject> tmpList =
               // ignore: unnecessary_cast

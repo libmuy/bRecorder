@@ -43,7 +43,7 @@ class FolderInfo extends AudioObject {
 
   static FolderInfo get empty {
     return FolderInfo(
-      "",
+      "/",
       0,
       DateTime(1907),
       List.empty(),

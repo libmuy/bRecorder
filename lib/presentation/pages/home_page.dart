@@ -45,6 +45,9 @@ class _HomePageState extends State<HomePage>
         bottomHeight: 50,
         leadingOnPressed: state.titleBarLeadingOnPressed,
         endingOnPressed: state.titleBarEndingOnPressed,
+        onTitleTapped: (path) {
+          state.currentBrowserState.cd(path);
+        },
         leadingIcon: ValueListenableBuilder<String>(
             valueListenable: state.titleNotifier,
             builder: (context, title, _) {

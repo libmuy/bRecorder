@@ -10,7 +10,7 @@ final log = Logger('HomeState');
 
 class HomePageState {
   late final TabController tabController;
-  final titleNotifier = ValueNotifier("");
+  final titleNotifier = ValueNotifier("/");
   final modeNotifier = ValueNotifier(BrowserViewMode.normal);
   final List<TabInfo> tabsInfo = [
     TabInfo(repoType: RepoType.filesystem),
@@ -49,6 +49,7 @@ class HomePageState {
     tabController.addListener(() {
       _setEditMode(false);
       currentTabIndex = tabController.index;
+      currentBrowserState.refresh();
     });
   }
 

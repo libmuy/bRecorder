@@ -81,9 +81,9 @@ class AllStorageRepository extends Repository {
           _addRepoNameToPath(repo, ret.value);
           return ret.value as FolderInfo;
         }
-        return FolderInfo("/", 0, DateTime(1970), [], [], 0);
+        return FolderInfo.empty;
       }).toList());
-      final value = FolderInfo("/", 0, DateTime(1970), folders, [], 0);
+      final value = FolderInfo("/", 0, DateTime(1970), folders, const [], 0);
       return Succeed(value);
     }
 
