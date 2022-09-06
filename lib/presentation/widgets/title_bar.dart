@@ -49,7 +49,14 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(context) {
+    final statusBarHeight = MediaQuery.of(context).viewPadding.top;
+    final buttonHeight = titleHeight;
+    final buttonWidth = buttonHeight * 1.3;
+    final Color backgroundColor = Theme.of(context).canvasColor;
+    final titleEdge = titleHeight * (1.0 - titleFontSizeFactor) / 2;
+
     final leading = MaterialButton(
+      // color: backgroundColor,
       padding: EdgeInsets.zero,
       onPressed: leadingOnPressed,
       child: leadingIcon,
@@ -59,11 +66,6 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
       onPressed: endingOnPressed,
       child: endingIcon,
     );
-    final statusBarHeight = MediaQuery.of(context).viewPadding.top;
-    final buttonHeight = titleHeight;
-    final buttonWidth = buttonHeight * 1.3;
-    final Color backgroundColor = Theme.of(context).canvasColor;
-    final titleEdge = titleHeight * (1.0 - titleFontSizeFactor) / 2;
 
     // _dumpPositions(statusBarHeight, buttonWidth, buttonHeight);
 
@@ -115,8 +117,8 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                             colors: [
-                              Colors.white,
-                              Colors.white.withOpacity(.2),
+                              backgroundColor,
+                              backgroundColor.withOpacity(.2),
                               Colors.transparent
                             ],
                             stops: const [.8, .9, 1.0],
@@ -140,8 +142,8 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
                             end: Alignment.centerRight,
                             colors: [
                               Colors.transparent,
-                              Colors.white.withOpacity(.2),
-                              Colors.white,
+                              backgroundColor.withOpacity(.2),
+                              backgroundColor,
                             ],
                             stops: const [0.0, .1, .2],
                           ).createShader(rect),

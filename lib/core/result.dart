@@ -1,77 +1,35 @@
 import 'package:equatable/equatable.dart';
 
-abstract class Result<Success, Failure> {
-  // // Success success;
-  // // Failure failure;
+abstract class Result {
+  final dynamic value;
+  final ErrInfo? error;
 
-  // // // Result._();
-  // // Result({this.success, this.failure});
+  bool get succeed;
+  bool get failed;
 
-  // bool isSuccess() {
-  //   return (success != null) && (failure == null);
-  // }
-
-  // bool isFailure() {
-  //   return (success == null) && (failure != null);
-  // }
-
-  // void fold(void Function(Success) sf, void Function(Failure) ff) {
-  //   if (success != null) {sf(success);}
-  // }
-
-  bool isSuccess();
-  bool isFailure();
-  Success? get successValue;
-  Failure? get failureValue;
-  void fold(void Function(Success) successHandler,
-      void Function(Failure) failureHandler);
+  Result({this.value, this.error});
 }
 
-class Succeed<S, F> extends Result<S, F> {
-  S value;
-  Succeed(this.value);
-
+class Succeed extends Result {
   @override
-  isSuccess() => true;
-
+  bool get succeed => true;
   @override
-  isFailure() => false;
+  bool get failed => false;
 
-  @override
-  S get successValue => value;
-
-  @override
-  F? get failureValue => null;
-
-  @override
-  void fold(void Function(S) successHandler, void Function(F) failureHandler) {
-    successHandler(value);
-  }
+  Succeed([dynamic value]) : super(value: value);
 }
 
-class Fail<S, F> extends Result<S, F> {
-  F value;
-  Fail(this.value);
+class Fail extends Result {
+  @override
+  bool get succeed => false;
+  @override
+  bool get failed => true;
 
   @override
-  isSuccess() => false;
+  final ErrInfo error;
 
-  @override
-  isFailure() => true;
-
-  @override
-  S? get successValue => null;
-
-  @override
-  F get failureValue => value;
-
-  @override
-  void fold(void Function(S) successHandler, void Function(F) failureHandler) {
-    failureHandler(value);
-  }
+  Fail(this.error);
 }
-
-class Void {}
 
 abstract class ErrInfo extends Equatable {
   @override
@@ -92,4 +50,12 @@ class IOFailure extends ErrInfo {
 class AlreadExists extends ErrInfo {
   @override
   String toString() => "AlreadyExists";
+}
+
+class ErrMsg extends ErrInfo {
+  String msg;
+  @override
+  String toString() => msg;
+
+  ErrMsg(this.msg);
 }

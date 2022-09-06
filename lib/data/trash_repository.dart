@@ -2,16 +2,15 @@ import 'dart:io';
 
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../domain/abstract_repository.dart';
 import '../domain/entities.dart';
 
 class TrashRepository extends Repository {
   @override
-  Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path) async {
+  Future<Result> getFolderInfo(String path, {bool folderOnly = false}) async {
     var files = List<FolderInfo>.empty(growable: true);
     var dirs = List<AudioInfo>.empty(growable: true);
 
@@ -24,8 +23,15 @@ class TrashRepository extends Repository {
   }
 
   @override
-  Future<Result<Void, ErrInfo>> moveObjects(
-      List<String> srcPath, String dstPath) async {
+  Icon icon = const Icon(Icons.delete_outline);
+
+  @override
+  String name = "Trash";
+  @override
+  final realStorage = false;
+
+  @override
+  Future<Result> moveObjects(List<String> srcPath, String dstPath) async {
     var files = List<String>.empty(growable: true);
     var dirs = List<String>.empty(growable: true);
     // check existence
@@ -56,11 +62,16 @@ class TrashRepository extends Repository {
       return Fail(IOFailure());
     }
 
-    return Succeed(Void());
+    return Succeed();
   }
 
   @override
-  Future<Result<Void, ErrInfo>> newFolder(String path) async {
+  Future<Result> newFolder(String path) async {
+    return Fail(IOFailure());
+  }
+
+  @override
+  Future<Result> removeObject(AudioObject object) async {
     return Fail(IOFailure());
   }
 }

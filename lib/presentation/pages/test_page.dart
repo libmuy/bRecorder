@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
+import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/utils.dart';
 import '../widgets/waveform/waveform.dart';
 
 final log = Logger('TestPage');
@@ -42,7 +44,7 @@ class _MyTestPageState extends State<MyTestPage> {
 
   WaveformDelegate waveformDelegate = WaveformDelegate();
 
-  final waveformMetricsNotifier = ValueNotifier(const WaveformMetrics(0, 0));
+  final waveformMetricsNotifier = ValueNotifier(const AudioPositionInfo(0, 0));
 
   @override
   void initState() {
@@ -69,6 +71,10 @@ class _MyTestPageState extends State<MyTestPage> {
     listDir(Directory(dirname(audioPath)), 0);
   }
 
+  void onWaveformDataUpdate(_, dynamic data) {
+    waveformNotifier.value += data.map((e) => e.toDouble()).toList();
+  }
+
   bool _startRecording() {
     log.info("Start recording");
     final f = File(audioPath);
@@ -76,10 +82,8 @@ class _MyTestPageState extends State<MyTestPage> {
       f.deleteSync();
     }
     _recording = true;
-    agent.startRecord(audioPath, onWaveformData: (waveformData) {
-      // log.debug("waveform date upddate:$waveformData");
-      waveformNotifier.value += waveformData.map((e) => e.toDouble()).toList();
-    });
+    agent.addAudioEventListener(AudioEventType.waveform, onWaveformDataUpdate);
+    agent.startRecord(audioPath);
 
     return true;
   }
@@ -115,29 +119,31 @@ class _MyTestPageState extends State<MyTestPage> {
       //do nothing
     }
 
-    agent.startPlay(audioPath, positionNotifyIntervalMs: 10,
-        onPlayEvent: (data) {
-      switch (data["event"]) {
-        case "PlayComplete":
-          if (_playing == true) {
-            setState(() {
-              _playing = false;
-            });
-          }
-          break;
-        case "PositionUpdate":
-          int? positionMs = data["data"];
-          if (positionMs == null) {
-            positionMs = 0;
-            log.error("position updated with null");
-          }
-          // log.debug("position update notification: $positionMs ms");
-          double positionSec = positionMs / 1000;
-          waveformDelegate.setPosition(positionSec, dispatchNotification: true);
-          break;
-        default:
+    void onPlaybackComplete(_, __) {
+      if (_playing == true) {
+        setState(() {
+          _playing = false;
+        });
       }
-    });
+    }
+
+    void onPositionUpdate(_, data) {
+      int positionMs = data;
+      if (positionMs == null) {
+        positionMs = 0;
+        log.error("position updated with null");
+      }
+      // log.debug("position update notification: $positionMs ms");
+      double positionSec = positionMs / 1000;
+      waveformDelegate.setPosition(positionSec, dispatchNotification: true);
+    }
+
+    agent.addAudioEventListener(AudioEventType.stopped, onPlaybackComplete);
+    agent.addAudioEventListener(
+        AudioEventType.positionUpdate, onPositionUpdate);
+
+    agent.startPlay(AudioInfo(0, audioPath, 0, DateTime.now()),
+        positionNotifyIntervalMs: 10);
     return true;
   }
 
@@ -147,7 +153,7 @@ class _MyTestPageState extends State<MyTestPage> {
     return true;
   }
 
-  void _waveformPositionListener(WaveformMetrics metrics) {
+  void _waveformPositionListener(AudioPositionInfo metrics) {
     // log.debug("metrics updated: pos:${metrics.position.toStringAsFixed(2)}");
     waveformMetricsNotifier.value = metrics;
     // if (_playing) {
@@ -155,12 +161,12 @@ class _MyTestPageState extends State<MyTestPage> {
     // }
   }
 
-  void _waveformStartSeek(WaveformMetrics metrics) {
+  void _waveformStartSeek(AudioPositionInfo metrics) {
     log.debug("start seek");
     if (_playing) agent.pausePlay();
   }
 
-  void _waveformEndSeek(WaveformMetrics metrics) async {
+  void _waveformEndSeek(AudioPositionInfo metrics) async {
     final ms = (metrics.position * 1000).toInt();
     // if (ms != 0) {
     //   agent.seekTo(ms);
@@ -210,7 +216,7 @@ class _MyTestPageState extends State<MyTestPage> {
                 delegate: waveformDelegate,
               );
             }),
-        ValueListenableBuilder<WaveformMetrics>(
+        ValueListenableBuilder<AudioPositionInfo>(
             valueListenable: waveformMetricsNotifier,
             builder: (context, metrics, _) {
               return Column(
@@ -362,13 +368,13 @@ class _MyTestPageState extends State<MyTestPage> {
               onPressed: () {
                 log.info("Get Duration");
                 final d = agent.getDuration(audioPath);
-                d.then((result) => {
-                      result.fold((duration) {
-                        log.info("Duration: $duration");
-                      }, (err) {
-                        log.info("got error:$err");
-                      })
-                    });
+                d.then((result) {
+                  if (result.succeed) {
+                    log.info("Duration: ${result.value}");
+                  } else {
+                    log.info("got error:${result.error}");
+                  }
+                });
               },
               child: const Text("Get Duration"),
             ),
@@ -381,11 +387,11 @@ class _MyTestPageState extends State<MyTestPage> {
             ElevatedButton(
               onPressed: () {
                 agent.test("path").then((value) {
-                  value.fold((p0) {
-                    log.debug("test return:$p0");
-                  }, (p0) {
+                  if (value.succeed) {
+                    log.debug("test return:${value.value}");
+                  } else {
                     log.debug("exception");
-                  });
+                  }
                 });
               },
               child: const Text("Test"),

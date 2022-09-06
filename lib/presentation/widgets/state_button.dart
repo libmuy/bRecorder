@@ -26,9 +26,7 @@ class StateButton extends StatelessWidget {
     return MaterialButton(
       height: height,
       onPressed: () {
-        if (onPressed != null) {
-          onPressed!();
-        }
+        onPressed?.call();
       },
       child: state ? falseStateWidget : trueStateWidget,
     );

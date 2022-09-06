@@ -1,15 +1,16 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/data/repository_type.dart';
 import 'package:brecorder/presentation/ploc/home_page_state.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 
 import '../../core/audio_agent.dart';
 import '../../core/service_locator.dart';
+import '../../core/utils.dart';
 import '../../domain/abstract_repository.dart';
 import '../widgets/waveform/waveform.dart';
 
@@ -25,7 +26,7 @@ class RecordPageState {
   final ValueNotifier<List<double>> waveformNotifier =
       ValueNotifier(List<double>.empty());
   final WaveformDelegate waveformDelegate = WaveformDelegate();
-  final waveformMetricsNotifier = ValueNotifier(const WaveformMetrics(0, 0));
+  final waveformMetricsNotifier = ValueNotifier(const AudioPositionInfo(0, 0));
   final recordStateNotifier = ValueNotifier(RecordState.stopped);
 
   void init(String dirPath, RepoType repoType) {
@@ -70,12 +71,16 @@ class RecordPageState {
     sl.get<HomePageState>().recordDone();
   }
 
-  void waveformPositionListener(WaveformMetrics metrics) {
+  void waveformPositionListener(AudioPositionInfo metrics) {
     waveformMetricsNotifier.value = metrics;
   }
 
+  void onWaveformDataUpdate(_, dynamic data) {
+    Float32List list = data;
+    waveformNotifier.value += list.map((e) => e.toDouble()).toList();
+  }
+
   Future<bool> _startRecording() async {
-    bool ret = true;
     String path = join(dirPath, "$recordingFileName.m4a");
     path = await repo.absolutePath(path);
     log.info("Start recording: $path");
@@ -83,67 +88,51 @@ class RecordPageState {
     if (f.existsSync()) {
       f.deleteSync();
     }
-    final agentRet =
-        await agent.startRecord(path, onWaveformData: (waveformData) {
-      // log.debug("waveform date upddate:$waveformData");
-      waveformNotifier.value += waveformData.map((e) => e.toDouble()).toList();
-    });
+    agent.addAudioEventListener(AudioEventType.waveform, onWaveformDataUpdate);
+    final agentRet = await agent.startRecord(path);
 
-    agentRet.fold((ok) {
+    if (agentRet.succeed) {
       log.info("record start ok");
-    }, (p0) {
+      return true;
+    } else {
       log.error("record start failed");
-      ret = false;
-    });
-
-    return ret;
+      return false;
+    }
   }
 
   Future<bool> _stopRecording() async {
     log.info("Stop recording");
-    bool ret = true;
     final agentRet = await agent.stopRecord();
-    agentRet.fold((ok) {
+    if (agentRet.succeed) {
       log.info("record stop ok");
-    }, (p0) {
+      return true;
+    } else {
       log.error("record stop failed");
-      ret = false;
-    });
-
-    return ret;
+      return false;
+    }
   }
 
   Future<bool> _pauseRecording() async {
     log.info("Pause recording");
-    bool ret = true;
     final agentRet = await agent.pauseRecord();
-    agentRet.fold((ok) {
+    if (agentRet.succeed) {
       log.info("record pause ok");
-    }, (p0) {
+      return true;
+    } else {
       log.error("record pause failed");
-      ret = false;
-    });
-
-    return ret;
+      return false;
+    }
   }
 
   Future<bool> _resumeRecording() async {
     log.info("Resume recording");
-    bool ret = true;
     final agentRet = await agent.resumeRecord();
-    agentRet.fold((ok) {
+    if (agentRet.succeed) {
       log.info("record resume ok");
-    }, (p0) {
+      return true;
+    } else {
       log.error("record resume failed");
-      ret = false;
-    });
-
-    return ret;
+      return false;
+    }
   }
-}
-
-enum RecordState {
-  stopped,
-  recording,
-  paused,
 }

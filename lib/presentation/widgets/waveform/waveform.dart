@@ -2,26 +2,13 @@ import 'dart:async';
 
 import 'package:brecorder/core/global_info.dart';
 import 'package:brecorder/core/logging.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/utils.dart';
 import 'center_bar_painter.dart';
 import 'waveform_painter.dart';
 
 final log = Logger('WaveForm');
-
-class WaveformMetrics extends Equatable {
-  /// Unit: Seconds
-  final double duration;
-
-  /// Unit: Seconds
-  final double position;
-
-  @override
-  List<Object> get props => [duration, position];
-
-  const WaveformMetrics(this.duration, this.position);
-}
 
 class WaveformDelegate {
   Function(double, bool)? _setPosition;
@@ -50,9 +37,9 @@ class Waveform extends StatefulWidget {
   final double zoomLevel;
   final double height;
   final bool scrollable;
-  final Function(WaveformMetrics metircs)? positionListener;
-  final Function(WaveformMetrics metircs)? startSeek;
-  final Function(WaveformMetrics metircs)? endSeek;
+  final Function(AudioPositionInfo metircs)? positionListener;
+  final Function(AudioPositionInfo metircs)? startSeek;
+  final Function(AudioPositionInfo metircs)? endSeek;
   final WaveformDelegate? delegate;
 
   const Waveform(
@@ -83,7 +70,7 @@ class _WaveformState extends State<Waveform> {
   double _startScrollPosition = 0;
   double _startZoom = 0;
   bool _noDispatchNotification = false;
-  WaveformMetrics? _notifiedMetrics;
+  AudioPositionInfo? _notifiedMetrics;
   bool _seeking = false;
 
   @override
@@ -120,7 +107,7 @@ class _WaveformState extends State<Waveform> {
   }
 
   ///Unit : Second
-  WaveformMetrics? get _metrics {
+  AudioPositionInfo? get _metrics {
     if (widget.positionListener != null) {
       double pos;
       if (_scrollController.hasClients) {
@@ -133,7 +120,7 @@ class _WaveformState extends State<Waveform> {
         pos = 0;
       }
       // log.debug("duration:$_duration, position:$pos");
-      return WaveformMetrics(_duration, pos);
+      return AudioPositionInfo(_duration, pos);
     }
 
     return null;
