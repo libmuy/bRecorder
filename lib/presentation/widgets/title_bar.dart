@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
 
 final log = Logger('TitleBar');
 
-class TitleBar extends StatelessWidget implements PreferredSizeWidget {
+class TitleBar extends StatefulWidget implements PreferredSizeWidget {
   final void Function()? leadingOnPressed;
   final void Function()? endingOnPressed;
   final Widget leadingIcon;
@@ -15,6 +18,7 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
   final double bottomHeight;
   final double titleMargin;
   final double dividerHeight;
+  final void Function(String path)? onTitleTapped;
 
   const TitleBar(
       {Key? key,
@@ -28,7 +32,8 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
       this.titleFontSizeFactor = 0.5,
       this.bottomHeight = 40,
       this.titleMargin = 2,
-      this.dividerHeight = 1})
+      this.dividerHeight = 1,
+      this.onTitleTapped})
       : super(key: key);
 
   @override
@@ -37,34 +42,70 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
         titleHeight + bottomHeight + (titleMargin * 2) + dividerHeight);
   }
 
-  // void _dumpPositions(
-  //     double statusBarHeight, double buttonWidth, double buttonHeight) {
-  //   String str = "status bar height:$statusBarHeight";
-  //   str += " button width:$buttonWidth";
-  //   str += " button height:$buttonHeight";
-  //   str += " bottom height:$bottomHeight";
-  //   str += " preferredSize:$preferredSize";
-  //   log.debug(str);
-  // }
+  @override
+  State<TitleBar> createState() => _TitleBarState();
+}
+
+class _TitleBarState extends State<TitleBar> {
+  late ScrollController _scrollController;
+  Timer? _scrollTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener); // ←追加
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _scrollController.dispose();
+  }
+
+  void _scrollTimerCallback() {
+    if (_scrollTimer != null) {
+      _scrollTimer = null;
+    }
+
+    if (!_scrollController.hasClients) return;
+
+    _scrollController.animateTo(_scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 2000), curve: Curves.easeInOut);
+  }
+
+  void _scrollListener() {
+    _resetScrollPosition(false);
+  }
+
+  void _resetScrollPosition(bool now) {
+    int time = 5000;
+    if (now) {
+      time = 1;
+    }
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer(Duration(milliseconds: time), _scrollTimerCallback);
+  }
 
   @override
   Widget build(context) {
     final statusBarHeight = MediaQuery.of(context).viewPadding.top;
-    final buttonHeight = titleHeight;
+    final buttonHeight = widget.titleHeight;
     final buttonWidth = buttonHeight * 1.3;
     final Color backgroundColor = Theme.of(context).canvasColor;
-    final titleEdge = titleHeight * (1.0 - titleFontSizeFactor) / 2;
+    final titleEdge =
+        widget.titleHeight * (1.0 - widget.titleFontSizeFactor) / 2;
 
     final leading = MaterialButton(
       // color: backgroundColor,
       padding: EdgeInsets.zero,
-      onPressed: leadingOnPressed,
-      child: leadingIcon,
+      onPressed: widget.leadingOnPressed,
+      child: widget.leadingIcon,
     );
     final ending = MaterialButton(
       padding: EdgeInsets.zero,
-      onPressed: endingOnPressed,
-      child: endingIcon,
+      onPressed: widget.endingOnPressed,
+      child: widget.endingIcon,
     );
 
     // _dumpPositions(statusBarHeight, buttonWidth, buttonHeight);
@@ -76,11 +117,12 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         Expanded(
           child: Container(
-            padding: EdgeInsets.all(titleMargin),
+            padding: EdgeInsets.all(widget.titleMargin),
             child: Stack(
               children: [
                 Center(
                   child: ListView(
+                    controller: _scrollController,
                     shrinkWrap: true,
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -88,21 +130,56 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
                       SizedBox(
                         width: buttonWidth,
                       ),
-                      Container(
-                        padding:
-                            EdgeInsets.only(top: titleEdge, bottom: titleEdge),
-                        // child: FittedBox(fit: BoxFit.fitHeight, child: title),
-                        child: ValueListenableBuilder<String>(
-                            valueListenable: titleNotifier,
-                            builder: (context, title, _) {
-                              return Text(
-                                title,
-                                style: TextStyle(
-                                    fontSize: titleHeight * titleFontSizeFactor,
-                                    height: 1),
-                              );
-                            }),
-                      ),
+                      ValueListenableBuilder<String>(
+                          valueListenable: widget.titleNotifier,
+                          builder: (context, title, _) {
+                            final textStyle = TextStyle(
+                                fontSize: widget.titleHeight *
+                                    widget.titleFontSizeFactor,
+                                // fontSize: 20,
+                                height: 1);
+                            final parts = split(title);
+                            List<Widget> buttons = [];
+                            String path = "/";
+                            for (var i = 0; i < parts.length; i++) {
+                              final p = parts[i];
+                              String newPath = path;
+                              if (i > 0) {
+                                newPath = join(path, p);
+                                path = newPath;
+                                buttons.add(Text(
+                                  "/",
+                                  style: textStyle,
+                                ));
+                              }
+                              buttons.add(MaterialButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.only(
+                                    top: titleEdge,
+                                    bottom: titleEdge,
+                                    left: 10,
+                                    right: 10),
+                                minWidth: 5,
+                                // style: ButtonStyle(
+                                //   // padding: MaterialStateProperty.all(EdgeInsets.zero),
+                                //   minimumSize:
+                                //       MaterialStateProperty.all(Size.zero),
+                                //   tapTargetSize:
+                                //       MaterialTapTargetSize.shrinkWrap,
+                                // ),
+                                onPressed: () {
+                                  log.info("Path button:$newPath clicked");
+                                  widget.onTitleTapped?.call(newPath);
+                                },
+                                child: Text(
+                                  p,
+                                  style: textStyle,
+                                ),
+                              ));
+                            }
+                            _resetScrollPosition(true);
+                            return Row(children: buttons);
+                          }),
                       SizedBox(
                         width: buttonWidth,
                       ),
@@ -162,10 +239,10 @@ class TitleBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
         Divider(
-          height: dividerHeight,
-          thickness: dividerHeight,
+          height: widget.dividerHeight,
+          thickness: widget.dividerHeight,
         ),
-        SizedBox(height: bottomHeight, child: bottom),
+        SizedBox(height: widget.bottomHeight, child: widget.bottom),
       ],
     );
   }

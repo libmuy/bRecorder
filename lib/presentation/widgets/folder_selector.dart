@@ -26,11 +26,11 @@ class FolderSelector extends StatefulWidget {
 }
 
 class _FolderSelectorState extends State<FolderSelector> {
-  final titleNotifier = ValueNotifier("");
+  final titleNotifier = ValueNotifier("/");
   // final browser = BrowserViewState();
   final repo = sl.get<AllStorageRepository>();
   final browserViewState = sl.get<AllStoreageBrowserViewState>();
-  String currentPath = "";
+  String currentPath = "/";
 
   // @override
   // void initState() {
@@ -46,10 +46,10 @@ class _FolderSelectorState extends State<FolderSelector> {
   Widget build(context) {
     final titleBar = TitleBar(
       titleNotifier: titleNotifier,
-      // titleHeight: 30,
+      titleHeight: 40,
       leadingIcon: const Icon(Icons.arrow_back),
       leadingOnPressed: () {
-        if (currentPath == "/" || currentPath == "") {
+        if (currentPath == "/") {
           Navigator.pop(context);
         } else {
           browserViewState.cdParent();
@@ -58,7 +58,7 @@ class _FolderSelectorState extends State<FolderSelector> {
       endingIcon: ValueListenableBuilder<String>(
           valueListenable: titleNotifier,
           builder: (context, title, _) {
-            if (currentPath == "/" || currentPath == "") {
+            if (currentPath == "/") {
               return Container();
             } else {
               return const Icon(Icons.create_new_folder_outlined);
@@ -70,6 +70,9 @@ class _FolderSelectorState extends State<FolderSelector> {
               .newFolder(join(currentPath, value))
               .then((_) => browserViewState.refresh());
         });
+      },
+      onTitleTapped: (path) {
+        browserViewState.cd(path);
       },
     );
     return Column(

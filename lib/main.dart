@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'core/service_locator.dart';
 import 'core/logging.dart';
 import 'presentation/pages/home_page.dart';
 

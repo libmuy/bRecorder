@@ -129,10 +129,6 @@ class _MyTestPageState extends State<MyTestPage> {
 
     void onPositionUpdate(_, data) {
       int positionMs = data;
-      if (positionMs == null) {
-        positionMs = 0;
-        log.error("position updated with null");
-      }
       // log.debug("position update notification: $positionMs ms");
       double positionSec = positionMs / 1000;
       waveformDelegate.setPosition(positionSec, dispatchNotification: true);

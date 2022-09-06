@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/result.dart';
 import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/utils.dart';
+import 'package:brecorder/core/result.dart';
 import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/services.dart';
 
@@ -13,25 +11,32 @@ final log = Logger('Audio-Agent');
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 
 class AudioServiceAgent {
+  /*=======================================================================*\ 
+    Variables
+  \*=======================================================================*/
   static const _methodChannel =
       MethodChannel('libmuy.com/brecorder/methodchannel');
   static const _eventChannel =
       EventChannel('libmuy.com/brecorder/eventchannel');
 
+  AudioInfo? currentAudio;
   StreamSubscription? _eventStream;
   bool _gotPlatformParams = false;
   Completer? _platformParamCompleter;
-  AudioInfo? currentAudio;
-  AudioEventListener? _onWaveformData;
-
-  Map<AudioEventType, List<AudioEventListener>> _playEventListeners = {};
   AudioState state = AudioState.idle;
+  final Map<AudioEventType, List<AudioEventListener>> _playEventListeners = {};
 
+  /*=======================================================================*\ 
+    Contructor
+  \*=======================================================================*/
   AudioServiceAgent() {
     _startListenEvent();
     setParams();
   }
 
+  /*=======================================================================*\ 
+    Event Listeners
+  \*=======================================================================*/
   void addAudioEventListener(
       AudioEventType eventType, AudioEventListener listener) {
     if (_playEventListeners.containsKey(eventType)) {
@@ -60,6 +65,10 @@ class AudioServiceAgent {
     });
   }
 
+  /*=======================================================================*\ 
+    Event Channel
+    ---------------
+  \*=======================================================================*/
   void _startListenEvent() {
     if (_eventStream != null) {
       log.warning("Waveform sample already listening");
@@ -69,54 +78,7 @@ class AudioServiceAgent {
     try {
       _eventStream =
           _eventChannel.receiveBroadcastStream().listen((dynamic map) {
-        if (map.containsKey("waveform")) {
-          _notifyAudioEventListeners(AudioEventType.waveform, map["waveform"]);
-        }
-
-        if (map.containsKey("playEvent")) {
-          // log.debug("Got Player Event:${map['playEvent']}");
-          switch (map["playEvent"]["event"]) {
-            case "PlayComplete":
-              _notifyAudioEventListeners(
-                  AudioEventType.positionUpdate, currentAudio!.durationMS);
-              _notifyAudioEventListeners(AudioEventType.stopped, null);
-              state = AudioState.idle;
-              break;
-            case "PositionUpdate":
-              int? positionMs = map["playEvent"]["position"];
-              if (positionMs == null) {
-                positionMs = 0;
-                log.error("position updated with null");
-              }
-              currentAudio?.currentPosition = positionMs;
-              _notifyAudioEventListeners(
-                  AudioEventType.positionUpdate, positionMs);
-              // log.debug("position update notification: $positionMs ms");
-              break;
-            default:
-          }
-        }
-
-        if (map.containsKey("platformPametersEvent")) {
-          final params = map["platformPametersEvent"];
-          GlobalInfo.PLATFORM_PITCH_MAX_VALUE =
-              params["PLATFORM_PITCH_MAX_VALUE"];
-          GlobalInfo.PLATFORM_PITCH_MIN_VALUE =
-              params["PLATFORM_PITCH_MIN_VALUE"];
-          GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE =
-              params["PLATFORM_PITCH_DEFAULT_VALUE"];
-          _gotPlatformParams = true;
-          if (_platformParamCompleter != null) {
-            _platformParamCompleter!.complete();
-            _platformParamCompleter = null;
-          }
-        }
-
-        if (map.containsKey("testEvent")) {
-          log.debug("Got Test Event:${map['testEvent']}");
-          // final floatArray = map['testEvent'] as Float64List;
-          // log.debug("array len:" + floatArray.length.toString());
-        }
+        _eventHandler(map);
       }, onError: (dynamic error) {
         log.error("event channel error${error.message}");
       }, onDone: () async {
@@ -129,6 +91,70 @@ class AudioServiceAgent {
     }
   }
 
+  Future<void> _stopListenEvent() async {
+    await _eventStream?.cancel();
+    _eventStream = null;
+  }
+
+  void _eventHandler(dynamic map) {
+    if (map.containsKey("waveform")) {
+      _waveformEventHandler(map["waveform"]);
+    }
+
+    if (map.containsKey("playEvent")) {
+      _playbackEventHandler(map["playEvent"]);
+    }
+
+    if (map.containsKey("platformPametersEvent")) {
+      _parameterEventHandler(map["platformPametersEvent"]);
+    }
+
+    if (map.containsKey("testEvent")) {
+      log.debug("Got Test Event:${map['testEvent']}");
+      // final floatArray = map['testEvent'] as Float64List;
+      // log.debug("array len:" + floatArray.length.toString());
+    }
+  }
+
+  void _waveformEventHandler(dynamic data) {
+    _notifyAudioEventListeners(AudioEventType.waveform, data);
+  }
+
+  void _playbackEventHandler(dynamic data) {
+    // log.debug("Got Player Event:${map['playEvent']}");
+    switch (data["event"]) {
+      case "PlayComplete":
+        _notifyAudioEventListeners(
+            AudioEventType.positionUpdate, currentAudio!.durationMS);
+        _notifyAudioEventListeners(AudioEventType.stopped, null);
+        state = AudioState.idle;
+        break;
+      case "PositionUpdate":
+        int? positionMs = data["position"];
+        if (positionMs == null) {
+          positionMs = 0;
+          log.error("position updated with null");
+        }
+        currentAudio?.currentPosition = positionMs;
+        _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
+        // log.debug("position update notification: $positionMs ms");
+        break;
+      default:
+    }
+  }
+
+  void _parameterEventHandler(dynamic data) {
+    GlobalInfo.PLATFORM_PITCH_MAX_VALUE = data["PLATFORM_PITCH_MAX_VALUE"];
+    GlobalInfo.PLATFORM_PITCH_MIN_VALUE = data["PLATFORM_PITCH_MIN_VALUE"];
+    GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE =
+        data["PLATFORM_PITCH_DEFAULT_VALUE"];
+    _gotPlatformParams = true;
+    if (_platformParamCompleter != null) {
+      _platformParamCompleter!.complete();
+      _platformParamCompleter = null;
+    }
+  }
+
   Future waitPlatformParams() async {
     if (_gotPlatformParams) return;
 
@@ -136,11 +162,10 @@ class AudioServiceAgent {
     return _platformParamCompleter!.future;
   }
 
-  Future<void> _stopListenEvent() async {
-    await _eventStream?.cancel();
-    _eventStream = null;
-  }
-
+  /*=======================================================================*\ 
+    Method Channel
+    ---------------
+  \*=======================================================================*/
   // true: Success
   // false: Fail
   Future<bool> _callVoidPlatformMethod(String method, [dynamic args]) async {

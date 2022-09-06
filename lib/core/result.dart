@@ -25,10 +25,7 @@ class Fail extends Result {
   @override
   bool get failed => true;
 
-  @override
-  final ErrInfo error;
-
-  Fail(this.error);
+  Fail(ErrInfo error) : super(error: error);
 }
 
 abstract class ErrInfo extends Equatable {
@@ -53,7 +50,7 @@ class AlreadExists extends ErrInfo {
 }
 
 class ErrMsg extends ErrInfo {
-  String msg;
+  final String msg;
   @override
   String toString() => msg;
 

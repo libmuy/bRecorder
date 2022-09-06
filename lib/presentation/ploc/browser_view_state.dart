@@ -14,21 +14,34 @@ import '../../domain/entities.dart';
 final log = Logger('HomeState');
 
 abstract class BrowserViewState {
-  final _agent = sl.get<AudioServiceAgent>();
+  /*=======================================================================*\ 
+    Variables
+  \*=======================================================================*/
+  // Common staffs
+  bool _initialized = false;
+
+  //About Repository
   late final Repository _repo;
   bool _folderOnly = false;
-  var folderNotifier = ValueNotifier(FolderInfo.empty);
-  late ValueNotifier<BrowserViewMode> _modeNotifier;
-  int? _currentAudioIndex;
-  final loopNotifier = ValueNotifier<PlayLoopType>(PlayLoopType.noLoop);
-  ValueNotifier<String>? _titleNotifier;
+  late ValueNotifier<FolderInfo> _folderNotifier;
   void Function(String path)? _onFolderChanged;
+
+  // About Display
+  late ValueNotifier<BrowserViewMode> _modeNotifier;
+  late ValueNotifier<String> _titleNotifier;
+  List<AudioListItemState> itemStateList = [];
+  int? _currentAudioIndex;
   ValueNotifier<AudioListItemSelectedState>? _selectStateNotifier;
   List<AudioListItemState> _selectedFolders = [];
   List<AudioListItemState> _selectedAudios = [];
 
-  List<AudioListItemState> itemStateList = [];
+  // About Audio Playback
+  final _agent = sl.get<AudioServiceAgent>();
+  final loopNotifier = ValueNotifier<PlayLoopType>(PlayLoopType.noLoop);
 
+  /*=======================================================================*\ 
+    Constructor, initializier, finalizer
+  \*=======================================================================*/
   BrowserViewState(RepoType dataSourceType) {
     _repo = sl.getRepository(dataSourceType);
   }
@@ -36,18 +49,17 @@ abstract class BrowserViewState {
   void init(
       {required bool folderOnly,
       required ValueNotifier<BrowserViewMode> modeNotifier,
-      ValueNotifier<String>? titleNotifier,
-      ValueNotifier<AudioListItemSelectedState>? selectStateNotifier,
+      required ValueNotifier<String> titleNotifier,
+      required ValueNotifier<AudioListItemSelectedState> selectStateNotifier,
+      required ValueNotifier<FolderInfo> folderNotifier,
       void Function(String path)? onFolderChanged}) {
+    assert(titleNotifier.value != "");
+
     _modeNotifier = modeNotifier;
     _onFolderChanged = onFolderChanged;
     _titleNotifier = titleNotifier;
     _selectStateNotifier = selectStateNotifier;
-    if (folderNotifier.value.path == "") {
-      cd("/");
-    } else {
-      cd(folderNotifier.value.path);
-    }
+    _folderNotifier = folderNotifier;
     _modeNotifier.addListener(_modeListener);
     _folderOnly = folderOnly;
     if (!_folderOnly) {
@@ -55,6 +67,8 @@ abstract class BrowserViewState {
       _agent.addAudioEventListener(AudioEventType.paused, _playingListener);
       _agent.addAudioEventListener(AudioEventType.stopped, _playingListener);
     }
+    _initialized = true;
+    refresh();
   }
 
   void dispose() {
@@ -66,16 +80,11 @@ abstract class BrowserViewState {
     }
   }
 
+  /*=======================================================================*\ 
+    Common Staff
+  \*=======================================================================*/
   String get _currentPath {
-    return folderNotifier.value.path;
-  }
-
-  void _notifyTitle() {
-    if (_currentPath == "/" || _currentPath == "") {
-      _titleNotifier?.value = _repo.name;
-    } else {
-      _titleNotifier?.value = _currentPath.substring(1);
-    }
+    return _folderNotifier.value.path;
   }
 
   AudioListItemState? get currentAudio {
@@ -86,40 +95,14 @@ abstract class BrowserViewState {
     return itemStateList[_currentAudioIndex!];
   }
 
-  void _playingListener(event, audio) {
-    if (event == AudioEventType.started) {
-      //All new file playback is from this object
-      assert(audio == currentAudio!.audioObject);
-      currentAudio!.highlight = true;
-      currentAudio!.playing = true;
-    } else if (event == AudioEventType.paused) {
-      currentAudio!.playing = false;
-    } else if (event == AudioEventType.stopped) {
-      currentAudio!.playing = false;
-      currentAudio?.highlight = false;
-      if (mode != BrowserViewMode.playback) {
-        return;
-      }
-      final loopType = loopNotifier.value;
-      switch (loopType) {
-        case PlayLoopType.list:
-          _playNext(false);
-          break;
-        case PlayLoopType.loopAll:
-          _playNext(true);
-          break;
-        case PlayLoopType.loopOne:
-          _agent.startPlay(currentAudio!.audioObject as AudioInfo);
-          break;
-        case PlayLoopType.random:
-          final audioCounts = folderNotifier.value.audios.length;
-          final audioStartIndex = folderNotifier.value.subfolders.length;
-          final relativeIndex = Random().nextInt(audioCounts);
-          final nextAudio = itemStateList[audioStartIndex + relativeIndex];
-          _playNewAudio(nextAudio);
-          break;
-        case PlayLoopType.noLoop:
-      }
+  /*=======================================================================*\ 
+    Display
+  \*=======================================================================*/
+  void _notifyTitle() {
+    if (_currentPath == "/") {
+      _titleNotifier.value = _repo.name;
+    } else {
+      _titleNotifier.value = _repo.name + _currentPath;
     }
   }
 
@@ -145,10 +128,10 @@ abstract class BrowserViewState {
   void _addSelectedItem(
       {AudioListItemState? audio, AudioListItemState? folder}) {
     if (audio != null) {
-      _selectedAudios.add(audio!);
+      _selectedAudios.add(audio);
     }
     if (folder != null) {
-      _selectedFolders.add(folder!);
+      _selectedFolders.add(folder);
     }
 
     _selectStateNotifier?.value = AudioListItemSelectedState(
@@ -159,10 +142,10 @@ abstract class BrowserViewState {
   void _removeSelectedItem(
       {AudioListItemState? audio, AudioListItemState? folder}) {
     if (audio != null) {
-      _selectedAudios.remove(audio!);
+      _selectedAudios.remove(audio);
     }
     if (folder != null) {
-      _selectedFolders.remove(folder!);
+      _selectedFolders.remove(folder);
     }
 
     _selectStateNotifier?.value = AudioListItemSelectedState(
@@ -174,96 +157,6 @@ abstract class BrowserViewState {
     _selectStateNotifier?.value = AudioListItemSelectedState.noSelected;
     _selectedAudios = [];
     _selectedFolders = [];
-  }
-
-  void cd(String path) {
-    mode = BrowserViewMode.normal;
-    _currentAudioIndex = null;
-    _repo.getFolderInfo(path, folderOnly: _folderOnly).then((result) {
-      if (result.succeed) {
-        log.debug("folder changed to:${_repo.name}$path");
-        final FolderInfo folderInfo = result.value;
-        final List<AudioObject> tmpList =
-            // ignore: unnecessary_cast
-            folderInfo.subfolders.map((e) => e as AudioObject).toList();
-        final list = tmpList + folderInfo.audios;
-        itemStateList = list.map((e) => AudioListItemState(e)).toList();
-        _resetSelectedItem();
-        folderNotifier.value = folderInfo;
-        _onFolderChanged?.call(folderInfo.path);
-        _notifyTitle();
-      } else {
-        log.critical("Failed to get folder($path) info");
-      }
-    });
-  }
-
-  void cdParent() {
-    final path = dirname(folderNotifier.value.path);
-    cd(path);
-  }
-
-  void newFolder(String newFolderName) async {
-    final path = join(folderNotifier.value.path, newFolderName);
-    final ret = await _repo.newFolder(path);
-    if (ret.succeed) {
-      log.debug("create folder ok");
-    } else {
-      log.debug("create folder failed: ${ret.error}");
-    }
-
-    refresh();
-  }
-
-  void refresh() {
-    cd(folderNotifier.value.path);
-  }
-
-  void _playNewAudio(AudioListItemState itemState) async {
-    mode = BrowserViewMode.playback;
-    final ret = await _agent.startPlay(itemState.audioObject as AudioInfo);
-    if (ret.succeed) {
-      currentAudio?.highlight = false;
-      currentAudio?.playing = false;
-      _currentAudioIndex = itemStateList.indexOf(itemState);
-      Scrollable.ensureVisible(itemState.key.currentContext!,
-          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-    }
-  }
-
-  void _playNext(bool repeat) {
-    final audioCounts = folderNotifier.value.audios.length;
-    final audioStartIndex = folderNotifier.value.subfolders.length;
-    final currentRelativeIndex = _currentAudioIndex! - audioStartIndex;
-
-    if ((!repeat) && currentRelativeIndex >= audioCounts - 1) {
-      log.debug("this is the last one");
-      return;
-    }
-
-    final nextIndex =
-        (currentRelativeIndex + 1) % audioCounts + audioStartIndex;
-    log.debug("playback next($nextIndex)");
-    _playNewAudio(itemStateList[nextIndex]);
-  }
-
-  void playNext() {
-    _playNext(false);
-  }
-
-  void playPrevious() {
-    if (_currentAudioIndex == 0) {
-      return;
-    }
-
-    final prev = itemStateList[_currentAudioIndex! - 1];
-    if (prev.audioObject is FolderInfo) {
-      log.debug("previous(${_currentAudioIndex! - 1})"
-          " is a folder, can not playback");
-      return;
-    }
-    log.debug("playback previous(${_currentAudioIndex! - 1})");
-    _playNewAudio(prev);
   }
 
   void folderOnTap(AudioListItemState itemState) {
@@ -343,6 +236,55 @@ abstract class BrowserViewState {
     }
   }
 
+  /*=======================================================================*\ 
+    Repository
+  \*=======================================================================*/
+  void cd(String path, {bool force = false}) {
+    if (!_initialized) return;
+    if (equals(path, _currentPath) && !force) return;
+    // mode = BrowserViewMode.normal;
+    _currentAudioIndex = null;
+    _repo.getFolderInfo(path, folderOnly: _folderOnly).then((result) {
+      if (result.succeed) {
+        log.debug("folder changed to:${_repo.name}$path");
+        final FolderInfo folderInfo = result.value;
+        final List<AudioObject> tmpList =
+            // ignore: unnecessary_cast
+            folderInfo.subfolders.map((e) => e as AudioObject).toList();
+        final list = tmpList + folderInfo.audios;
+        itemStateList = list.map((e) => AudioListItemState(e)).toList();
+        _resetSelectedItem();
+        _folderNotifier.value = folderInfo;
+        _onFolderChanged?.call(folderInfo.path);
+        _notifyTitle();
+      } else {
+        log.critical("Failed to get folder($path) info");
+      }
+    });
+  }
+
+  void cdParent() {
+    final path = dirname(_folderNotifier.value.path);
+    cd(path);
+  }
+
+  void newFolder(String newFolderName) async {
+    final path = join(_folderNotifier.value.path, newFolderName);
+    final ret = await _repo.newFolder(path);
+    if (ret.succeed) {
+      log.debug("create folder ok");
+    } else {
+      log.debug("create folder failed: ${ret.error}");
+    }
+
+    refresh();
+  }
+
+  void refresh() {
+    if (!_initialized) return;
+    cd(_folderNotifier.value.path, force: true);
+  }
+
   Future<bool> deleteSelected() async {
     bool ret = true;
     bool deleted = false;
@@ -386,14 +328,98 @@ abstract class BrowserViewState {
 
     return true;
   }
+
+  /*=======================================================================*\ 
+    Playback
+  \*=======================================================================*/
+  void _playingListener(event, audio) {
+    if (event == AudioEventType.started) {
+      //All new file playback is from this object
+      assert(audio == currentAudio!.audioObject);
+      currentAudio!.highlight = true;
+      currentAudio!.playing = true;
+    } else if (event == AudioEventType.paused) {
+      currentAudio!.playing = false;
+    } else if (event == AudioEventType.stopped) {
+      currentAudio!.playing = false;
+      currentAudio?.highlight = false;
+      if (mode != BrowserViewMode.playback) {
+        return;
+      }
+      final loopType = loopNotifier.value;
+      switch (loopType) {
+        case PlayLoopType.list:
+          _playNext(false);
+          break;
+        case PlayLoopType.loopAll:
+          _playNext(true);
+          break;
+        case PlayLoopType.loopOne:
+          _agent.startPlay(currentAudio!.audioObject as AudioInfo);
+          break;
+        case PlayLoopType.random:
+          final audioCounts = _folderNotifier.value.audios.length;
+          final audioStartIndex = _folderNotifier.value.subfolders.length;
+          final relativeIndex = Random().nextInt(audioCounts);
+          final nextAudio = itemStateList[audioStartIndex + relativeIndex];
+          _playNewAudio(nextAudio);
+          break;
+        case PlayLoopType.noLoop:
+      }
+    }
+  }
+
+  void _playNewAudio(AudioListItemState itemState) async {
+    mode = BrowserViewMode.playback;
+    final ret = await _agent.startPlay(itemState.audioObject as AudioInfo);
+    if (ret.succeed) {
+      currentAudio?.highlight = false;
+      currentAudio?.playing = false;
+      _currentAudioIndex = itemStateList.indexOf(itemState);
+      Scrollable.ensureVisible(itemState.key.currentContext!,
+          duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+    }
+  }
+
+  void _playNext(bool repeat) {
+    final audioCounts = _folderNotifier.value.audios.length;
+    final audioStartIndex = _folderNotifier.value.subfolders.length;
+    final currentRelativeIndex = _currentAudioIndex! - audioStartIndex;
+
+    if ((!repeat) && currentRelativeIndex >= audioCounts - 1) {
+      log.debug("this is the last one");
+      return;
+    }
+
+    final nextIndex =
+        (currentRelativeIndex + 1) % audioCounts + audioStartIndex;
+    log.debug("playback next($nextIndex)");
+    _playNewAudio(itemStateList[nextIndex]);
+  }
+
+  void playNext() {
+    _playNext(false);
+  }
+
+  void playPrevious() {
+    if (_currentAudioIndex == 0) {
+      return;
+    }
+
+    final prev = itemStateList[_currentAudioIndex! - 1];
+    if (prev.audioObject is FolderInfo) {
+      log.debug("previous(${_currentAudioIndex! - 1})"
+          " is a folder, can not playback");
+      return;
+    }
+    log.debug("playback previous(${_currentAudioIndex! - 1})");
+    _playNewAudio(prev);
+  }
 }
 
-enum BrowserViewMode {
-  normal,
-  edit,
-  playback,
-}
-
+/*=======================================================================*\ 
+  Sub-classes
+\*=======================================================================*/
 class FilesystemBrowserViewState extends BrowserViewState {
   FilesystemBrowserViewState() : super(RepoType.filesystem);
 }
@@ -414,14 +440,9 @@ class AllStoreageBrowserViewState extends BrowserViewState {
   AllStoreageBrowserViewState() : super(RepoType.allStoreage);
 }
 
-enum PlayLoopType {
-  loopAll,
-  loopOne,
-  random,
-  noLoop,
-  list,
-}
-
+/*=======================================================================*\ 
+  Helper Types
+\*=======================================================================*/
 class AudioListItemSelectedState {
   bool folderSelected;
   bool audioSelected;
@@ -433,4 +454,18 @@ class AudioListItemSelectedState {
     return AudioListItemSelectedState(
         audioSelected: false, folderSelected: false);
   }
+}
+
+enum BrowserViewMode {
+  normal,
+  edit,
+  playback,
+}
+
+enum PlayLoopType {
+  loopAll,
+  loopOne,
+  random,
+  noLoop,
+  list,
 }
