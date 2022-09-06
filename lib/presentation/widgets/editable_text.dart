@@ -53,9 +53,7 @@ class _EditableTextState extends State<EditableText> {
   void textChanged(String newValue) {
     textString = newValue;
     _isEditingText = false;
-    if (widget.onTextChanged != null) {
-      widget.onTextChanged!(newValue);
-    }
+    widget.onTextChanged?.call(newValue);
   }
 
   Widget addDelButton(Widget textField) {

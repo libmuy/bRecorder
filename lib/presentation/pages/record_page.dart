@@ -3,9 +3,9 @@ import 'package:brecorder/data/repository_type.dart';
 import 'package:brecorder/presentation/ploc/record_page_state.dart';
 
 import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/presentation/widgets/state_button.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/utils.dart';
 import '../widgets/editable_text.dart' as brecord;
 import '../widgets/waveform/waveform.dart';
 
@@ -80,7 +80,7 @@ class _RecordPageState extends State<RecordPage> {
                 }),
 
             // Duration Text Lable
-            ValueListenableBuilder<WaveformMetrics>(
+            ValueListenableBuilder<AudioPositionInfo>(
                 valueListenable: state.waveformMetricsNotifier,
                 builder: (context, metrics, _) {
                   return Container(

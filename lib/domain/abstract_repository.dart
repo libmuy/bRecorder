@@ -1,12 +1,16 @@
 import 'package:brecorder/core/result.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
 import 'entities.dart';
 
 abstract class Repository {
-  Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path);
-  Future<Result<Void, ErrInfo>> moveObjects(
-      List<String> srcPath, String dstPath);
-  Future<Result<Void, ErrInfo>> newFolder(String path);
+  abstract final String name;
+  abstract final Icon icon;
+  abstract final bool realStorage;
+  Future<Result> getFolderInfo(String path, {bool folderOnly});
+  Future<Result> moveObjects(List<String> srcPath, String dstPath);
+  Future<Result> newFolder(String path);
+  Future<Result> removeObject(AudioObject object);
 
   Future<String> get rootPath;
 

@@ -1,4 +1,5 @@
 import 'package:brecorder/core/audio_agent.dart';
+import 'package:brecorder/data/all_storage_repository.dart';
 import 'package:brecorder/data/icloud_repository.dart';
 import 'package:brecorder/data/playlist_repository.dart';
 import 'package:brecorder/data/repository_type.dart';
@@ -30,11 +31,13 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => ICloudBrowserViewState());
     getIt.registerLazySingleton(() => PlaylistBrowserViewState());
     getIt.registerLazySingleton(() => TrashBrowserViewState());
+    getIt.registerLazySingleton(() => AllStoreageBrowserViewState());
     getIt.registerLazySingleton(() => AudioServiceAgent());
     getIt.registerLazySingleton(() => FilesystemRepository());
     getIt.registerLazySingleton(() => ICloudRepository());
     getIt.registerLazySingleton(() => PlaylistRepository());
     getIt.registerLazySingleton(() => TrashRepository());
+    getIt.registerLazySingleton(() => AllStorageRepository());
 
     getIt.registerFactory(() => RecordPageState());
 
@@ -60,6 +63,8 @@ class ServiceLocator {
         return getIt.get<PlaylistBrowserViewState>();
       case RepoType.trash:
         return getIt.get<TrashBrowserViewState>();
+      case RepoType.allStoreage:
+        return getIt.get<AllStoreageBrowserViewState>();
     }
   }
 
@@ -73,6 +78,8 @@ class ServiceLocator {
         return getIt.get<PlaylistRepository>();
       case RepoType.trash:
         return getIt.get<TrashRepository>();
+      case RepoType.allStoreage:
+        return getIt.get<AllStorageRepository>();
     }
   }
 }

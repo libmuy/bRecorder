@@ -4,6 +4,7 @@ import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/result.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/core/service_locator.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -15,6 +16,15 @@ final log = Logger('FsRepo');
 class FilesystemRepository extends Repository {
   String? _rootPath;
   final audioAgent = sl.get<AudioServiceAgent>();
+
+  @override
+  final String name = "Local Stroage";
+
+  @override
+  final Icon icon = const Icon(Icons.phone_android);
+
+  @override
+  final realStorage = true;
 
   @override
   Future<String> get rootPath async {
@@ -33,7 +43,7 @@ class FilesystemRepository extends Repository {
     return path.substring(root.length);
   }
 
-  Future<FolderInfo?> _getFolderInfoHelper(String path) async {
+  Future<FolderInfo?> _getFolderInfoHelper(String path, bool folderOnly) async {
     Directory dir;
     var subfolders = List<FolderInfo>.empty(growable: true);
     var audios = List<AudioInfo>.empty(growable: true);
@@ -56,7 +66,7 @@ class FilesystemRepository extends Repository {
       final realtivePath = await _trimRoot(e.path);
       if (e is Directory) {
         log.debug("got directory:${e.path}");
-        final folder = await _getFolderInfoHelper(realtivePath);
+        final folder = await _getFolderInfoHelper(realtivePath, false);
         if (folder == null) return null;
         subfolders.add(folder);
         if (folder.timestamp.compareTo(folderTimestamp) > 0) {
@@ -70,12 +80,15 @@ class FilesystemRepository extends Repository {
         final bytes = await e.length();
         folderBytes += bytes;
         final duration = await audioAgent.getDuration(e.path);
-        duration.fold((r) {
-          log.debug("duration:$r");
-          audios.add(AudioInfo(r, realtivePath, bytes, timestamp));
-        }, (_) {
+        if (duration.succeed) {
+          log.debug("duration:${duration.value}");
+          if (!folderOnly) {
+            audios.add(AudioInfo(duration.value, realtivePath, bytes, timestamp,
+                repo: this));
+          }
+        } else {
           log.error("failed to get audio(${e.path})'s duration");
-        });
+        }
         if (timestamp.compareTo(folderTimestamp) > 0) {
           folderTimestamp = timestamp;
         }
@@ -89,12 +102,13 @@ class FilesystemRepository extends Repository {
     }
 
     return FolderInfo(
-        path, folderBytes, folderTimestamp, subfolders, audios, audioCount);
+        path, folderBytes, folderTimestamp, subfolders, audios, audioCount,
+        repo: this);
   }
 
   @override
-  Future<Result<FolderInfo, ErrInfo>> getFolderInfo(String path) async {
-    final folder = await _getFolderInfoHelper(path);
+  Future<Result> getFolderInfo(String path, {bool folderOnly = false}) async {
+    final folder = await _getFolderInfoHelper(path, folderOnly);
 
     if (folder == null) {
       return Fail(IOFailure());
@@ -104,13 +118,14 @@ class FilesystemRepository extends Repository {
   }
 
   @override
-  Future<Result<Void, ErrInfo>> moveObjects(
-      List<String> srcPath, String dstPath) async {
+  Future<Result> moveObjects(List<String> srcPath, String dstPath) async {
     var files = List<String>.empty(growable: true);
     var dirs = List<String>.empty(growable: true);
+    final absoluteDstPath = await absolutePath(dstPath);
     // check existence
-    for (final path in srcPath) {
-      final type = FileSystemEntity.typeSync(path);
+    for (final relativePath in srcPath) {
+      final path = await absolutePath(relativePath);
+      final type = await FileSystemEntity.type(path);
       switch (type) {
         case FileSystemEntityType.directory:
           dirs.add(path);
@@ -128,19 +143,23 @@ class FilesystemRepository extends Repository {
 
     try {
       for (final f in files) {
-        final newPath = join(dstPath, f);
-        File(f).renameSync(newPath);
+        final newPath = join(absoluteDstPath, basename(f));
+        await File(f).rename(newPath);
+      }
+      for (final d in dirs) {
+        final newPath = join(absoluteDstPath, basename(d));
+        await Directory(d).rename(newPath);
       }
     } catch (e) {
       log.critical("got a file IO exception: $e");
       return Fail(IOFailure());
     }
 
-    return Succeed(Void());
+    return Succeed();
   }
 
   @override
-  Future<Result<Void, ErrInfo>> newFolder(String path) async {
+  Future<Result> newFolder(String path) async {
     final absPath = await absolutePath(path);
     final dir = Directory(absPath);
     try {
@@ -153,6 +172,24 @@ class FilesystemRepository extends Repository {
       return Fail(IOFailure());
     }
 
-    return Succeed(Void());
+    return Succeed();
+  }
+
+  @override
+  Future<Result> removeObject(AudioObject object) async {
+    FileSystemEntity entity;
+    if (object is AudioInfo) {
+      entity = File(await object.realPath);
+    } else {
+      entity = Directory(await object.realPath);
+    }
+    try {
+      await entity.delete(recursive: true);
+    } catch (e) {
+      log.critical("got a file IO exception: $e");
+      return Fail(IOFailure());
+    }
+
+    return Succeed();
   }
 }
