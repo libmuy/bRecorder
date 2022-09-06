@@ -1,7 +1,7 @@
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/data/all_storage_repository.dart';
 import 'package:brecorder/data/repository_type.dart';
-import 'package:brecorder/domain/abstract_repository.dart';
+import 'package:brecorder/domain/entities.dart';
 import 'package:brecorder/presentation/pages/browser_view.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:brecorder/presentation/widgets/new_folder_dialog.dart';
@@ -14,7 +14,7 @@ import '../../core/service_locator.dart';
 final log = Logger('FolderSelector');
 
 class FolderSelector extends StatefulWidget {
-  final void Function(Repository repo, String path) folderNotify;
+  final void Function(FolderInfo folder) folderNotify;
 
   const FolderSelector({
     Key? key,
@@ -30,7 +30,7 @@ class _FolderSelectorState extends State<FolderSelector> {
   // final browser = BrowserViewState();
   final repo = sl.get<AllStorageRepository>();
   final browserViewState = sl.get<AllStoreageBrowserViewState>();
-  String currentPath = "/";
+  var currentFolder = FolderInfo.empty;
 
   // @override
   // void initState() {
@@ -41,6 +41,10 @@ class _FolderSelectorState extends State<FolderSelector> {
   // void dispose() {
   //   super.dispose();
   // }
+
+  String get currentPath {
+    return currentFolder.path;
+  }
 
   @override
   Widget build(context) {
@@ -84,8 +88,9 @@ class _FolderSelectorState extends State<FolderSelector> {
           folderOnly: true,
           persistPath: false,
           titleNotifier: titleNotifier,
-          onFolderChanged: (path) {
-            currentPath = path;
+          destoryRepoCache: true,
+          onFolderChanged: (folder) {
+            currentFolder = folder;
           },
         )),
         Container(
@@ -93,10 +98,8 @@ class _FolderSelectorState extends State<FolderSelector> {
           child: ElevatedButton(
             child: const Text("Select Folder"),
             onPressed: () {
-              final pathRet = repo.parseRepoPath(currentPath);
-              if (pathRet.succeed) {
-                widget.folderNotify(pathRet.value.repo, pathRet.value.path);
-              }
+              final copyFrom = currentFolder.copyFrom as FolderInfo?;
+              widget.folderNotify(copyFrom ?? currentFolder);
 
               Navigator.pop(context);
             },

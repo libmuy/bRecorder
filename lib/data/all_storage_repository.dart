@@ -1,10 +1,12 @@
+// ignore_for_file: unused_element
+
 import 'package:brecorder/core/result.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
 import '../core/logging.dart';
 import '../core/service_locator.dart';
-import '../domain/abstract_repository.dart';
+import 'abstract_repository.dart';
 import '../domain/entities.dart';
 import 'repository_type.dart';
 
@@ -47,15 +49,17 @@ class AllStorageRepository extends Repository {
     return null;
   }
 
-  void _addRepoNameToPath(Repository repo, FolderInfo folder) {
+  void _addRepoNameToPath(String prefix, FolderInfo folder) {
     log.debug("change path to:${folder.path}");
-    folder.path = "/${repo.name}${folder.path}";
-    for (final f in folder.subfolders) {
-      _addRepoNameToPath(repo, f);
-    }
-    for (final f in folder.audios) {
-      f.path = "/${repo.name}${f.path}";
-    }
+    folder.path = "/$prefix${folder.path}";
+
+    folder.subfolders?.forEach((f) {
+      _addRepoNameToPath(prefix, f);
+    });
+
+    folder.audios?.forEach((f) {
+      f.path = "/$prefix${f.path}";
+    });
   }
 
   Result parseRepoPath(String path) {
@@ -72,30 +76,37 @@ class AllStorageRepository extends Repository {
   }
 
   @override
-  Future<Result> getFolderInfo(String path, {bool folderOnly = false}) async {
-    if (path == "/") {
+  Future<Result> getFolderInfoRealOperation(String relativePath,
+      {bool folderOnly = false}) async {
+    if (relativePath == "/") {
+      var root = FolderInfo("/", 0, DateTime(1970), 0);
       log.debug("get root folder info");
       var folders = await Future.wait(repoList.map((repo) async {
         final ret = await repo.getFolderInfo("/", folderOnly: folderOnly);
         if (ret.succeed) {
-          _addRepoNameToPath(repo, ret.value);
-          return ret.value as FolderInfo;
+          final folder = ret.value as FolderInfo;
+          final newFolder = folder.copyWith(parent: root, repo: this);
+          _addRepoNameToPath(repo.name, newFolder);
+          return newFolder;
         }
         return FolderInfo.empty;
       }).toList());
-      final value = FolderInfo("/", 0, DateTime(1970), folders, const [], 0);
-      return Succeed(value);
+
+      root.subfoldersMap =
+          Map.fromIterables(repoList.map((e) => e.name), folders);
+
+      return Succeed(root);
     }
 
-    final pathRet = parseRepoPath(path);
+    final pathRet = parseRepoPath(relativePath);
     if (pathRet.failed) {
       return pathRet;
     }
 
     final repo = pathRet.value.repo;
-    final repoPath = pathRet.value.path;
+    final repoPath = pathRet.value.audioPath;
     final ret = await repo.getFolderInfo(repoPath, folderOnly: folderOnly);
-    if (ret.failed) return Fail(ErrMsg("Get Folder($path) failed!"));
+    if (ret.failed) return Fail(ErrMsg("Get Folder($relativePath) failed!"));
 
     _addRepoNameToPath(repo, ret.value);
 
@@ -108,27 +119,33 @@ class AllStorageRepository extends Repository {
   }
 
   @override
-  Future<Result> moveObjects(List<String> srcPath, String dstPath) async {
+  Future<Result> moveObjectsRealOperation(
+      String srcRelativePath, String dstRelativePath) async {
     return Fail(IOFailure());
   }
 
   @override
-  Future<Result> newFolder(String path) async {
-    final pathRet = parseRepoPath(path);
+  Future<Result> newFolderRealOperation(String relativePath) async {
+    final pathRet = parseRepoPath(relativePath);
     if (pathRet.failed) {
       return pathRet;
     }
 
     final repo = pathRet.value.repo;
-    final repoPath = pathRet.value.path;
+    final repoPath = pathRet.value.audioPath;
     final ret = await repo.newFolder(repoPath);
-    if (ret.failed) return Fail(ErrMsg("New Folder($path) failed!"));
+    if (ret.failed) return Fail(ErrMsg("New Folder($relativePath) failed!"));
 
     return Succeed();
   }
 
   @override
-  Future<Result> removeObject(AudioObject object) async {
+  Future<Result> removeObjectRealOperation(String relativePath) async {
+    return Fail(IOFailure());
+  }
+
+  @override
+  Future<Result> getAudioInfoRealOperation(String relativePath) async {
     return Fail(IOFailure());
   }
 }

@@ -47,6 +47,7 @@ dependencies:
   # stack_trace: ^1.10.0
   # audioplayers: ^1.0.1
   intl: ^0.17.0
+  collection: ^1.16.0
 
 
 
