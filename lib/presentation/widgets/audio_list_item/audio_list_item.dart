@@ -101,6 +101,7 @@ class _AudioListItemState extends State<AudioListItem> {
                         widget.onTap?.call(true);
                       },
                       child: Container(
+                        color: Colors.transparent,
                         height: double.infinity,
                         // color: Colors.red,
                         padding: EdgeInsets.only(

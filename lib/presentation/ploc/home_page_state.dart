@@ -61,6 +61,7 @@ class HomePageState {
   void _setEditMode(bool edit) {
     switch (modeNotifier.value) {
       case BrowserViewMode.normal:
+      case BrowserViewMode.normalAnimationDone:
       case BrowserViewMode.playback:
         if (edit) {
           modeNotifier.value = BrowserViewMode.edit;
@@ -86,6 +87,7 @@ class HomePageState {
   void titleBarEndingOnPressed() {
     switch (modeNotifier.value) {
       case BrowserViewMode.normal:
+      case BrowserViewMode.normalAnimationDone:
       case BrowserViewMode.playback:
         _setEditMode(true);
         break;
