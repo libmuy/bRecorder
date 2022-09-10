@@ -167,6 +167,7 @@ abstract class BrowserViewState {
     final state = folder.displayData as AudioListItemState;
     switch (mode) {
       case BrowserViewMode.normal:
+      case BrowserViewMode.normalAnimationDone:
         cd(folder.path);
         break;
 
@@ -189,6 +190,7 @@ abstract class BrowserViewState {
     final state = audio.displayData as AudioListItemState;
     switch (mode) {
       case BrowserViewMode.normal:
+      case BrowserViewMode.normalAnimationDone:
         if (iconOnTapped) {
           _playNewAudio(audio);
         } else {
@@ -232,6 +234,7 @@ abstract class BrowserViewState {
     log.debug("item:${basename(item.audioObject.path)}long pressed");
     switch (mode) {
       case BrowserViewMode.normal:
+      case BrowserViewMode.normalAnimationDone:
       case BrowserViewMode.playback:
         mode = BrowserViewMode.edit;
         item.mode = AudioListItemMode.selected;
@@ -468,6 +471,7 @@ class FolderChangeNotifier extends ValueNotifier<FolderInfo> {
 
 enum BrowserViewMode {
   normal,
+  normalAnimationDone,
   edit,
   playback,
 }

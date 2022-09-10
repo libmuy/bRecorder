@@ -61,6 +61,7 @@ class _HomePageState extends State<HomePage>
           builder: (context, mode, child) {
             switch (mode) {
               case BrowserViewMode.normal:
+              case BrowserViewMode.normalAnimationDone:
               case BrowserViewMode.playback:
                 return const Icon(Icons.edit);
               case BrowserViewMode.edit:
@@ -97,6 +98,7 @@ class _HomePageState extends State<HomePage>
             case BrowserViewMode.edit:
               return Container();
             case BrowserViewMode.normal:
+            case BrowserViewMode.normalAnimationDone:
               return FloatingActionButton(
                 onPressed: () {
                   Navigator.of(context).push(

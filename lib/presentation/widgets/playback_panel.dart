@@ -90,29 +90,29 @@ class _PlaybackPanelState extends State<PlaybackPanel> {
 
   @override
   Widget build(context) {
-    return
-        // decoration: BoxDecoration(
-        //   color: Colors.black,
-        //   borderRadius: const BorderRadius.only(
-        //     topLeft: Radius.circular(10),
-        //     topRight: Radius.circular(10),
-        //     // bottomLeft: Radius.circular(10),
-        //     // bottomRight: Radius.circular(10)
-        //   ),
-        //   boxShadow: [
-        //     BoxShadow(
-        //       color: Colors.black.withOpacity(0.4),
-        //       spreadRadius: 8,
-        //       blurRadius: 8,
-        //       // offset: Offset(0, 2), // changes position of shadow
-        //     ),
-        //   ],
-        // ),
-        Material(
-      type: MaterialType.transparency,
-      child: Container(
-        padding: widget.padding,
+    return Container(
+      // decoration: BoxDecoration(
+      //   color: Colors.black,
+      //   borderRadius: const BorderRadius.only(
+      //     topLeft: Radius.circular(10),
+      //     topRight: Radius.circular(10),
+      //     // bottomLeft: Radius.circular(10),
+      //     // bottomRight: Radius.circular(10)
+      //   ),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: Colors.black.withOpacity(0.4),
+      //       spreadRadius: 5,
+      //       blurRadius: 5,
+      //       // offset: Offset(0, 2), // changes position of shadow
+      //     ),
+      //   ],
+      // ),
+      padding: widget.padding,
+      child: Material(
+        type: MaterialType.transparency,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
