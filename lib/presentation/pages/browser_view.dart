@@ -60,7 +60,7 @@ class _BrowserViewState extends State<BrowserView>
   bool _quickSwiped = false;
   var _lastAnimationStatus = AnimationStatus.dismissed;
   final _bottomPanelKey = GlobalKey();
-  late final AnimationController _animationController = AnimationController(
+  late final _animationController = AnimationController(
     duration: const Duration(milliseconds: 200),
     vsync: this,
   );
