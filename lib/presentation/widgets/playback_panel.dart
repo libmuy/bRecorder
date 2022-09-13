@@ -2,10 +2,15 @@ import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/domain/entities.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
+import 'package:brecorder/presentation/widgets/icons/audio_icons.dart';
+import 'package:brecorder/presentation/widgets/rect_slider.dart';
+import 'package:brecorder/presentation/widgets/sized_animated.dart';
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 import '../../core/service_locator.dart';
 import '../../core/utils.dart';
+import 'on_off_icon_button.dart';
 
 final log = Logger('PlaybackPanel');
 
@@ -14,7 +19,6 @@ class PlaybackPanel extends StatefulWidget {
   final void Function()? onPlayPrevious;
   final void Function()? onPlayNext;
   final void Function()? onClose;
-  final ValueNotifier<AudioPositionInfo>? positionNotifier;
   final ValueNotifier<PlayLoopType> loopNotifier;
   const PlaybackPanel({
     Key? key,
@@ -23,7 +27,6 @@ class PlaybackPanel extends StatefulWidget {
     this.onClose,
     this.padding =
         const EdgeInsets.only(top: 5, bottom: 15, left: 10, right: 10),
-    this.positionNotifier,
     required this.loopNotifier,
   }) : super(key: key);
 
@@ -31,21 +34,35 @@ class PlaybackPanel extends StatefulWidget {
   State<PlaybackPanel> createState() => _PlaybackPanelState();
 }
 
-class _PlaybackPanelState extends State<PlaybackPanel> {
+class _PlaybackPanelState extends State<PlaybackPanel>
+    with TickerProviderStateMixin {
   final agent = sl.get<AudioServiceAgent>();
   final playingNotifier = ValueNotifier(false);
   AudioInfo? currentAudio;
-  late final ValueNotifier<AudioPositionInfo>? positionNotifier;
+  final _positionNotifier = ValueNotifier(0.0);
+  final _durationNotifier = ValueNotifier(0.0);
   bool needResume = false;
+
+  //Options Animation controll
+  final _pitchShowNotifier = ValueNotifier(false);
+  final _pitchValueNotifier = ValueNotifier(0.0);
+  final _volumeShowNotifier = ValueNotifier(false);
+  final _volumeValueNotifier = ValueNotifier(0.0);
+  final _speedShowNotifier = ValueNotifier(false);
+  final _speedValueNotifier = ValueNotifier(0.0);
+  final _timerShowNotifier = ValueNotifier(false);
+  final _timerValueNotifier = ValueNotifier(0.0);
+  final _waveformOnNotifier = ValueNotifier(false);
+  late final _optionPanelShowNotifiers = {
+    _OptionPanelType.pitch: _pitchShowNotifier,
+    _OptionPanelType.volume: _volumeShowNotifier,
+    _OptionPanelType.speed: _speedShowNotifier,
+    _OptionPanelType.timer: _timerShowNotifier,
+  };
 
   @override
   void initState() {
     super.initState();
-    if (widget.positionNotifier == null) {
-      positionNotifier = ValueNotifier(const AudioPositionInfo(0, 0));
-    } else {
-      positionNotifier = widget.positionNotifier;
-    }
     agent.addAudioEventListener(
         AudioEventType.positionUpdate, _positionListener);
     agent.addAudioEventListener(AudioEventType.started, _playingListener);
@@ -63,29 +80,38 @@ class _PlaybackPanelState extends State<PlaybackPanel> {
     agent.removeAudioEventListener(AudioEventType.stopped, _playingListener);
   }
 
-  void _updatePostion(double seconds) {
-    positionNotifier!.value =
-        AudioPositionInfo(positionNotifier!.value.duration, seconds);
-  }
-
   void _positionListener(_, data) {
     final seconds = data / 1000;
-    if (seconds == positionNotifier!.value.position) {
-      return;
-    }
 
-    _updatePostion(seconds);
+    _positionNotifier.value = seconds;
   }
 
   void _playingListener(event, audio) {
     if (event == AudioEventType.started) {
       playingNotifier.value = true;
       currentAudio = audio;
-      positionNotifier!.value =
-          AudioPositionInfo(currentAudio!.durationMS / 1000.0, 0.0);
+      _durationNotifier.value = currentAudio!.durationMS / 1000.0;
     } else {
       playingNotifier.value = false;
     }
+  }
+
+  void _showOptionPanel(_OptionPanelType panel, bool show) {
+    if (!show) {
+      _optionPanelShowNotifiers[panel]!.value = false;
+      return;
+    } else {
+      _optionPanelShowNotifiers[panel]!.value = true;
+      return;
+    }
+
+    // for (var type in _OptionPanelType.values) {
+    //   if (type == panel) {
+    //     _optionPanelShowNotifiers[type]!.value = true;
+    //   } else {
+    //     _optionPanelShowNotifiers[type]!.value = false;
+    //   }
+    // }
   }
 
   @override
@@ -114,26 +140,159 @@ class _PlaybackPanelState extends State<PlaybackPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                    visualDensity: VisualDensity.compact,
-                    splashRadius: 20,
-                    tooltip: "close",
-                    iconSize: 15,
-                    onPressed: () {
-                      widget.onClose?.call();
-                    },
-                    icon: const Icon(Icons.close)),
-              ],
+            IntrinsicHeight(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 50,
+                  ),
+                  Container(
+                      height: double.infinity,
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        height: 4,
+                        width: MediaQuery.of(context).size.width / 5,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).selectedRowColor,
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(3)),
+                        ),
+                      )),
+                  SizedBox(
+                    width: 50,
+                    child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 20,
+                        tooltip: "close",
+                        iconSize: 15,
+                        onPressed: () {
+                          widget.onClose?.call();
+                        },
+                        icon: const Icon(Icons.close)),
+                  ),
+                ],
+              ),
             ),
+            Container(
+                margin: const EdgeInsets.only(
+                  left: 10,
+                  right: 10,
+                ),
+                padding: const EdgeInsets.only(
+                  left: 10,
+                  right: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                      bottomLeft: Radius.circular(10),
+                      bottomRight: Radius.circular(10)),
+                  // boxShadow: [
+                  //   BoxShadow(
+                  //     color: Theme.of(context)
+                  //         .primaryColor
+                  //         .withOpacity(0.4),
+                  //     spreadRadius: 8,
+                  //     blurRadius: 8,
+                  //     // offset: Offset(0, 2), // changes position of shadow
+                  //   ),
+                  // ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedAnimated(
+                      showNotifier: _pitchShowNotifier,
+                      child: Row(children: [
+                        OverlayIcon.pitchRemoveIcon(),
+                        Expanded(
+                          child: RectThumbSlider(
+                            valueNotifier: _pitchValueNotifier,
+                            onChanged: ((value) =>
+                                _pitchValueNotifier.value = value),
+                          ),
+                        ),
+                        OverlayIcon.pitchAddIcon(),
+                      ]),
+                    ),
+                    SizedAnimated(
+                      showNotifier: _volumeShowNotifier,
+                      child: Row(children: [
+                        OverlayIcon.volumeRemoveIcon(),
+                        Expanded(
+                          child: RectThumbSlider(
+                            valueNotifier: _volumeValueNotifier,
+                            onChanged: ((value) =>
+                                _volumeValueNotifier.value = value),
+                          ),
+                        ),
+                        OverlayIcon.volumeAddIcon(),
+                      ]),
+                    ),
+                    SizedAnimated(
+                      showNotifier: _speedShowNotifier,
+                      child: Row(children: [
+                        OverlayIcon.speedRemoveIcon(),
+                        Expanded(
+                          child: RectThumbSlider(
+                            valueNotifier: _speedValueNotifier,
+                            onChanged: ((value) =>
+                                _speedValueNotifier.value = value),
+                          ),
+                        ),
+                        OverlayIcon.speedAddIcon(),
+                      ]),
+                    ),
+                    SizedAnimated(
+                      showNotifier: _timerShowNotifier,
+                      child: Row(children: [
+                        OverlayIcon.timerRemoveIcon(),
+                        Expanded(
+                          child: RectThumbSlider(
+                            valueNotifier: _timerValueNotifier,
+                            onChanged: ((value) =>
+                                _timerValueNotifier.value = value),
+                          ),
+                        ),
+                        OverlayIcon.timerAddIcon(),
+                      ]),
+                    ),
+                  ],
+                )),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(onPressed: () {}, icon: const Icon(Icons.tune)),
-                IconButton(
-                    onPressed: () {}, icon: const Icon(Icons.timer_outlined)),
+                OnOffIconButton(
+                  icon: Icons.graphic_eq,
+                  stateNotifier: _pitchShowNotifier,
+                  onStateChanged: (state) {
+                    _showOptionPanel(_OptionPanelType.pitch, state);
+                  },
+                ),
+                OnOffIconButton(
+                  icon: Icons.volume_up_outlined,
+                  stateNotifier: _volumeShowNotifier,
+                  onStateChanged: (state) {
+                    _showOptionPanel(_OptionPanelType.volume, state);
+                  },
+                ),
+                OnOffIconButton(
+                  icon: Icons.fast_forward,
+                  stateNotifier: _speedShowNotifier,
+                  onStateChanged: (state) {
+                    _showOptionPanel(_OptionPanelType.speed, state);
+                  },
+                ),
+                OnOffIconButton(
+                  icon: Icons.timer,
+                  stateNotifier: _timerShowNotifier,
+                  onStateChanged: (state) {
+                    _showOptionPanel(_OptionPanelType.timer, state);
+                  },
+                ),
                 IconButton(
                     onPressed: () {
                       final loopTypeList = [
@@ -176,56 +335,32 @@ class _PlaybackPanelState extends State<PlaybackPanel> {
                     onPressed: () {}, icon: const Icon(Icons.delete_outline)),
               ],
             ),
-            ValueListenableBuilder<AudioPositionInfo>(
-                valueListenable: positionNotifier!,
-                builder: (context, pos, _) {
-                  return Column(
-                    children: [
-                      Slider(
-                        value:
-                            pos.duration == 0 ? 0 : pos.position / pos.duration,
-                        onChanged: (val) {
-                          final seconds = val * pos.duration;
-                          // log.debug("change to $val");
-                          _updatePostion(seconds);
-                        },
-                        onChangeStart: (val) {
-                          log.debug("start drag slider, state:${agent.state}");
-                          if (agent.state == AudioState.playing) {
-                            log.debug("playing, pause it");
-                            needResume = true;
-                            agent.pausePlay();
-                          }
-                        },
-                        onChangeEnd: (val) {
-                          log.debug("end drag slider, state:${agent.state}");
-                          final targetPos = (val * pos.duration * 1000).toInt();
-                          agent.seekTo(targetPos);
-                          if (needResume) {
-                            log.debug("paused playing, resume it");
-                            agent.resumePlay();
-                            needResume = false;
-                          }
-                        },
-                      ),
-                      // LinearProgressIndicator(
-                      //   color: Colors.red,
-                      //   // backgroundColor: Colors.red,
-                      //   value: metrics.duration == 0
-                      //       ? 0
-                      //       : metrics.position / metrics.duration,
-                      // ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("0.00"),
-                          Text((pos.position).toStringAsFixed(2)),
-                          Text((pos.duration).toStringAsFixed(2)),
-                        ],
-                      ),
-                    ],
-                  );
-                }),
+            RectThumbSlider(
+              thumbSize: 10,
+              valueNotifier: _positionNotifier,
+              maxNotifier: _durationNotifier,
+              onChanged: (val) {
+                _positionNotifier.value = val;
+              },
+              onChangeStart: (val) {
+                log.debug("start drag slider, state:${agent.state}");
+                if (agent.state == AudioState.playing) {
+                  log.debug("playing, pause it");
+                  needResume = true;
+                  agent.pausePlay();
+                }
+              },
+              onChangeEnd: (val) {
+                log.debug("end drag slider, state:${agent.state}");
+                final targetPos = (val * 1000).toInt();
+                agent.seekTo(targetPos);
+                if (needResume) {
+                  log.debug("paused playing, resume it");
+                  agent.resumePlay();
+                  needResume = false;
+                }
+              },
+            ),
             ValueListenableBuilder<bool>(
                 valueListenable: playingNotifier,
                 builder: (context, playing, _) {
@@ -279,4 +414,11 @@ class _PlaybackPanelState extends State<PlaybackPanel> {
       ),
     );
   }
+}
+
+enum _OptionPanelType {
+  pitch,
+  volume,
+  speed,
+  timer,
 }
