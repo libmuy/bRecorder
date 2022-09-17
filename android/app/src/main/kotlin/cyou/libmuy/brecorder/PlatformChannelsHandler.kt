@@ -147,6 +147,15 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                         endCallWithResult(result, ret)
                     }
                 }
+                "setVolume" -> {
+                    val volume: Double? = call.argument("volume")
+                    if (volume == null) {
+                        endCallWithParamError(result, "params is NULL")
+                    } else {
+                        val ret = audioManager!!.setVolume(volume!!)
+                        endCallWithResult(result, ret)
+                    }
+                }
 
                 /*=======================================================================*\
                   Other
@@ -187,6 +196,14 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                         RECORD_FRAME_READ_PER_SECOND = recordFrameReadPerSecond!!
                         RECORDER_READ_BYTES = SAMPLE_RATE / RECORD_FRAME_READ_PER_SECOND * 2 * RECORD_CHANNEL_COUNT  //1回処理するバイト数
                         endCallWithResult(result, AudioResult<NoValue>(AudioErrorInfo.OK))
+
+                        val map = HashMap<String, Any>()
+                        map["platformPametersEvent"] = mapOf(
+                            "PLATFORM_PITCH_MAX_VALUE" to 2.8,
+                            "PLATFORM_PITCH_MIN_VALUE" to 0.2,
+                            "PLATFORM_PITCH_DEFAULT_VALUE" to 1.0
+                        )
+                        sendEvent(map)
                     }
                 }
 

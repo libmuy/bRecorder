@@ -4,24 +4,27 @@ class OverlayIcon extends StatelessWidget {
   final double? height;
   final IconData bigIcon;
   final IconData smallIcon;
+  final Color? color;
 
   const OverlayIcon({
     Key? key,
-    this.height,
     required this.bigIcon,
     required this.smallIcon,
+    this.height,
+    this.color,
   }) : super(key: key);
 
   @override
   Widget build(context) {
     return SizedBox(
-      height: height ?? 20,
+      height: height ?? 23,
       child: Stack(
         children: [
           Align(
             alignment: Alignment.center,
             child: Icon(
               bigIcon,
+              color: color,
             ),
           ),
           Align(
@@ -34,7 +37,7 @@ class OverlayIcon extends StatelessWidget {
                         color: Theme.of(context).primaryColor, width: 1)),
                 child: Icon(
                   smallIcon,
-                  // color: Theme.of(context).primaryColor,
+                  color: color,
                   size: 9,
                 ),
               )),

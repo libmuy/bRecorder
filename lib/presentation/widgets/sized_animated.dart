@@ -27,19 +27,22 @@ class SizedAnimated extends StatefulWidget {
 class _SizedAnimatedState extends State<SizedAnimated>
     with TickerProviderStateMixin {
   bool lastShowState = false;
-  late final _animationController = AnimationController(
-    duration: const Duration(milliseconds: 300),
-    vsync: this,
-  );
-  late final Animation<double> _animation = Tween<double>(
-    begin: 0,
-    end: 1,
-  ).animate(_animationController);
+  late final AnimationController _animationController;
+  late final Animation<double> _animation;
 
   @override
   void initState() {
     assert(widget.showNotifier != null || widget.show != null);
     super.initState();
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(_animationController);
   }
 
   @override

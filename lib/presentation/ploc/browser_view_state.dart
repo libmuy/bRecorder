@@ -67,7 +67,7 @@ abstract class BrowserViewState {
     if (!_folderOnly) {
       _agent.addAudioEventListener(AudioEventType.started, _playingListener);
       _agent.addAudioEventListener(AudioEventType.paused, _playingListener);
-      _agent.addAudioEventListener(AudioEventType.stopped, _playingListener);
+      _agent.addAudioEventListener(AudioEventType.complete, _playingListener);
     }
     _initialized = true;
     refresh();
@@ -78,7 +78,8 @@ abstract class BrowserViewState {
     if (!_folderOnly) {
       _agent.removeAudioEventListener(AudioEventType.started, _playingListener);
       _agent.removeAudioEventListener(AudioEventType.paused, _playingListener);
-      _agent.removeAudioEventListener(AudioEventType.stopped, _playingListener);
+      _agent.removeAudioEventListener(
+          AudioEventType.complete, _playingListener);
     }
   }
 
@@ -256,10 +257,15 @@ abstract class BrowserViewState {
       if (result.succeed) {
         final FolderInfo folderInfo = result.value;
         for (var sub in folderInfo.subObjects) {
-          sub.displayData ??= AudioListItemState(sub,
-              mode: _isEditMode
-                  ? AudioListItemMode.notSelected
-                  : AudioListItemMode.normal);
+          if (sub.displayData == null) {
+            sub.displayData = AudioListItemState(sub,
+                mode: _isEditMode
+                    ? AudioListItemMode.notSelected
+                    : AudioListItemMode.normal);
+          } else {
+            (sub.displayData as AudioListItemState).mode =
+                AudioListItemMode.normal;
+          }
         }
         log.debug("folder changed to:${_repo.name}$path");
         // folderInfo.dump();
@@ -350,7 +356,7 @@ abstract class BrowserViewState {
   \*=======================================================================*/
   void _playingListener(event, audio) {
     if (mode != BrowserViewMode.playback) return;
-    if (event == AudioEventType.stopped) {
+    if (event == AudioEventType.complete) {
       final loopType = loopNotifier.value;
       switch (loopType) {
         case PlayLoopType.list:
@@ -364,8 +370,7 @@ abstract class BrowserViewState {
           break;
         case PlayLoopType.random:
           final randomIndex = Random().nextInt(_audioCount);
-          final nextAudio = _audios![randomIndex].displayData;
-          _playNewAudio(nextAudio);
+          _playNewAudio(_audios![randomIndex]);
           break;
         case PlayLoopType.noLoop:
       }

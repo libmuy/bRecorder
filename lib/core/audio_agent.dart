@@ -69,6 +69,8 @@ class AudioServiceAgent {
       Timer.run(() {
         audio.onPlayStopped?.call();
       });
+    } else if (eventType == AudioEventType.positionUpdate) {
+      currentAudio?.currentPosition = data;
     }
 
     if (!_playEventListeners.containsKey(eventType)) {
@@ -143,7 +145,7 @@ class AudioServiceAgent {
       case "PlayComplete":
         _notifyAudioEventListeners(
             AudioEventType.positionUpdate, currentAudio!.durationMS);
-        _notifyAudioEventListeners(AudioEventType.stopped, null);
+        _notifyAudioEventListeners(AudioEventType.complete, null);
         state = AudioState.idle;
         break;
       case "PositionUpdate":
@@ -152,7 +154,6 @@ class AudioServiceAgent {
           positionMs = 0;
           log.error("position updated with null");
         }
-        currentAudio?.currentPosition = positionMs;
         _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
         // log.debug("position update notification: $positionMs ms");
         break;
@@ -161,6 +162,7 @@ class AudioServiceAgent {
   }
 
   void _parameterEventHandler(dynamic data) {
+    log.debug("Platofrm parameters notifier");
     GlobalInfo.PLATFORM_PITCH_MAX_VALUE = data["PLATFORM_PITCH_MAX_VALUE"];
     GlobalInfo.PLATFORM_PITCH_MIN_VALUE = data["PLATFORM_PITCH_MIN_VALUE"];
     GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE =
@@ -306,7 +308,7 @@ class AudioServiceAgent {
     if (!await _callVoidPlatformMethod("resumePlay")) {
       return Fail(PlatformFailure());
     }
-    _notifyAudioEventListeners(AudioEventType.started, currentAudio);
+    _notifyAudioEventListeners(AudioEventType.started, currentAudio!);
     state = AudioState.playing;
     return Succeed();
   }
@@ -326,12 +328,21 @@ class AudioServiceAgent {
   }
 
   Future<Result> _seekTo(int positionMs, bool sync) async {
+    if (currentAudio != null &&
+        (state == AudioState.playPaused || state == AudioState.playing)) {
+      if (positionMs > currentAudio!.durationMS) {
+        positionMs = currentAudio!.durationMS;
+      } else if (positionMs < 0) {
+        positionMs = 0;
+      }
+    }
     if (!await _callVoidPlatformMethod("seekTo", {
       "position": positionMs,
       "sync": sync,
     })) {
       return Fail(PlatformFailure());
     }
+    _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
     return Succeed();
   }
 
@@ -477,6 +488,7 @@ enum AudioEventType {
   started,
   paused,
   positionUpdate,
+  complete,
   stopped,
   waveform,
 }
