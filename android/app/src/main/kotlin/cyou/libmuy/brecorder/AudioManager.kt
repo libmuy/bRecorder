@@ -1,25 +1,21 @@
 package cyou.libmuy.brecorder
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.media.*
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import java.io.File
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformChannelsHandler){
-    init {
-        val map = HashMap<String, Any>()
-        map["platformPametersEvent"] = mapOf(
-        "PLATFORM_PITCH_MAX_VALUE" to 2400.0,
-        "PLATFORM_PITCH_MIN_VALUE" to -2400.0,
-        "PLATFORM_PITCH_DEFAULT_VALUE" to 0.0
-        )
-        channelsHandler.sendEvent(map)
-    }
+    val mActivity = act
     private var mRecorder = Recorder(
         act, channelsHandler,
 //        onCleanupCallback = { resetState() },
@@ -43,6 +39,25 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
 
     private fun resetState() {
         mState = AudioState.Idle
+    }
+
+    private fun checkPlaybackPermissions(): AudioResult<NoValue>{
+        val permissionsRequired = mutableListOf<String>()
+
+
+        var hasRecordPermission = ContextCompat.checkSelfPermission(mActivity.context, Manifest.permission.MODIFY_AUDIO_SETTINGS) == PackageManager.PERMISSION_GRANTED
+        if (!hasRecordPermission){
+            permissionsRequired.add(Manifest.permission.MODIFY_AUDIO_SETTINGS)
+        }
+
+        if (permissionsRequired.isNotEmpty()){
+            ActivityCompat.requestPermissions(mActivity, permissionsRequired.toTypedArray(),PERMISSIONS_REQ)
+        }
+
+        hasRecordPermission = ContextCompat.checkSelfPermission(mActivity.context, Manifest.permission.MODIFY_AUDIO_SETTINGS) == PackageManager.PERMISSION_GRANTED
+        if(hasRecordPermission) return AudioResult(AudioErrorInfo.OK)
+
+        return AudioResult(AudioErrorInfo.NoPermission)
     }
 
     fun getDuration(path: String): AudioResult<Int> {
@@ -133,6 +148,11 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         if (mState != AudioState.Idle) {
             return AudioResult(AudioErrorInfo.StateErrNotIdle, extraString = "current state:${mState.name}")
         }
+        // Request Permissions
+        val permissionResult = checkPlaybackPermissions()
+        if (!permissionResult.isOK()) {
+            return permissionResult
+        }
 
         val result = mPlayer.startPlay(path, positionNotifyIntervalMs)
         mState = if (result.isOK())
@@ -212,6 +232,17 @@ class AudioManager constructor(act: FlutterActivity, channelsHandler: PlatformCh
         }
 
         val result = mPlayer.setSpeed(speed)
+        if (!result.isOK()) mState = AudioState.Idle
+        return result
+    }
+    fun setVolume(volume: Double): AudioResult<NoValue>{
+        Log.i(LOG_TAG, "Play Set Volume")
+        //check state
+        if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
+            return AudioResult(AudioErrorInfo.StateErrNotPlaying, extraString = "current state:${mState.name}")
+        }
+
+        val result = mPlayer.setVolume(volume)
         if (!result.isOK()) mState = AudioState.Idle
         return result
     }

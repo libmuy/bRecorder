@@ -7,6 +7,7 @@ import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:brecorder/presentation/ploc/record_page_state.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/filesystem_repository.dart';
 import '../data/trash_repository.dart';
@@ -47,7 +48,11 @@ class ServiceLocator {
     //   g.init();
     //   return g;
     // });
+    asyncPref = SharedPreferences.getInstance();
+    asyncPref.then((p) => pref = p);
   }
+  late final SharedPreferences pref;
+  late final Future<SharedPreferences> asyncPref;
 
   T get<T extends Object>() {
     return getIt.get<T>();

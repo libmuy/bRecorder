@@ -60,61 +60,8 @@ class _BrowserViewState extends State<BrowserView>
   bool _quickSwiped = false;
   var _lastAnimationStatus = AnimationStatus.dismissed;
   final _bottomPanelKey = GlobalKey();
-  late final _animationController = AnimationController(
-    duration: const Duration(milliseconds: 200),
-    vsync: this,
-  );
-  late final Animation<double> _sizeAnimation = Tween<double>(
-    begin: 0,
-    end: 1,
-  ).animate(_animationController);
-
-  @override
-  bool get wantKeepAlive => widget.persistPath;
-
-  double _calculateBottomPanelHeight() {
-    final contex = _bottomPanelKey.currentContext;
-    if (contex == null) {
-      log.error("Playback Panel is not being rendered");
-      return 0;
-    }
-    final box = contex.findRenderObject() as RenderBox;
-    return box.size.height;
-  }
-
-  void _animationValueListener() {
-    _bottomPanelHeightNotifier.value =
-        _bottomPanelHeight * _animationController.value;
-  }
-
-  void _animationStatusListener(AnimationStatus status) {
-    log.debug("animation state: $status");
-    switch (status) {
-      case AnimationStatus.dismissed:
-      case AnimationStatus.completed:
-        // The bottom panel is disappeared reset the controller
-        if (_lastAnimationStatus == AnimationStatus.reverse) {
-          if (modeNotifier.value == BrowserViewMode.normal) {
-            modeNotifier.value = BrowserViewMode.normalAnimationDone;
-          } else {
-            state.onPlaybackPanelClosed();
-          }
-        } else if (_lastAnimationStatus == AnimationStatus.forward) {
-          Timer.run(() {
-            final height = _calculateBottomPanelHeight();
-            _bottomPanelHeightNotifier.value = height;
-            log.debug("panel's height:$height");
-          });
-        }
-        break;
-      case AnimationStatus.reverse:
-        break;
-      case AnimationStatus.forward:
-        break;
-    }
-
-    _lastAnimationStatus = status;
-  }
+  late final AnimationController _animationController;
+  late final Animation<double> _sizeAnimation;
 
   @override
   void initState() {
@@ -131,9 +78,15 @@ class _BrowserViewState extends State<BrowserView>
         selectStateNotifier: _selectStateNotifier,
         folderNotifier: _folderNotifier,
         onFolderChanged: widget.onFolderChanged);
-
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _sizeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(_animationController);
     _animationController.addStatusListener(_animationStatusListener);
-    _animationController.addListener(_animationValueListener);
   }
 
   @override
@@ -142,8 +95,34 @@ class _BrowserViewState extends State<BrowserView>
     if (widget.destoryRepoCache) state.destoryRepositoryCache();
     state.dispose();
     _scrollController.dispose();
-
+    _animationController.dispose();
     super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => widget.persistPath;
+
+  void _animationStatusListener(AnimationStatus status) {
+    log.debug("animation state: $status");
+    switch (status) {
+      case AnimationStatus.dismissed:
+      case AnimationStatus.completed:
+        // The bottom panel is disappeared reset the controller
+        if (_lastAnimationStatus == AnimationStatus.reverse) {
+          if (modeNotifier.value == BrowserViewMode.normal) {
+            modeNotifier.value = BrowserViewMode.normalAnimationDone;
+          } else {
+            state.onPlaybackPanelClosed();
+          }
+        }
+        break;
+      case AnimationStatus.reverse:
+        break;
+      case AnimationStatus.forward:
+        break;
+    }
+
+    _lastAnimationStatus = status;
   }
 
   void _scrollListener() {
@@ -160,6 +139,16 @@ class _BrowserViewState extends State<BrowserView>
     }
   }
 
+  double _calculateBottomPanelHeight() {
+    final contex = _bottomPanelKey.currentContext;
+    if (contex == null) {
+      log.error("Playback Panel is not being rendered");
+      return 0;
+    }
+    final box = contex.findRenderObject() as RenderBox;
+    return box.size.height;
+  }
+
   void _showNewFolderDialog(BuildContext context) {
     showModalBottomSheet<void>(
       elevation: 20,
@@ -172,25 +161,6 @@ class _BrowserViewState extends State<BrowserView>
       ),
       builder: (BuildContext context) {
         return SizedBox(
-            // decoration: BoxDecoration(
-            //   color: Theme.of(context).primaryColor,
-            //   borderRadius: const BorderRadius.only(
-            //     topLeft: Radius.circular(10),
-            //     topRight: Radius.circular(10),
-            //     // bottomLeft: Radius.circular(10),
-            //     // bottomRight: Radius.circular(10)
-            //   ),
-            //   boxShadow: [
-            //     BoxShadow(
-            //       color: Theme.of(context)
-            //           .primaryColor
-            //           .withOpacity(0.4),
-            //       spreadRadius: 8,
-            //       blurRadius: 8,
-            //       // offset: Offset(0, 2), // changes position of shadow
-            //     ),
-            //   ],
-            // ),
             height: 400,
             // color: Colors.amber,
             child: FolderSelector(
@@ -201,6 +171,44 @@ class _BrowserViewState extends State<BrowserView>
             ));
       },
     );
+  }
+
+  List<Widget> _listItemWidgets(FolderInfo folder) {
+    List<AudioObject> list;
+    if (widget.folderOnly) {
+      list = folder.subfolders as List<AudioObject>;
+    } else {
+      list = folder.subObjects;
+    }
+    List<Widget> ret = list.map((obj) {
+      final itemState = obj.displayData as AudioListItemState;
+      // ignore: unnecessary_cast
+      return AudioListItem(
+        key: itemState.key,
+        audioItem: obj,
+        state: itemState,
+        onTap: (iconOnTapped) {
+          if (obj is FolderInfo) {
+            state.folderOnTap(obj);
+          } else if (obj is AudioInfo) {
+            state.audioOnTap(obj, iconOnTapped);
+          }
+        },
+        onLongPressed: state.onListItemLongPressed,
+      ) as Widget;
+    }).toList();
+
+    ret.add(
+      ValueListenableBuilder<double>(
+          valueListenable: _bottomPanelHeightNotifier,
+          builder: (context, height, _) {
+            return SizedBox(
+              height: height,
+            );
+          }),
+    );
+
+    return ret;
   }
 
   Widget _buildBottomPanelInternal(BuildContext context, BrowserViewMode mode) {
@@ -248,44 +256,6 @@ class _BrowserViewState extends State<BrowserView>
                 ],
               ));
         });
-  }
-
-  List<Widget> _listItemWidgets(FolderInfo folder) {
-    List<AudioObject> list;
-    if (widget.folderOnly) {
-      list = folder.subfolders as List<AudioObject>;
-    } else {
-      list = folder.subObjects;
-    }
-    List<Widget> ret = list.map((obj) {
-      final itemState = obj.displayData as AudioListItemState;
-      // ignore: unnecessary_cast
-      return AudioListItem(
-        key: itemState.key,
-        audioItem: obj,
-        state: itemState,
-        onTap: (iconOnTapped) {
-          if (obj is FolderInfo) {
-            state.folderOnTap(obj);
-          } else if (obj is AudioInfo) {
-            state.audioOnTap(obj, iconOnTapped);
-          }
-        },
-        onLongPressed: state.onListItemLongPressed,
-      ) as Widget;
-    }).toList();
-
-    ret.add(
-      ValueListenableBuilder<double>(
-          valueListenable: _bottomPanelHeightNotifier,
-          builder: (context, height, _) {
-            return SizedBox(
-              height: height,
-            );
-          }),
-    );
-
-    return ret;
   }
 
   Widget _buildBottomPanel(BuildContext context, BrowserViewMode mode) {
@@ -365,11 +335,22 @@ class _BrowserViewState extends State<BrowserView>
         child: Container(
           //The transparent color is IMPORANT! this enable the hit test of GestureDector
           color: Colors.transparent,
-          child: SizeTransition(
-            key: _bottomPanelKey,
-            axisAlignment: -1,
-            sizeFactor: _sizeAnimation,
-            child: bottomPanel,
+          child: NotificationListener(
+            onNotification: (SizeChangedLayoutNotification notification) {
+              Timer.run(() {
+                _bottomPanelHeightNotifier.value =
+                    _calculateBottomPanelHeight();
+              });
+              return true;
+            },
+            child: SizeChangedLayoutNotifier(
+              child: SizeTransition(
+                key: _bottomPanelKey,
+                axisAlignment: -1,
+                sizeFactor: _sizeAnimation,
+                child: bottomPanel,
+              ),
+            ),
           ),
         ),
       ),
@@ -406,42 +387,19 @@ class _BrowserViewState extends State<BrowserView>
                           : _listItemWidgets(folderInfo),
                     ),
                   ),
-
-                  // // Bottom Panels space holder
-                  // ValueListenableBuilder<BrowserViewMode>(
-                  //     valueListenable: modeNotifier,
-                  //     builder: (context, mode, _) {
-                  //       final panel = _buildBottomPanel(context, mode);
-                  //       Timer.run(() {
-                  //         final height = _calculateBottomPanelHeight();
-                  //         log.debug("panel's height:$height");
-                  //       });
-                  //       return panel;
-                  //     }),
                 ],
               ),
 
-              // Bottom Panels space holder
+              // Bottom Panels
               Align(
                 alignment: Alignment.bottomCenter,
                 child: ValueListenableBuilder<BrowserViewMode>(
                     valueListenable: modeNotifier,
                     builder: (context, mode, _) {
                       final panel = _buildBottomPanel(context, mode);
-                      // Timer.run(() {
-                      //   final height = _calculateBottomPanelHeight();
-                      //   _bottomPanelHeightNotifier.value = height;
-                      //   log.debug("panel's height:$height");
-                      // });
                       return panel;
                     }),
               ),
-              // // Bottom Panels
-              // ValueListenableBuilder<BrowserViewMode>(
-              //     valueListenable: modeNotifier,
-              //     builder: (context, mode, _) {
-              //       return _buildBottomPanel(context, mode);
-              //     }),
             ],
           );
         });

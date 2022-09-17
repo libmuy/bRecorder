@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import java.io.File
 import java.util.*
+import kotlin.math.ln
+import kotlin.math.max
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -211,6 +213,22 @@ class Player constructor(
             param!!.speed = speed.toFloat()
             mPlayer?.playbackParams = param
 
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Set Speed Got Exception:$e")
+            cleanup()
+            return AudioResult(AudioErrorInfo.NG)
+        }
+
+        return AudioResult(AudioErrorInfo.OK)
+    }
+    fun setVolume(volume: Double): AudioResult<NoValue> {
+        val maxVolume = 100.0;
+        val currVolume = maxVolume * volume
+        val log1 = 1 - (ln(maxVolume - currVolume) / ln(maxVolume)).toFloat()
+
+        try {
+            Log.d(LOG_TAG, "Set volume to $log1")
+            mPlayer?.setVolume(log1, log1)
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Set Speed Got Exception:$e")
             cleanup()

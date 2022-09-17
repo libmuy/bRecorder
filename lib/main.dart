@@ -15,12 +15,39 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    /*=======================================================================*\ 
+    Theme Common Part
+  \*=======================================================================*/
+    const labelSmall = TextStyle(
+      fontSize: 8,
+    );
+
+    /*=======================================================================*\ 
+    Theme Dark
+  \*=======================================================================*/
+    final themeDark = ThemeData.dark().copyWith(
+      dialogBackgroundColor: Colors.black,
+      textTheme: ThemeData.dark().textTheme.copyWith(
+            labelSmall: labelSmall,
+          ),
+    );
+
+    /*=======================================================================*\ 
+    Theme Light
+  \*=======================================================================*/
+    final themeLight = ThemeData.light().copyWith(
+      textTheme: ThemeData.light().textTheme.copyWith(
+            labelSmall: labelSmall,
+          ),
+    );
+
     return MaterialApp(
       title: 'bRecorder',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      darkTheme: ThemeData.dark(),
-      themeMode: ThemeMode.dark,
+      theme: themeLight,
+      darkTheme: themeDark,
+      // themeMode: ThemeMode.dark,
+
       home: const HomePage(),
       // home: const MyTestPage(title: 'Test Page'),
     );

@@ -39,6 +39,7 @@ class _HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: TitleBar(
         titleNotifier: state.titleNotifier,
         titleHeight: 50,
