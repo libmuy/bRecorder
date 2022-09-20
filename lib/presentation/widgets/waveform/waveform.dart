@@ -35,7 +35,7 @@ class _PointerInfo {
 class Waveform extends StatefulWidget {
   final List<double> waveformData;
   final double zoomLevel;
-  final double height;
+  final double? height;
   final bool scrollable;
   final Function(AudioPositionInfo metircs)? positionListener;
   final Function(AudioPositionInfo metircs)? startSeek;
@@ -44,9 +44,10 @@ class Waveform extends StatefulWidget {
 
   const Waveform(
     this.waveformData, {
-    required Key key,
+    Key? key,
+    // required Key key,
     this.zoomLevel = 1.0,
-    this.height = 100,
+    this.height,
     this.scrollable = true,
     this.positionListener,
     this.startSeek,
@@ -320,6 +321,10 @@ class _WaveformState extends State<Waveform> {
       color: Colors.black87,
       child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+        double height = widget.height ?? constraints.maxHeight;
+        if (height == double.infinity) {
+          height = MediaQuery.of(context).size.height;
+        }
         int fromIndex = 0;
         double startX = 0;
         _screenWidth = constraints.maxWidth;
@@ -339,7 +344,7 @@ class _WaveformState extends State<Waveform> {
         Widget waveformWidget = CustomPaint(
           size: Size(
             widget.scrollable ? _width + (_edge * 2) : _screenWidth,
-            widget.height,
+            height,
           ),
           foregroundPainter: WaveformPainter(
             widget.waveformData,
@@ -371,7 +376,7 @@ class _WaveformState extends State<Waveform> {
                 onPointerMove: _pointerMove,
                 onPointerUp: _pointerUp,
                 child: SizedBox(
-                    height: widget.height,
+                    height: height,
                     child: Stack(
                       children: [
                         ListView(
@@ -385,7 +390,7 @@ class _WaveformState extends State<Waveform> {
                           child: CustomPaint(
                             size: Size(
                               4,
-                              widget.height,
+                              height,
                             ),
                             foregroundPainter: CenterBarPainter(),
                           ),

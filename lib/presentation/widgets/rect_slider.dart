@@ -2,6 +2,8 @@ import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/presentation/widgets/icons/audio_icons.dart';
 import 'package:flutter/material.dart';
 
+import 'square_icon_button.dart';
+
 final log = Logger('OnOffIconButton');
 
 class RectThumbSlider extends StatefulWidget {
@@ -14,6 +16,7 @@ class RectThumbSlider extends StatefulWidget {
   final double thumbSize;
   final int? divisions;
   final IconData? icon;
+  final Color? color;
   final void Function(double value)? onChanged;
   final void Function(double value)? onChangeStart;
   final void Function(double value)? onChangeEnd;
@@ -33,6 +36,7 @@ class RectThumbSlider extends StatefulWidget {
       this.labelFormater,
       this.divisions,
       this.icon,
+      this.color,
       this.initValue})
       : super(key: key);
   @override
@@ -62,58 +66,62 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
       BuildContext context, double value, double min, double max) {
     final sliderFontStyle = Theme.of(context).textTheme.labelSmall;
 
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderThemeData(
-              overlayShape: RoundSliderOverlayShape(
-                overlayRadius: widget.thumbSize * 1.8,
-              ),
-              thumbShape:
-                  RectSliderThumbShape(enabledThumbRadius: widget.thumbSize)),
-          child: Slider(
-            divisions: widget.divisions,
-            activeColor: Theme.of(context).indicatorColor.withOpacity(0.4),
-            inactiveColor: Theme.of(context).focusColor,
-            thumbColor: Theme.of(context).indicatorColor,
-            value: value,
-            min: min,
-            max: max,
-            onChanged: widget.onChanged,
-            onChangeStart: widget.onChangeStart,
-            onChangeEnd: widget.onChangeEnd,
+    return Container(
+      color: widget.color ?? Theme.of(context).primaryColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SliderTheme(
+            data: SliderThemeData(
+                overlayShape: RoundSliderOverlayShape(
+                  overlayRadius: widget.thumbSize * 1.8,
+                ),
+                thumbShape:
+                    RectSliderThumbShape(enabledThumbRadius: widget.thumbSize)),
+            child: Slider(
+              divisions: widget.divisions,
+              activeColor: Theme.of(context).indicatorColor.withOpacity(0.4),
+              inactiveColor: Theme.of(context).focusColor,
+              thumbColor: Theme.of(context).indicatorColor,
+              value: value,
+              min: min,
+              max: max,
+              onChanged: widget.onChanged,
+              onChangeStart: widget.onChangeStart,
+              onChangeEnd: widget.onChangeEnd,
+            ),
           ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 15.0),
-              child: Text(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 15.0),
+                child: Text(
+                  widget.labelFormater == null
+                      ? min.toStringAsFixed(2)
+                      : widget.labelFormater!.call(min),
+                  style: sliderFontStyle,
+                ),
+              ),
+              Text(
                 widget.labelFormater == null
-                    ? min.toStringAsFixed(2)
-                    : widget.labelFormater!.call(min),
+                    ? value.toStringAsFixed(2)
+                    : widget.labelFormater!.call(value),
                 style: sliderFontStyle,
               ),
-            ),
-            Text(
-              widget.labelFormater == null
-                  ? value.toStringAsFixed(2)
-                  : widget.labelFormater!.call(value),
-              style: sliderFontStyle,
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 15.0),
-              child: Text(
-                widget.labelFormater == null
-                    ? max.toStringAsFixed(2)
-                    : widget.labelFormater!.call(max),
-                style: sliderFontStyle,
+              Padding(
+                padding: const EdgeInsets.only(right: 15.0),
+                child: Text(
+                  widget.labelFormater == null
+                      ? max.toStringAsFixed(2)
+                      : widget.labelFormater!.call(max),
+                  style: sliderFontStyle,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -136,18 +144,19 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
           return IntrinsicHeight(
             child: Row(
               children: [
-                InkWell(
-                  onTap: (() {
-                    final div = widget.divisions ?? 20;
-                    var newValue = value - (max / div);
-                    if (newValue < min) newValue = min;
-                    widget.valueNotifier.value = newValue;
-                    widget.onChangeEnd?.call(newValue);
-                  }),
-                  child: SizedBox(
-                    height: double.infinity,
-                    child: Container(
-                      alignment: Alignment.center,
+                SizedBox(
+                  height: double.infinity,
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: SquareIconButton(
+                      minWidth: 30,
+                      onPressed: (() {
+                        final div = widget.divisions ?? 20;
+                        var newValue = value - (max / div);
+                        if (newValue < min) newValue = min;
+                        widget.valueNotifier.value = newValue;
+                        widget.onChangeEnd?.call(newValue);
+                      }),
                       child: OverlayIcon(
                         bigIcon: widget.icon!,
                         smallIcon: Icons.remove_circle_rounded,
@@ -161,20 +170,21 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
                 Expanded(
                   child: _internalSlider(context, value, min, max),
                 ),
-                InkWell(
-                  onTap: (() {
-                    final div = widget.divisions ?? 20;
-                    var newValue = value + (max / div);
-                    if (newValue > max) newValue = max;
-                    log.debug("value: ${widget.valueNotifier.value} ->"
-                        "$newValue");
-                    widget.valueNotifier.value = newValue;
-                    widget.onChangeEnd?.call(newValue);
-                  }),
-                  child: SizedBox(
-                    height: double.infinity,
-                    child: Container(
-                      alignment: Alignment.center,
+                SizedBox(
+                  height: double.infinity,
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: SquareIconButton(
+                      minWidth: 30,
+                      onPressed: (() {
+                        final div = widget.divisions ?? 20;
+                        var newValue = value + (max / div);
+                        if (newValue > max) newValue = max;
+                        log.debug("value: ${widget.valueNotifier.value} ->"
+                            "$newValue");
+                        widget.valueNotifier.value = newValue;
+                        widget.onChangeEnd?.call(newValue);
+                      }),
                       child: OverlayIcon(
                         bigIcon: widget.icon!,
                         smallIcon: Icons.add_circle_rounded,

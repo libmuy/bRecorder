@@ -1,17 +1,21 @@
 import 'package:brecorder/core/audio_agent.dart';
+import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/data/all_storage_repository.dart';
 import 'package:brecorder/data/icloud_repository.dart';
 import 'package:brecorder/data/playlist_repository.dart';
 import 'package:brecorder/data/repository_type.dart';
+import 'package:brecorder/presentation/pages/browser_view.dart';
 import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:brecorder/presentation/ploc/record_page_state.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/filesystem_repository.dart';
 import '../data/trash_repository.dart';
 import '../data/abstract_repository.dart';
+import '../presentation/widgets/animated_sized_panel.dart';
 import 'logging.dart';
 
 final sl = ServiceLocator.instance;
@@ -39,6 +43,10 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => PlaylistRepository());
     getIt.registerLazySingleton(() => TrashRepository());
     getIt.registerLazySingleton(() => AllStorageRepository());
+    getIt.registerLazySingleton(
+        () => BrowserViewModeNotifier(BrowserViewMode.normal));
+    getIt.registerLazySingleton(() => PriorityValueNotifier(
+        AnimatedSizedPanelDragEvent(AnimatedSizedPanelDragEventType.init)));
 
     getIt.registerFactory(() => RecordPageState());
 
@@ -87,4 +95,8 @@ class ServiceLocator {
         return getIt.get<AllStorageRepository>();
     }
   }
+
+  PriorityValueNotifier<AnimatedSizedPanelDragEvent>
+      get playbackPanelDragNotifier =>
+          get<PriorityValueNotifier<AnimatedSizedPanelDragEvent>>();
 }

@@ -10,7 +10,7 @@ class AudioListItemState {
   var playingNotifier = ValueNotifier(false);
   late GlobalKey key;
 
-  final log = Logger('AudioListItemState');
+  final log = Logger('AudioListItemState', level: LogLevel.debug);
 
   AudioListItemState(this.audioObject, {AudioListItemMode? mode}) {
     key = GlobalKey();
@@ -30,11 +30,11 @@ class AudioListItemState {
         }
       };
       audio.onPlayPaused = () {
-        // log.debug("play paused: ${audio.path}");
+        log.debug("play paused: ${audio.path}");
         playing = false;
       };
       audio.onPlayStopped = () {
-        // log.debug("play stopped: ${audio.path}");
+        log.debug("play stopped: ${audio.path}");
         playing = false;
         highlight = false;
       };

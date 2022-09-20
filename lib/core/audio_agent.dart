@@ -6,7 +6,7 @@ import 'package:brecorder/core/result.dart';
 import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/services.dart';
 
-final log = Logger('Audio-Agent');
+final log = Logger('Audio-Agent', level: LogLevel.debug);
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 
@@ -64,7 +64,8 @@ class AudioServiceAgent {
       Timer.run(() {
         audio.onPlayPaused?.call();
       });
-    } else if (eventType == AudioEventType.stopped) {
+    } else if (eventType == AudioEventType.stopped ||
+        eventType == AudioEventType.complete) {
       final audio = currentAudio!;
       Timer.run(() {
         audio.onPlayStopped?.call();
