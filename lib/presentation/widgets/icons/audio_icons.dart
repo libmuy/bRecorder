@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class OverlayIcon extends StatelessWidget {
   final double? height;
+  final double? width;
   final IconData bigIcon;
   final IconData smallIcon;
   final Color? color;
@@ -11,6 +12,7 @@ class OverlayIcon extends StatelessWidget {
     required this.bigIcon,
     required this.smallIcon,
     this.height,
+    this.width,
     this.color,
   }) : super(key: key);
 
@@ -18,6 +20,7 @@ class OverlayIcon extends StatelessWidget {
   Widget build(context) {
     return SizedBox(
       height: height ?? 23,
+      width: width ?? 23,
       child: Stack(
         children: [
           Align(

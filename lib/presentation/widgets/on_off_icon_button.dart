@@ -1,10 +1,13 @@
 import 'package:brecorder/core/logging.dart';
+import 'package:brecorder/presentation/widgets/square_icon_button.dart';
 import 'package:flutter/material.dart';
 
-final log = Logger('OnOffIconButton');
+final log = Logger('OnOffIconButton', level: LogLevel.debug);
 
 class OnOffIconButton extends StatefulWidget {
   final IconData? icon;
+  final IconData? onStateIcon;
+  final EdgeInsets padding;
   final void Function(bool state)? onStateChanged;
   final void Function()? onTap;
   final ValueNotifier<bool>? stateNotifier;
@@ -14,19 +17,25 @@ class OnOffIconButton extends StatefulWidget {
   final IconData Function(double value)? iconGenerator;
   final double minWidth;
   final bool labelAnimation;
+  final bool noLabel;
+  final Duration duration;
 
   const OnOffIconButton({
     Key? key,
     this.icon,
+    this.onStateIcon,
     this.onStateChanged,
     this.onTap,
     this.stateNotifier,
     this.valueNotifier,
     this.defaultValue,
     this.labelFormater,
+    this.noLabel = false,
     this.iconGenerator,
     this.minWidth = 50,
     this.labelAnimation = true,
+    this.padding = const EdgeInsets.all(3),
+    this.duration = const Duration(milliseconds: 100),
   }) : super(key: key);
 
   @override
@@ -42,11 +51,9 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
 
   @override
   void initState() {
-    //Button state trasition depends on [widget.stateNotifier] or [widget.iconGenerator]
-    assert(widget.stateNotifier != null || widget.iconGenerator != null);
     super.initState();
-    _animationController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+    _animationController =
+        AnimationController(vsync: this, duration: widget.duration);
     widget.stateNotifier?.addListener(_updateHighligt);
     widget.valueNotifier?.addListener(_updateHighligt);
   }
@@ -63,7 +70,8 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
     }
   }
 
-  Widget _buildLabelText(BuildContext context) {
+  Widget? _buildLabelText(BuildContext context) {
+    if (widget.noLabel) return null;
     if (widget.valueNotifier == null) {
       return Text(
         "",
@@ -96,7 +104,7 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
           if (!widget.labelAnimation) return labelWidget;
 
           return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
+            duration: widget.duration,
             transitionBuilder: (Widget child, Animation<double> animation) {
               // return ScaleTransition(scale: animation, child: child);
               // return RotationTransition(turns: animation, child: child);
@@ -122,11 +130,17 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
 
   Widget _buildIcon(BuildContext context) {
     if (widget.iconGenerator == null) {
+      var icon = widget.icon;
+      if (widget.stateNotifier != null &&
+          widget.stateNotifier!.value == true &&
+          widget.onStateIcon != null) {
+        icon = widget.onStateIcon;
+      }
       return AnimatedBuilder(
           animation: _colorTween!,
           builder: (context, _) {
             return Icon(
-              widget.icon,
+              icon,
               color: _colorTween!.value,
             );
           });
@@ -136,7 +150,7 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
         valueListenable: widget.valueNotifier!,
         builder: (context, value, _) {
           return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
+            duration: widget.duration,
             transitionBuilder: (Widget child, Animation<double> animation) {
               // return ScaleTransition(scale: animation, child: child);
               // return RotationTransition(turns: animation, child: child);
@@ -158,6 +172,7 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
 
   @override
   Widget build(context) {
+    log.debug("duration${widget.duration}");
     _colorTween ??= ColorTween(
             begin: Theme.of(context).textTheme.bodyText1!.color,
             end: Theme.of(context).indicatorColor)
@@ -171,35 +186,17 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
           } else {
             _animationController.reverse();
           }
-          return SizedBox(
-            width: widget.minWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                    customBorder: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    onTap: () {
-                      if (widget.stateNotifier != null) {
-                        widget.stateNotifier?.value =
-                            !widget.stateNotifier!.value;
-                        widget.onStateChanged
-                            ?.call(widget.stateNotifier!.value);
-                      }
-                      widget.onTap?.call();
-                    },
-                    child: Ink(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        // color: Colors.purpleAccent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: _buildIcon(context),
-                    )),
-                _buildLabelText(context),
-              ],
-            ),
+          return SquareIconButton(
+            padding: widget.padding,
+            onPressed: () {
+              if (widget.stateNotifier != null) {
+                widget.stateNotifier?.value = !widget.stateNotifier!.value;
+                widget.onStateChanged?.call(widget.stateNotifier!.value);
+              }
+              widget.onTap?.call();
+            },
+            label: _buildLabelText(context),
+            child: _buildIcon(context),
           );
         });
   }

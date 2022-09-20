@@ -32,9 +32,9 @@ class Logger {
   static var forceLevel = LogLevel.noForce;
   String name;
 
-  final int _level = defaultLevel.level;
+  final LogLevel level;
 
-  Logger(this.name);
+  Logger(this.name, {this.level = LogLevel.defaultLevel});
 
   String _timestampStr(DateTime time) {
     final h = time.hour.toString().padLeft(2, "0");
@@ -59,7 +59,7 @@ class Logger {
   }
 
   void _printLogByLevel(LogLevel outputLv, String msg) {
-    int filterLv = _level;
+    int filterLv = level.level;
     if (forceLevel.level != LogLevel.noForce.level) filterLv = forceLevel.level;
     if (filterLv < outputLv.level) return;
 

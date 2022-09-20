@@ -3,13 +3,16 @@ import 'dart:math';
 import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/core/service_locator.dart';
+import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/data/abstract_repository.dart';
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
 
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
+import '../pages/browser_view.dart';
 
 final log = Logger('HomeState');
 
@@ -26,16 +29,18 @@ abstract class BrowserViewState {
   //About Repository
   late final Repository _repo;
   bool _folderOnly = false;
-  late FolderChangeNotifier _folderNotifier;
+  late ForcibleValueNotifier<FolderInfo> _folderNotifier;
   void Function(FolderInfo folder)? _onFolderChanged;
 
   // About Display
-  late ValueNotifier<BrowserViewMode> _modeNotifier;
+  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
   late ValueNotifier<String> _titleNotifier;
   int? _currentAudioIndex;
-  ValueNotifier<AudioListItemSelectedState>? _selectStateNotifier;
+  ValueNotifier<AudioListItemSelectedState> selectStateNotifier =
+      ValueNotifier(AudioListItemSelectedState.noSelected);
   List<FolderInfo> _selectedFolders = [];
   List<AudioInfo> _selectedAudios = [];
+  final bottomPanelPlaceholderHeightNotifier = ValueNotifier(0.0);
 
   // About Audio Playback
   final _agent = sl.get<AudioServiceAgent>();
@@ -50,17 +55,13 @@ abstract class BrowserViewState {
 
   void init(
       {required bool folderOnly,
-      required ValueNotifier<BrowserViewMode> modeNotifier,
       required ValueNotifier<String> titleNotifier,
-      required ValueNotifier<AudioListItemSelectedState> selectStateNotifier,
-      required FolderChangeNotifier folderNotifier,
+      required ForcibleValueNotifier<FolderInfo> folderNotifier,
       void Function(FolderInfo folder)? onFolderChanged}) {
     assert(titleNotifier.value != "");
 
-    _modeNotifier = modeNotifier;
     _onFolderChanged = onFolderChanged;
     _titleNotifier = titleNotifier;
-    _selectStateNotifier = selectStateNotifier;
     _folderNotifier = folderNotifier;
     _modeNotifier.addListener(_modeListener);
     _folderOnly = folderOnly;
@@ -144,7 +145,7 @@ abstract class BrowserViewState {
     if (obj is FolderInfo) _selectedFolders.add(obj);
     if (obj is AudioInfo) _selectedAudios.add(obj);
 
-    _selectStateNotifier?.value = AudioListItemSelectedState(
+    selectStateNotifier.value = AudioListItemSelectedState(
         folderSelected: _selectedFolders.isNotEmpty,
         audioSelected: _selectedAudios.isNotEmpty);
   }
@@ -153,13 +154,13 @@ abstract class BrowserViewState {
     if (obj is FolderInfo) _selectedFolders.remove(obj);
     if (obj is AudioInfo) _selectedAudios.remove(obj);
 
-    _selectStateNotifier?.value = AudioListItemSelectedState(
+    selectStateNotifier.value = AudioListItemSelectedState(
         folderSelected: _selectedFolders.isNotEmpty,
         audioSelected: _selectedAudios.isNotEmpty);
   }
 
   void _resetSelectedItem() {
-    _selectStateNotifier?.value = AudioListItemSelectedState.noSelected;
+    selectStateNotifier.value = AudioListItemSelectedState.noSelected;
     _selectedAudios = [];
     _selectedFolders = [];
   }
@@ -168,7 +169,6 @@ abstract class BrowserViewState {
     final state = folder.displayData as AudioListItemState;
     switch (mode) {
       case BrowserViewMode.normal:
-      case BrowserViewMode.normalAnimationDone:
         cd(folder.path);
         break;
 
@@ -191,7 +191,6 @@ abstract class BrowserViewState {
     final state = audio.displayData as AudioListItemState;
     switch (mode) {
       case BrowserViewMode.normal:
-      case BrowserViewMode.normalAnimationDone:
         if (iconOnTapped) {
           _playNewAudio(audio);
         } else {
@@ -226,7 +225,7 @@ abstract class BrowserViewState {
     }
   }
 
-  void onPlaybackPanelClosed() {
+  void onBottomPanelClosed() {
     mode = BrowserViewMode.normal;
     _agent.stopPlayIfPlaying();
   }
@@ -235,7 +234,6 @@ abstract class BrowserViewState {
     log.debug("item:${basename(item.audioObject.path)}long pressed");
     switch (mode) {
       case BrowserViewMode.normal:
-      case BrowserViewMode.normalAnimationDone:
       case BrowserViewMode.playback:
         mode = BrowserViewMode.edit;
         item.mode = AudioListItemMode.selected;
@@ -270,7 +268,7 @@ abstract class BrowserViewState {
         log.debug("folder changed to:${_repo.name}$path");
         // folderInfo.dump();
         _resetSelectedItem();
-        _folderNotifier.update(folderInfo, forceNotify: force);
+        _folderNotifier.update(newValue: folderInfo, forceNotify: force);
         _onFolderChanged?.call(folderInfo);
         _notifyTitle();
         _currentAudioIndex = 0;
@@ -368,7 +366,7 @@ abstract class BrowserViewState {
         case PlayLoopType.loopOne:
           _agent.startPlay(_currentAudio!);
           break;
-        case PlayLoopType.random:
+        case PlayLoopType.shuffle:
           final randomIndex = Random().nextInt(_audioCount);
           _playNewAudio(_audios![randomIndex]);
           break;
@@ -461,30 +459,4 @@ class AudioListItemSelectedState {
     return AudioListItemSelectedState(
         audioSelected: false, folderSelected: false);
   }
-}
-
-class FolderChangeNotifier extends ValueNotifier<FolderInfo> {
-  void update(FolderInfo folder, {bool forceNotify = false}) {
-    if (value == folder && forceNotify) {
-      notifyListeners();
-    }
-    value = folder;
-  }
-
-  FolderChangeNotifier(FolderInfo value) : super(value);
-}
-
-enum BrowserViewMode {
-  normal,
-  normalAnimationDone,
-  edit,
-  playback,
-}
-
-enum PlayLoopType {
-  loopAll,
-  loopOne,
-  random,
-  noLoop,
-  list,
 }

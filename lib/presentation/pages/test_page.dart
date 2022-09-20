@@ -205,7 +205,7 @@ class _MyTestPageState extends State<MyTestPage> {
               return Waveform(
                 waveformData,
                 scrollable: _recording ? false : true,
-                key: const Key("test_page_painted_wave_form"),
+                // key: const Key("test_page_painted_wave_form"),
                 positionListener: _waveformPositionListener,
                 startSeek: _waveformStartSeek,
                 endSeek: _waveformEndSeek,

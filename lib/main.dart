@@ -6,7 +6,7 @@ import 'presentation/pages/home_page.dart';
 final log = Logger('Main');
 
 void main() {
-  Logger.forceLevel = LogLevel.all;
+  // Logger.forceLevel = LogLevel.all;
   runApp(const MyApp());
 }
 
@@ -26,6 +26,7 @@ class MyApp extends StatelessWidget {
     Theme Dark
   \*=======================================================================*/
     final themeDark = ThemeData.dark().copyWith(
+      // useMaterial3: true,
       dialogBackgroundColor: Colors.black,
       textTheme: ThemeData.dark().textTheme.copyWith(
             labelSmall: labelSmall,
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
     Theme Light
   \*=======================================================================*/
     final themeLight = ThemeData.light().copyWith(
+      // useMaterial3: true,
       textTheme: ThemeData.light().textTheme.copyWith(
             labelSmall: labelSmall,
           ),

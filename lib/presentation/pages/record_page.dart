@@ -70,7 +70,7 @@ class _RecordPageState extends State<RecordPage> {
                     child: Waveform(
                       waveformData,
                       scrollable: false,
-                      key: const Key("record_page_waveform"),
+                      // key: const Key("record_page_waveform"),
                       positionListener: state.waveformPositionListener,
                       // startSeek: _waveformStartSeek,
                       // endSeek: _waveformEndSeek,
