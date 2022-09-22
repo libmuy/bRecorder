@@ -87,6 +87,7 @@ class _FolderSelectorState extends State<FolderSelector> {
           repoType: RepoType.allStoreage,
           folderOnly: true,
           persistPath: false,
+          editable: false,
           titleNotifier: titleNotifier,
           destoryRepoCache: true,
           onFolderChanged: (folder) {

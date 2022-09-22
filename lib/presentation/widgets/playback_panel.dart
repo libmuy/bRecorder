@@ -241,22 +241,6 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   @override
   Widget build(context) {
-    log.debug("playback panel build()");
-
-    // SchedulerBinding.instance.addPostFrameCallback((_) {
-    //   final contex = _panelBodyKey.currentContext;
-    //   if (contex == null) {
-    //     log.error("Panel Body is not being rendered");
-    //     return;
-    //   }
-    //   // final box = contex.findRenderObject() as RenderBox;
-    //   // final pos = box.localToGlobal(Offset(box.size.width / 2, 0));
-    //   final height = contex.size!.height;
-    //   log.debug("panel body size changed:$height");
-    //   _panelBodyHeight = height;
-    //   _showWaveformNotifier.update(forceNotify: true);
-    // });
-
     if (_panelBodyHeight == null) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
         log.debug("playback panel post frame callback, size:${context.size}");
