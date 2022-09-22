@@ -1,6 +1,7 @@
 import 'package:brecorder/core/utils.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:loading_animations/loading_animations.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
@@ -45,6 +46,8 @@ class _BrowserViewState extends State<BrowserView>
   final modeNotifier = sl.get<BrowserViewModeNotifier>();
   late ScrollController _scrollController;
   bool _scrollSwitch = false;
+  bool _loading = true;
+
   @override
   void initState() {
     // log.debug("initState");
@@ -87,6 +90,9 @@ class _BrowserViewState extends State<BrowserView>
   }
 
   List<Widget> _listItemWidgets(FolderInfo folder) {
+    Widget? emptyWidget = _emptyWidget(folder);
+    if (emptyWidget != null) return [emptyWidget];
+
     List<AudioObject> list;
     if (widget.folderOnly) {
       list = folder.subfolders as List<AudioObject>;
@@ -124,35 +130,33 @@ class _BrowserViewState extends State<BrowserView>
     return ret;
   }
 
+  Widget? _emptyWidget(FolderInfo folderInfo) {
+    Widget? ret;
+    if (_loading) {
+      _loading = false;
+      return LoadingBouncingGrid.circle();
+    }
+    if (folderInfo.subObjects.isNotEmpty) return null;
+
+    return Container(
+        alignment: Alignment.center,
+        child: const Text(
+          "Here is nothing...",
+          style: TextStyle(fontSize: 40),
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return ValueListenableBuilder<FolderInfo>(
         valueListenable: _folderNotifier,
         builder: (context, folderInfo, _) {
-          return Column(
-            children: [
-              // Audio Item List
-              Expanded(
-                child: ListView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics()),
-                  children: folderInfo.subObjects.isEmpty ||
-                          (widget.folderOnly &&
-                              folderInfo.subfoldersMap == null)
-                      ? [
-                          Container(
-                              alignment: Alignment.center,
-                              child: const Text(
-                                "Here is nothing...",
-                                style: TextStyle(fontSize: 40),
-                              ))
-                        ]
-                      : _listItemWidgets(folderInfo),
-                ),
-              ),
-            ],
+          return ListView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
+            children: _listItemWidgets(folderInfo),
           );
         });
   }
