@@ -23,6 +23,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   final state = sl.get<HomePageState>();
+  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
   @override
   void initState() {
     super.initState();
@@ -44,10 +45,7 @@ class _HomePageState extends State<HomePage>
       children: [
         WillPopScope(
           onWillPop: () async {
-            // allows the pop when Normal Mode
-            if (state.modeNotifier.value == BrowserViewMode.normal) return true;
-            state.modeNotifier.value = BrowserViewMode.normal;
-            return false;
+            return state.onPop();
           },
           child: Scaffold(
             resizeToAvoidBottomInset: false,
@@ -69,7 +67,7 @@ class _HomePageState extends State<HomePage>
                     return const Icon(Icons.arrow_back);
                   }),
               endingIcon: ValueListenableBuilder<BrowserViewMode>(
-                valueListenable: state.modeNotifier,
+                valueListenable: _modeNotifier,
                 builder: (context, mode, child) {
                   switch (mode) {
                     case BrowserViewMode.normal:
@@ -101,7 +99,7 @@ class _HomePageState extends State<HomePage>
                   .toList(),
             ),
             floatingActionButton: ValueListenableBuilder<BrowserViewMode>(
-              valueListenable: state.modeNotifier,
+              valueListenable: _modeNotifier,
               builder: (context, mode, child) {
                 switch (mode) {
                   case BrowserViewMode.playback:

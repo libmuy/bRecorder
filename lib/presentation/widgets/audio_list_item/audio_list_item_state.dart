@@ -5,7 +5,7 @@ import '../../../core/logging.dart';
 
 class AudioListItemState {
   final AudioObject audioObject;
-  var modeNotifier = ValueNotifier(AudioListItemMode.normal);
+  var itemModeNotifier = ValueNotifier(AudioListItemMode.normal);
   var highlightNotifier = ValueNotifier(false);
   var playingNotifier = ValueNotifier(false);
   late GlobalKey key;
@@ -14,7 +14,7 @@ class AudioListItemState {
 
   AudioListItemState(this.audioObject, {AudioListItemMode? mode}) {
     key = GlobalKey();
-    if (mode != null) modeNotifier.value = mode;
+    if (mode != null) itemModeNotifier.value = mode;
     if (audioObject is AudioInfo) {
       final audio = audioObject as AudioInfo;
       audio.onPlayStarted = () {
@@ -42,11 +42,11 @@ class AudioListItemState {
   }
 
   void toggleSelected() {
-    if (modeNotifier.value == AudioListItemMode.selected) {
-      modeNotifier.value = AudioListItemMode.notSelected;
+    if (itemModeNotifier.value == AudioListItemMode.selected) {
+      itemModeNotifier.value = AudioListItemMode.notSelected;
       highlightNotifier.value = false;
     } else {
-      modeNotifier.value = AudioListItemMode.selected;
+      itemModeNotifier.value = AudioListItemMode.selected;
       highlightNotifier.value = true;
     }
   }
@@ -63,14 +63,14 @@ class AudioListItemState {
   }
 
   set mode(AudioListItemMode value) {
-    modeNotifier.value = value;
+    itemModeNotifier.value = value;
     if (value == AudioListItemMode.selected) {
       highlight = true;
     }
   }
 
   bool get selected {
-    return modeNotifier.value == AudioListItemMode.selected;
+    return itemModeNotifier.value == AudioListItemMode.selected;
   }
 
   void resetHighLight() {

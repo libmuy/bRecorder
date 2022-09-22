@@ -38,7 +38,7 @@ class _AudioListItemState extends State<AudioListItem> {
   }
 
   bool get selected {
-    return widget.state.modeNotifier.value == AudioListItemMode.selected;
+    return widget.state.itemModeNotifier.value == AudioListItemMode.selected;
   }
 
   String get _sizeInfo {
@@ -111,7 +111,7 @@ class _AudioListItemState extends State<AudioListItem> {
                           // bottom: widget.padding + widget.iconPadding,
                         ),
                         child: ValueListenableBuilder<AudioListItemMode>(
-                            valueListenable: widget.state.modeNotifier,
+                            valueListenable: widget.state.itemModeNotifier,
                             builder: (context, mode, _) {
                               Widget? selectIcon;
                               switch (mode) {

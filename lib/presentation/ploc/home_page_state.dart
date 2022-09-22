@@ -15,7 +15,7 @@ final log = Logger('HomeState');
 class HomePageState {
   late final TabController tabController;
   final titleNotifier = ValueNotifier("/");
-  final modeNotifier = sl.get<BrowserViewModeNotifier>();
+  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
   final List<TabInfo> tabsInfo = [
     TabInfo(repoType: RepoType.filesystem),
     TabInfo(repoType: RepoType.iCloud),
@@ -63,17 +63,17 @@ class HomePageState {
   }
 
   void _setEditMode(bool edit) {
-    switch (modeNotifier.value) {
+    switch (_modeNotifier.value) {
       case BrowserViewMode.normal:
       case BrowserViewMode.playback:
         if (edit) {
-          modeNotifier.value = BrowserViewMode.edit;
+          _modeNotifier.value = BrowserViewMode.edit;
         }
         break;
 
       case BrowserViewMode.edit:
         if (!edit) {
-          modeNotifier.value = BrowserViewMode.normal;
+          _modeNotifier.value = BrowserViewMode.normal;
         }
         break;
     }
@@ -185,7 +185,7 @@ class HomePageState {
   }
 
   void titleBarEndingOnPressed() {
-    switch (modeNotifier.value) {
+    switch (_modeNotifier.value) {
       case BrowserViewMode.normal:
       case BrowserViewMode.playback:
         _setEditMode(true);
@@ -203,6 +203,18 @@ class HomePageState {
 
   void onFolderChanged(FolderInfo folder) {
     currentTab.currentPath = folder.path;
+  }
+
+  bool onPop() {
+    // allows the pop when Normal Mode
+    if (_modeNotifier.value != BrowserViewMode.normal) {
+      _modeNotifier.value = BrowserViewMode.normal;
+      return false;
+    }
+
+    if (currentBrowserState.cdParent()) return false;
+
+    return true;
   }
 }
 

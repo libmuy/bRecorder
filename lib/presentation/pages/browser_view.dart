@@ -15,6 +15,7 @@ final log = Logger('BrowserView');
 class BrowserView extends StatefulWidget {
   final RepoType repoType;
   final bool folderOnly;
+  final bool editable;
   final bool persistPath;
   final bool destoryRepoCache;
   final ValueNotifier<String> titleNotifier;
@@ -26,6 +27,7 @@ class BrowserView extends StatefulWidget {
       this.folderOnly = false,
       this.persistPath = true,
       this.destoryRepoCache = false,
+      this.editable = true,
       this.onFolderChanged})
       : super(key: key);
 
@@ -51,6 +53,7 @@ class _BrowserViewState extends State<BrowserView>
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
     state.init(
+        editable: widget.editable,
         folderOnly: widget.folderOnly,
         titleNotifier: widget.titleNotifier,
         folderNotifier: _folderNotifier,
