@@ -23,7 +23,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   final state = sl.get<HomePageState>();
-  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
+  final _modeNotifier = sl.get<GlobalModeNotifier>();
   @override
   void initState() {
     super.initState();
@@ -66,14 +66,14 @@ class _HomePageState extends State<HomePage>
                     }
                     return const Icon(Icons.arrow_back);
                   }),
-              endingIcon: ValueListenableBuilder<BrowserViewMode>(
+              endingIcon: ValueListenableBuilder<GlobalMode>(
                 valueListenable: _modeNotifier,
                 builder: (context, mode, child) {
                   switch (mode) {
-                    case BrowserViewMode.normal:
-                    case BrowserViewMode.playback:
+                    case GlobalMode.normal:
+                    case GlobalMode.playback:
                       return const Icon(Icons.edit);
-                    case BrowserViewMode.edit:
+                    case GlobalMode.edit:
                       return const Icon(Icons.done);
                   }
                 },
@@ -98,14 +98,14 @@ class _HomePageState extends State<HomePage>
                       ))
                   .toList(),
             ),
-            floatingActionButton: ValueListenableBuilder<BrowserViewMode>(
+            floatingActionButton: ValueListenableBuilder<GlobalMode>(
               valueListenable: _modeNotifier,
               builder: (context, mode, child) {
                 switch (mode) {
-                  case BrowserViewMode.playback:
-                  case BrowserViewMode.edit:
+                  case GlobalMode.playback:
+                  case GlobalMode.edit:
                     return Container();
-                  case BrowserViewMode.normal:
+                  case GlobalMode.normal:
                     return FloatingActionButton(
                       onPressed: () {
                         Navigator.of(context).push(

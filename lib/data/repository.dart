@@ -75,7 +75,7 @@ abstract class Repository {
 
   void _destoryAudioObject(AudioObject obj) {
     log.debug("destroy repo:$name, obj:${obj.path}");
-    if (obj.displayData != null) obj.displayData = null;
+    // if (obj.displayData != null) obj.displayData = null;
     if (obj.copyFrom != null) obj.copyFrom = null;
 
     try {

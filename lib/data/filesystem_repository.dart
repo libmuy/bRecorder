@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'abstract_repository.dart';
+import 'repository.dart';
 import '../domain/entities.dart';
 
 final log = Logger('FsRepo');

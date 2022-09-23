@@ -25,7 +25,7 @@ class BottomPanel extends StatefulWidget {
 }
 
 class _BottomPanelState extends State<BottomPanel> {
-  BrowserViewMode _lastMode = BrowserViewMode.normal;
+  GlobalMode _lastMode = GlobalMode.normal;
   late BrowserViewState state;
 
   void _bottomPanelAnimationStatusChanged(
@@ -68,17 +68,16 @@ class _BottomPanelState extends State<BottomPanel> {
     );
   }
 
-  Widget _buildBottomPanelInternal(BuildContext context, BrowserViewMode mode) {
+  Widget _buildBottomPanelInternal(BuildContext context, GlobalMode mode) {
     log.debug("show playback panel, mode:$mode");
-    var judgMode = mode == BrowserViewMode.normal ? _lastMode : mode;
+    var judgMode = mode == GlobalMode.normal ? _lastMode : mode;
     _lastMode = mode;
 
-    if (judgMode != BrowserViewMode.playback &&
-        judgMode != BrowserViewMode.edit) {
+    if (judgMode != GlobalMode.playback && judgMode != GlobalMode.edit) {
       return Container();
     }
 
-    if (judgMode == BrowserViewMode.playback) {
+    if (judgMode == GlobalMode.playback) {
       return PlaybackPanel(
         onClose: state.onBottomPanelClosed,
         onPlayNext: state.playNext,
@@ -124,7 +123,7 @@ class _BottomPanelState extends State<BottomPanel> {
         });
   }
 
-  Widget _buildBottomPanel(BuildContext context, BrowserViewMode mode) {
+  Widget _buildBottomPanel(BuildContext context, GlobalMode mode) {
     // return Container(
     //   // color: Colors.black,
     //   decoration: BoxDecoration(
@@ -158,7 +157,7 @@ class _BottomPanelState extends State<BottomPanel> {
       elevation: 20,
       child: AnimatedSizedPanel(
           debugLabel: "BottomPanel",
-          show: mode == BrowserViewMode.normal ? false : true,
+          show: mode == GlobalMode.normal ? false : true,
           dragListenerPriority: 10,
           dragNotifier: sl.playbackPanelDragNotifier,
           onHeightChanged: (height) {
@@ -175,8 +174,8 @@ class _BottomPanelState extends State<BottomPanel> {
   @override
   Widget build(BuildContext context) {
     state = sl.get<HomePageState>().currentBrowserState;
-    return ValueListenableBuilder<BrowserViewMode>(
-        valueListenable: sl.get<BrowserViewModeNotifier>(),
+    return ValueListenableBuilder<GlobalMode>(
+        valueListenable: sl.get<GlobalModeNotifier>(),
         builder: (context, mode, _) {
           final panel = _buildBottomPanel(context, mode);
           return panel;

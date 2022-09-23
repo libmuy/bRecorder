@@ -14,7 +14,7 @@ enum PlaybackState {
   paused,
 }
 
-enum BrowserViewMode {
+enum GlobalMode {
   normal,
   edit,
   playback,
@@ -32,6 +32,23 @@ enum PlayLoopType {
   final double doubleValue;
   final String label;
   final IconData icon;
+}
+
+class GlobalModeNotifier extends ChangeNotifier
+    implements ValueListenable<GlobalMode> {
+  GlobalModeNotifier(this._value);
+
+  @override
+  GlobalMode get value => _value;
+  GlobalMode _value;
+
+  set value(GlobalMode newValue) {
+    if (_value == newValue) {
+      return;
+    }
+    _value = newValue;
+    notifyListeners();
+  }
 }
 
 class AudioPositionInfo extends Equatable {
