@@ -4,7 +4,7 @@ import 'package:brecorder/core/audio_agent.dart';
 import 'package:brecorder/core/logging.dart';
 import 'package:brecorder/core/service_locator.dart';
 import 'package:brecorder/core/utils.dart';
-import 'package:brecorder/data/abstract_repository.dart';
+import 'package:brecorder/data/repository.dart';
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -12,7 +12,6 @@ import 'package:path/path.dart';
 
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
-import '../pages/browser_view.dart';
 
 final log = Logger('HomeState');
 
@@ -33,7 +32,7 @@ abstract class BrowserViewState {
   void Function(FolderInfo folder)? _onFolderChanged;
 
   // About Display
-  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
+  final _modeNotifier = sl.get<GlobalModeNotifier>();
   late ValueNotifier<String> _titleNotifier;
   int? _currentAudioIndex;
   ValueNotifier<AudioListItemSelectedState> selectStateNotifier =
@@ -116,10 +115,10 @@ abstract class BrowserViewState {
     }
   }
 
-  bool get _isEditMode => mode == BrowserViewMode.edit;
+  bool get _isEditMode => mode == GlobalMode.edit;
 
-  BrowserViewMode get mode => _modeNotifier.value;
-  set mode(BrowserViewMode value) {
+  GlobalMode get mode => _modeNotifier.value;
+  set mode(GlobalMode value) {
     _modeNotifier.value = value;
   }
 
@@ -139,7 +138,7 @@ abstract class BrowserViewState {
       itemState.mode = itemMode;
       itemState.resetHighLight();
     }
-    if (mode != BrowserViewMode.playback) {
+    if (mode != GlobalMode.playback) {
       _agent.stopPlayIfPlaying();
     }
   }
@@ -185,7 +184,7 @@ abstract class BrowserViewState {
   void audioOnTap(AudioInfo audio, bool iconOnTapped) async {
     final state = audio.displayData as AudioListItemState;
     switch (mode) {
-      case BrowserViewMode.normal:
+      case GlobalMode.normal:
         if (iconOnTapped) {
           _playNewAudio(audio);
         } else {
@@ -194,7 +193,7 @@ abstract class BrowserViewState {
         }
         break;
 
-      case BrowserViewMode.edit:
+      case GlobalMode.edit:
         state.toggleSelected();
         if (state.selected) {
           _addSelectedItem(audio);
@@ -203,7 +202,7 @@ abstract class BrowserViewState {
         }
         break;
 
-      case BrowserViewMode.playback:
+      case GlobalMode.playback:
         if (iconOnTapped) {
           if (_currentAudio != audio) {
             await _agent.stopPlay();
@@ -221,20 +220,20 @@ abstract class BrowserViewState {
   }
 
   void onBottomPanelClosed() {
-    mode = BrowserViewMode.normal;
+    mode = GlobalMode.normal;
     _agent.stopPlayIfPlaying();
   }
 
   void onListItemLongPressed(AudioListItemState item) {
     log.debug("item:${basename(item.audioObject.path)}long pressed");
     switch (mode) {
-      case BrowserViewMode.normal:
-      case BrowserViewMode.playback:
-        mode = BrowserViewMode.edit;
+      case GlobalMode.normal:
+      case GlobalMode.playback:
+        mode = GlobalMode.edit;
         item.mode = AudioListItemMode.selected;
         _addSelectedItem(item.audioObject);
         break;
-      case BrowserViewMode.edit:
+      case GlobalMode.edit:
         break;
     }
   }
@@ -242,24 +241,25 @@ abstract class BrowserViewState {
   /*=======================================================================*\ 
     Repository
   \*=======================================================================*/
+  void resetAudioItemDisplayData(AudioObject obj) {
+    var itemState = AudioListItemMode.normal;
+    if (_editable && _isEditMode) itemState = AudioListItemMode.notSelected;
+    if (obj.displayData == null) {
+      obj.displayData = AudioListItemState(obj, mode: itemState);
+    } else {
+      final state = obj.displayData as AudioListItemState;
+      state.mode = itemState;
+      state.resetHighLight();
+    }
+  }
+
   void cd(String path, {bool force = false}) async {
     if (!_initialized) return;
     if (equals(path, _rootPath) && !force) return;
     _currentAudioIndex = null;
     _repo.getFolderInfo(path, folderOnly: _folderOnly).then((result) async {
       if (result.succeed) {
-        var itemState = AudioListItemMode.normal;
-        if (_editable && _isEditMode) itemState = AudioListItemMode.notSelected;
         final FolderInfo folderInfo = result.value;
-        for (var sub in folderInfo.subObjects) {
-          if (sub.displayData == null) {
-            sub.displayData = AudioListItemState(sub, mode: itemState);
-          } else {
-            final state = sub.displayData as AudioListItemState;
-            state.mode = itemState;
-            state.resetHighLight();
-          }
-        }
         log.debug("folder changed to:${_repo.name}$path");
         // folderInfo.dump();
         _resetSelectedItem();
@@ -267,9 +267,9 @@ abstract class BrowserViewState {
         _onFolderChanged?.call(folderInfo);
         _notifyTitle();
         _currentAudioIndex = 0;
-        if (mode == BrowserViewMode.playback) {
+        if (mode == GlobalMode.playback) {
           await _agent.stopPlayIfPlaying();
-          mode = BrowserViewMode.normal;
+          mode = GlobalMode.normal;
         }
       } else {
         log.critical("Failed to get folder($path) info");
@@ -350,7 +350,7 @@ abstract class BrowserViewState {
     Playback
   \*=======================================================================*/
   void _playingListener(event, audio) {
-    if (mode != BrowserViewMode.playback) return;
+    if (mode != GlobalMode.playback) return;
     if (event == AudioEventType.complete) {
       final loopType = loopNotifier.value;
       switch (loopType) {
@@ -373,7 +373,7 @@ abstract class BrowserViewState {
   }
 
   void _playNewAudio(AudioInfo audio) async {
-    mode = BrowserViewMode.playback;
+    mode = GlobalMode.playback;
     var ret = await _agent.stopPlayIfPlaying();
     if (ret.failed) {
       log.error("stop playing failed");

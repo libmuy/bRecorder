@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/data/abstract_repository.dart';
+import 'package:brecorder/data/repository.dart';
 import 'package:equatable/equatable.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
@@ -313,14 +313,16 @@ class FolderInfo extends AudioObject {
       : super(path, bytes, timestamp,
             repo: repo, parent: parent, displayData: displayData);
 
-  FolderInfo copyWith(
-      {String? path,
-      int? bytes,
-      DateTime? timestamp,
-      Repository? repo,
-      int? allAudioCount,
-      FolderInfo? parent,
-      displayData}) {
+  FolderInfo copyWith({
+    String? path,
+    int? bytes,
+    DateTime? timestamp,
+    Repository? repo,
+    int? allAudioCount,
+    FolderInfo? parent,
+    displayData,
+    bool deep = true,
+  }) {
     var folder = FolderInfo(
       path ?? this.path,
       bytes ?? this.bytes,
@@ -330,15 +332,28 @@ class FolderInfo extends AudioObject {
       parent: parent ?? this.parent,
     );
 
-    Map<String, FolderInfo>? localSubfoldersMap = subfoldersMap
-        ?.map((key, folder) => MapEntry(key, folder.copyWith(parent: folder)));
-    Map<String, AudioInfo>? localAudiosMap = audiosMap
-        ?.map((key, audio) => MapEntry(key, audio.copyWith(parent: folder)));
+    if (deep) {
+      Map<String, FolderInfo>? localSubfoldersMap = subfoldersMap?.map(
+          (key, folder) => MapEntry(key, folder.copyWith(parent: folder)));
+      Map<String, AudioInfo>? localAudiosMap = audiosMap
+          ?.map((key, audio) => MapEntry(key, audio.copyWith(parent: folder)));
 
-    folder.subfoldersMap = localSubfoldersMap;
-    folder.audiosMap = localAudiosMap;
+      folder.subfoldersMap = localSubfoldersMap;
+      folder.audiosMap = localAudiosMap;
+    }
     folder.copyFrom = this;
     return folder;
+  }
+
+  List<AudioInfo>? get allAudios {
+    if (subfolders == null) return audios;
+    var ret = <AudioInfo>[];
+    for (final f in subfolders!) {
+      if (f.audios != null) ret += f.audios!;
+    }
+
+    if (audios == null) return ret;
+    return ret + audios!;
   }
 
   static FolderInfo get empty {

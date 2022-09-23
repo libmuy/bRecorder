@@ -15,7 +15,7 @@ final log = Logger('HomeState');
 class HomePageState {
   late final TabController tabController;
   final titleNotifier = ValueNotifier("/");
-  final _modeNotifier = sl.get<BrowserViewModeNotifier>();
+  final _modeNotifier = sl.get<GlobalModeNotifier>();
   final List<TabInfo> tabsInfo = [
     TabInfo(repoType: RepoType.filesystem),
     TabInfo(repoType: RepoType.iCloud),
@@ -64,16 +64,16 @@ class HomePageState {
 
   void _setEditMode(bool edit) {
     switch (_modeNotifier.value) {
-      case BrowserViewMode.normal:
-      case BrowserViewMode.playback:
+      case GlobalMode.normal:
+      case GlobalMode.playback:
         if (edit) {
-          _modeNotifier.value = BrowserViewMode.edit;
+          _modeNotifier.value = GlobalMode.edit;
         }
         break;
 
-      case BrowserViewMode.edit:
+      case GlobalMode.edit:
         if (!edit) {
-          _modeNotifier.value = BrowserViewMode.normal;
+          _modeNotifier.value = GlobalMode.normal;
         }
         break;
     }
@@ -186,12 +186,12 @@ class HomePageState {
 
   void titleBarEndingOnPressed() {
     switch (_modeNotifier.value) {
-      case BrowserViewMode.normal:
-      case BrowserViewMode.playback:
+      case GlobalMode.normal:
+      case GlobalMode.playback:
         _setEditMode(true);
         break;
 
-      case BrowserViewMode.edit:
+      case GlobalMode.edit:
         _setEditMode(false);
         break;
     }
@@ -207,8 +207,8 @@ class HomePageState {
 
   bool onPop() {
     // allows the pop when Normal Mode
-    if (_modeNotifier.value != BrowserViewMode.normal) {
-      _modeNotifier.value = BrowserViewMode.normal;
+    if (_modeNotifier.value != GlobalMode.normal) {
+      _modeNotifier.value = GlobalMode.normal;
       return false;
     }
 

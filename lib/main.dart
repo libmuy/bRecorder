@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/logging.dart';
+import 'core/service_locator.dart';
 import 'presentation/pages/home_page.dart';
 
 final log = Logger('Main');
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'bRecorder',
+      scaffoldMessengerKey: sl.messageState,
       debugShowCheckedModeBanner: false,
       theme: themeLight,
       darkTheme: themeDark,

@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 
 import '../core/logging.dart';
 import '../core/service_locator.dart';
-import 'abstract_repository.dart';
+import 'repository.dart';
 import '../domain/entities.dart';
 import 'repository_type.dart';
 

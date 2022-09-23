@@ -12,8 +12,9 @@ class AudioListItemState {
 
   final log = Logger('AudioListItemState', level: LogLevel.debug);
 
-  AudioListItemState(this.audioObject, {AudioListItemMode? mode}) {
-    key = GlobalKey();
+  AudioListItemState(this.audioObject,
+      {AudioListItemMode? mode, GlobalKey? key}) {
+    this.key = key ?? GlobalKey();
     if (mode != null) itemModeNotifier.value = mode;
     if (audioObject is AudioInfo) {
       final audio = audioObject as AudioInfo;
@@ -22,7 +23,7 @@ class AudioListItemState {
         highlight = true;
         playing = true;
         try {
-          Scrollable.ensureVisible(key.currentContext!,
+          Scrollable.ensureVisible(this.key.currentContext!,
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut);
         } catch (e) {

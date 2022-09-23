@@ -11,7 +11,7 @@ import 'package:path/path.dart';
 import '../../core/audio_agent.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils.dart';
-import '../../data/abstract_repository.dart';
+import '../../data/repository.dart';
 import '../widgets/waveform/waveform.dart';
 
 final log = Logger('RecordPageState');

@@ -1,0 +1,393 @@
+import 'package:brecorder/core/utils.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:loading_animations/loading_animations.dart';
+
+import '../../core/logging.dart';
+import '../../core/service_locator.dart';
+import '../../data/repository_type.dart';
+import '../../domain/entities.dart';
+import '../ploc/browser_view_state.dart';
+import '../widgets/audio_list_item/audio_list_item.dart';
+import '../widgets/audio_list_item/audio_list_item_state.dart';
+
+final log = Logger('BrowserView');
+
+class BrowserView extends StatefulWidget {
+  final RepoType repoType;
+  final bool folderOnly;
+  final bool editable;
+  final bool persistPath;
+  final bool destoryRepoCache;
+  final ValueNotifier<String> titleNotifier;
+  final void Function(FolderInfo folder)? onFolderChanged;
+  const BrowserView(
+      {Key? key,
+      required this.repoType,
+      required this.titleNotifier,
+      this.folderOnly = false,
+      this.persistPath = true,
+      this.destoryRepoCache = false,
+      this.editable = true,
+      this.onFolderChanged})
+      : super(key: key);
+
+  @override
+  State<BrowserView> createState() => _BrowserViewState();
+}
+
+class _BrowserViewState extends State<BrowserView>
+    with
+        AutomaticKeepAliveClientMixin<BrowserView>,
+        SingleTickerProviderStateMixin {
+  late BrowserViewState state;
+  final GlobalKey<SliverAnimatedListState> _listKey =
+      GlobalKey<SliverAnimatedListState>();
+
+  final _folderNotifier = ForcibleValueNotifier(FolderInfo.empty);
+  final modeNotifier = sl.get<GlobalModeNotifier>();
+  late ScrollController _scrollController;
+  bool _scrollSwitch = false;
+  bool _loading = true;
+  late ListModel<AudioObject> _list;
+
+  @override
+  void initState() {
+    // log.debug("initState");
+    super.initState();
+    state = sl.getBrowserViewState(widget.repoType);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
+    state.init(
+        editable: widget.editable,
+        folderOnly: widget.folderOnly,
+        titleNotifier: widget.titleNotifier,
+        folderNotifier: _folderNotifier,
+        onFolderChanged: widget.onFolderChanged);
+  }
+
+  @override
+  void dispose() {
+    log.debug("dispose");
+    if (widget.destoryRepoCache) state.destoryRepositoryCache();
+    state.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => widget.persistPath;
+
+  List<AudioObject>? get _itemList => widget.folderOnly
+      ? _folderNotifier.value.subfolders
+      : _folderNotifier.value.audios;
+
+  void _scrollListener() {
+    final offset = _scrollController.offset;
+
+    // log.debug("offset:$offset, sw:$_scrollSwitch");
+    if (_scrollSwitch == false) {
+      if (offset < -50.0) {
+        _scrollSwitch = true;
+        _folderNotifier.value.dump();
+      }
+    } else {
+      if (offset > -50.0) _scrollSwitch = false;
+    }
+  }
+
+  List<Widget> _listItemWidgets(FolderInfo folder) {
+    Widget? emptyWidget = _emptyWidget(folder);
+    if (emptyWidget != null) return [emptyWidget];
+
+    List<AudioObject> list;
+    if (widget.folderOnly) {
+      list = folder.subfolders as List<AudioObject>;
+    } else {
+      list = folder.subObjects;
+    }
+    List<Widget> ret = list.map((obj) {
+      final itemState = obj.displayData as AudioListItemState;
+      // ignore: unnecessary_cast
+      return AudioListItem(
+        key: itemState.key,
+        audioItem: obj,
+        state: itemState,
+        onTap: (iconOnTapped) {
+          if (obj is FolderInfo) {
+            state.folderOnTap(obj);
+          } else if (obj is AudioInfo) {
+            state.audioOnTap(obj, iconOnTapped);
+          }
+        },
+        onLongPressed: state.onListItemLongPressed,
+      ) as Widget;
+    }).toList();
+
+    ret.add(
+      ValueListenableBuilder<double>(
+          valueListenable: state.bottomPanelPlaceholderHeightNotifier,
+          builder: (context, height, _) {
+            return SizedBox(
+              height: height,
+            );
+          }),
+    );
+
+    return ret;
+  }
+
+  Widget? _emptyWidget(FolderInfo folderInfo) {
+    Widget? ret;
+    if (_loading) {
+      _loading = false;
+      return LoadingBouncingGrid.circle();
+    }
+    if (folderInfo.subObjects.isNotEmpty) return null;
+
+    return Container(
+        alignment: Alignment.center,
+        child: const Text(
+          "Here is nothing...",
+          style: TextStyle(fontSize: 40),
+        ));
+  }
+
+  // Used to build list items that haven't been removed.
+  // Widget _buildItem(
+  //     BuildContext context, int index, Animation<double> animation) {
+  //   final itemState = _itemList![index].displayData as AudioListItemState;
+  //   final obj = itemState.audioObject;
+  //   return AudioListItem(
+  //     key: itemState.key,
+  //     audioItem: obj,
+  //     state: itemState,
+  //     onTap: (iconOnTapped) {
+  //       if (obj is FolderInfo) {
+  //         state.folderOnTap(obj);
+  //       } else if (obj is AudioInfo) {
+  //         state.audioOnTap(obj, iconOnTapped);
+  //       }
+  //     },
+  //     onLongPressed: state.onListItemLongPressed,
+  //   );
+  // return CardItem(
+  //   animation: animation,
+  //   item: _list[index],
+  //   selected: _selectedItem == _list[index],
+  //   onTap: () {
+  //     setState(() {
+  //       _selectedItem = _selectedItem == _list[index] ? null : _list[index];
+  //     });
+  //   },
+  // );
+  // }
+
+  // Used to build list items that haven't been removed.
+  Widget _buildItem(
+      BuildContext context, int index, Animation<double> animation) {
+    final obj = _list[index];
+    final itemState = obj.displayData as AudioListItemState;
+    return AudioListItem(
+      key: itemState.key,
+      audioItem: obj,
+      state: itemState,
+      onTap: (iconOnTapped) {
+        if (obj is FolderInfo) {
+          state.folderOnTap(obj);
+        } else if (obj is AudioInfo) {
+          state.audioOnTap(obj, iconOnTapped);
+        }
+      },
+      onLongPressed: state.onListItemLongPressed,
+    );
+  }
+
+  // Used to build an item after it has been removed from the list. This
+  // method is needed because a removed item remains visible until its
+  // animation has completed (even though it's gone as far this ListModel is
+  // concerned). The widget will be used by the
+  // [AnimatedListState.removeItem] method's
+  // [AnimatedListRemovedItemBuilder] parameter.
+  Widget _buildRemovedItem(
+      int index, BuildContext context, Animation<double> animation) {
+    final obj = _list[index];
+    final itemState = obj.displayData as AudioListItemState;
+    return AudioListItem(
+      key: itemState.key,
+      audioItem: obj,
+      state: itemState,
+    );
+  }
+
+  // Insert the "next item" into the list model.
+  void _insert(AudioObject obj) {
+    final int index =
+        _selectedItem == null ? _list.length : _list.indexOf(_selectedItem!);
+    _list.insert(index, _nextItem++);
+  }
+
+  // Remove the selected item from the list model.
+  void _remove() {
+    if (_selectedItem != null) {
+      _list.removeAt(_list.indexOf(_selectedItem!));
+      setState(() {
+        _selectedItem = null;
+      });
+    } else {
+      _scaffoldMessengerKey.currentState!.showSnackBar(const SnackBar(
+        content: Text(
+          'Select an item to remove from the list.',
+          style: TextStyle(fontSize: 20),
+        ),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return ValueListenableBuilder<FolderInfo>(
+        valueListenable: _folderNotifier,
+        builder: (context, folderInfo, _) {
+          log.debug("build list");
+          return CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              SliverAppBar(
+                title: const Text(
+                  'SliverAnimatedList',
+                  style: TextStyle(fontSize: 30),
+                ),
+                expandedHeight: 60,
+                centerTitle: true,
+                backgroundColor: Colors.amber[900],
+                // leading: IconButton(
+                //   icon: const Icon(Icons.add_circle),
+                //   onPressed: _insert,
+                //   tooltip: 'Insert a new item.',
+                //   iconSize: 32,
+                // ),
+                // actions: <Widget>[
+                //   IconButton(
+                //     icon: const Icon(Icons.remove_circle),
+                //     onPressed: _remove,
+                //     tooltip: 'Remove the selected item.',
+                //     iconSize: 32,
+                //   ),
+                // ],
+              ),
+              SliverAnimatedList(
+                key: _listKey,
+                initialItemCount: _list.length,
+                itemBuilder: _buildItem,
+              ),
+            ],
+            // sl: _listItemWidgets(folderInfo),
+          );
+        });
+  }
+}
+
+typedef RemovedItemBuilder = Widget Function(
+    int item, BuildContext context, Animation<double> animation);
+
+// Keeps a Dart [List] in sync with an [AnimatedList].
+//
+// The [insert] and [removeAt] methods apply to both the internal list and
+// the animated list that belongs to [listKey].
+//
+// This class only exposes as much of the Dart List API as is needed by the
+// sample app. More list methods are easily added, however methods that
+// mutate the list must make the same changes to the animated list in terms
+// of [AnimatedListState.insertItem] and [AnimatedList.removeItem].
+class ListModel<E> {
+  ListModel({
+    required this.listKey,
+    required this.removedItemBuilder,
+    Iterable<E>? initialItems,
+  }) : _items = List<E>.from(initialItems ?? <E>[]);
+
+  final GlobalKey<SliverAnimatedListState> listKey;
+  final RemovedItemBuilder removedItemBuilder;
+  final List<E> _items;
+
+  SliverAnimatedListState get _animatedList => listKey.currentState!;
+
+  void insert(int index, E item) {
+    _items.insert(index, item);
+    _animatedList.insertItem(index);
+  }
+
+  E removeAt(int index) {
+    final E removedItem = _items.removeAt(index);
+    if (removedItem != null) {
+      _animatedList.removeItem(
+        index,
+        (BuildContext context, Animation<double> animation) =>
+            removedItemBuilder(index, context, animation),
+      );
+    }
+    return removedItem;
+  }
+
+  int get length => _items.length;
+
+  E operator [](int index) => _items[index];
+
+  int indexOf(E item) => _items.indexOf(item);
+}
+
+// Displays its integer item as 'Item N' on a Card whose color is based on
+// the item's value.
+//
+// The card turns gray when [selected] is true. This widget's height
+// is based on the [animation] parameter. It varies as the animation value
+// transitions from 0.0 to 1.0.
+class CardItem extends StatelessWidget {
+  const CardItem({
+    super.key,
+    this.onTap,
+    this.selected = false,
+    required this.animation,
+    required this.item,
+  }) : assert(item >= 0);
+
+  final Animation<double> animation;
+  final VoidCallback? onTap;
+  final int item;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 2.0,
+        right: 2.0,
+        top: 2.0,
+      ),
+      child: SizeTransition(
+        sizeFactor: animation,
+        child: GestureDetector(
+          onTap: onTap,
+          child: SizedBox(
+            height: 80.0,
+            child: Card(
+              color: selected
+                  ? Colors.black12
+                  : Colors.primaries[item % Colors.primaries.length],
+              child: Center(
+                child: Text(
+                  'Item $item',
+                  style: Theme.of(context).textTheme.headline4,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

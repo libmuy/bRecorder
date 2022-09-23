@@ -2,7 +2,7 @@ import 'package:brecorder/core/result.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/entities.dart';
-import 'abstract_repository.dart';
+import 'repository.dart';
 
 class TrashRepository extends Repository {
   @override

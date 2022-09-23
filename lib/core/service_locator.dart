@@ -9,12 +9,13 @@ import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:brecorder/presentation/ploc/record_page_state.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/filesystem_repository.dart';
 import '../data/trash_repository.dart';
-import '../data/abstract_repository.dart';
+import '../data/repository.dart';
 import '../presentation/widgets/animated_sized_panel.dart';
 import 'logging.dart';
 
@@ -43,10 +44,10 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => PlaylistRepository());
     getIt.registerLazySingleton(() => TrashRepository());
     getIt.registerLazySingleton(() => AllStorageRepository());
-    getIt.registerLazySingleton(
-        () => BrowserViewModeNotifier(BrowserViewMode.normal));
+    getIt.registerLazySingleton(() => GlobalModeNotifier(GlobalMode.normal));
     getIt.registerLazySingleton(() => PriorityValueNotifier(
         AnimatedSizedPanelDragEvent(AnimatedSizedPanelDragEventType.init)));
+    getIt.registerLazySingleton(() => GlobalKey<ScaffoldMessengerState>());
 
     getIt.registerFactory(() => RecordPageState());
 
@@ -99,4 +100,7 @@ class ServiceLocator {
   PriorityValueNotifier<AnimatedSizedPanelDragEvent>
       get playbackPanelDragNotifier =>
           get<PriorityValueNotifier<AnimatedSizedPanelDragEvent>>();
+
+  GlobalKey<ScaffoldMessengerState> get messageState =>
+      get<GlobalKey<ScaffoldMessengerState>>();
 }
