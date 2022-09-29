@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/presentation/widgets/animated_audio_list.dart';
 import 'package:brecorder/presentation/widgets/search_box.dart';
@@ -51,6 +53,8 @@ class _BrowserViewState extends State<BrowserView>
   late ScrollController _scrollController;
   bool _scrollSwitch = false;
   Map<String, _AudioItemGroup>? _groups;
+  final _searchBoxHeightNotifier = ValueNotifier(0.0);
+  double _lastScrollPosition = 0.0;
 
   @override
   void initState() {
@@ -100,28 +104,51 @@ class _BrowserViewState extends State<BrowserView>
       groupMap = {"/": _folderNotifier.value.subObjects};
     }
 
+    // the first time got a folder
     if (_groups == null) {
-      _groups = groupMap.map((key, items) =>
-          MapEntry(key, _AudioItemGroup(key: key, items: items)));
+      _groups = groupMap.map((key, items) => MapEntry(
+          key,
+          _AudioItemGroup(
+              key: key, items: items, child: _buildHeaderWidget())));
       needRebuild = true;
+
+      // folder update
     } else {
-      _groups = {};
+      // remove all groups not exist in the new list
+      var groupForRemove = [];
+      _groups!.forEach((key, value) {
+        if (!groupMap.containsKey(key)) groupForRemove.add(key);
+      });
+      for (var key in groupForRemove) {
+        _groups!.remove(key);
+        needRebuild = true;
+      }
+
+      // update groups
       groupMap.forEach((key, items) {
         if (_groups!.containsKey(key)) {
           _groups![key]!.items = items;
         } else {
-          _groups![key] = _AudioItemGroup(key: key, items: items);
+          _groups![key] = _AudioItemGroup(
+              key: key, items: items, child: _buildHeaderWidget());
           needRebuild = true;
         }
       });
     }
-    _groups!.values.forEach((group) {
+    for (var group in _groups!.values) {
       for (final item in group.items) {
         state.resetAudioItemDisplayData(item);
       }
-    });
+    }
 
     if (needRebuild) setState(() {});
+  }
+
+  void _setSearchBoxHeight(double offset) {
+    if (_searchBoxHeightNotifier.value >= _kSearchBoxMaxHeight) return;
+    if (offset >= _lastScrollPosition) return;
+    final heightOffset = _lastScrollPosition - offset;
+    _searchBoxHeightNotifier.value += heightOffset;
   }
 
   void _scrollListener() {
@@ -137,25 +164,24 @@ class _BrowserViewState extends State<BrowserView>
       if (offset > -50.0) _scrollSwitch = false;
     }
 
+    _setSearchBoxHeight(offset);
+    _lastScrollPosition = offset;
+
     if (_groups == null || _groups!.length < 2) return;
     //Headers processing
     final gropus = _groups!.values.toList();
     final currentHeader = gropus.firstWhere((e) => e.headerHeight > 0);
-    final box = currentHeader.headerKey.currentContext?.findRenderObject()
-        as RenderSliverPersistentHeader?;
+    final box = currentHeader.headerBox;
 
     if (box == null) return;
 
-    final isDownScroll =
+    final isScrollUp =
         box.constraints.userScrollDirection == ScrollDirection.reverse;
-    if (isDownScroll) {
-      // 下スクロール時
-
+    if (isScrollUp) {
       // ヘッダー同士が接触した後の高さ更新
       if (gropus.length > gropus.indexOf(currentHeader) + 1) {
         final nextHeader = gropus[gropus.indexOf(currentHeader) + 1];
-        final nextBox = nextHeader.headerKey.currentContext?.findRenderObject()
-            as RenderSliverPersistentHeader?;
+        final nextBox = nextHeader.headerBox;
 
         if (nextBox != null) {
           final double currentHeight =
@@ -167,17 +193,14 @@ class _BrowserViewState extends State<BrowserView>
           currentHeader.headerHeight = currentHeight;
         }
       }
-    } else if (!isDownScroll) {
-      // 上スクロール時
-
+    } else if (!isScrollUp) {
       // ヘッダー同士が接触した後の高さ更新
-      if (currentHeader.headerHeight < _AudioItemGroup._kDefaultHeight) {
+      if (currentHeader.headerHeight < _AudioListHeader._kDefaultHeight) {
         // 上部ヘッダーの高さを変更
 
         if (gropus.length > gropus.indexOf(currentHeader) + 1) {
           final nextKey = gropus[gropus.indexOf(currentHeader) + 1];
-          final nextHeader = nextKey.headerKey.currentContext
-              ?.findRenderObject() as RenderSliverPersistentHeader?;
+          final nextHeader = nextKey.headerBox;
           if (nextHeader != null) {
             final currentHeight = nextHeader.constraints.precedingScrollExtent -
                 _scrollController.offset;
@@ -200,8 +223,10 @@ class _BrowserViewState extends State<BrowserView>
     }
   }
 
-  final _ksearchBoxHeight = 35.0;
-  final _ksearchBoxPadding = 4.0;
+  static const _ksearchBoxHeight = 35.0;
+  static const _ksearchBoxPadding = 4.0;
+  static const _kSearchBoxMaxHeight =
+      _ksearchBoxHeight + (_ksearchBoxPadding * 2);
 
   List<Widget> _buildSearchHeader() {
     return [
@@ -216,17 +241,21 @@ class _BrowserViewState extends State<BrowserView>
             minHeight: 10,
             maxHeight: 10),
       ),
-      SliverPersistentHeader(
-        pinned: false,
-        floating: false,
-        delegate: _AudioListHeaderDelegate(
-            child: SearchBox(
-              height: _ksearchBoxHeight,
-              padding: _ksearchBoxPadding,
-            ),
-            minHeight: 0,
-            maxHeight: _ksearchBoxHeight + (_ksearchBoxPadding * 2)),
-      ),
+      ValueListenableBuilder<double>(
+          valueListenable: _searchBoxHeightNotifier,
+          builder: ((context, height, _) {
+            return SliverPersistentHeader(
+              pinned: false,
+              floating: false,
+              delegate: _AudioListHeaderDelegate(
+                  child: const SearchBox(
+                    height: _ksearchBoxHeight,
+                    padding: _ksearchBoxPadding,
+                  ),
+                  minHeight: 0,
+                  maxHeight: height),
+            );
+          })),
     ];
   }
 
@@ -242,10 +271,35 @@ class _BrowserViewState extends State<BrowserView>
     return slivers;
   }
 
+  Widget _buildHeaderWidget() {
+    final folder = _folderNotifier.value;
+    final bytes = folder.bytes;
+    final kB = bytes / 1000;
+    final mB = kB / 1000;
+    String sizeStr = "";
+    if (mB > 1) {
+      sizeStr = "${mB.toStringAsFixed(1)} MB";
+    } else {
+      sizeStr = "${kB.toStringAsFixed(1)} KB";
+    }
+    return Text("${folder.allAudioCount} Audios"
+        " - "
+        "$sizeStr");
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     log.debug("group count:${_groups?.length}");
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (_scrollController.hasClients) {
+    //     _scrollController.animateTo(_scrollController.position.maxScrollExtent,
+    //         duration: Duration(milliseconds: 300), curve: Curves.elasticOut);
+    //   } else {
+    //     // Timer(Duration(milliseconds: 400), () => _scrollToBottom());
+    //     log.debug("scroll has no client");
+    //   }
+    // });
     return Stack(
       children: [
         CustomScrollView(
@@ -274,20 +328,51 @@ class _BrowserViewState extends State<BrowserView>
 }
 
 class _AudioItemGroup {
+  final _AudioListHeader _header;
   final String key;
+  final ValueNotifier<List<AudioObject>> _itemsNotifier;
+
+  _AudioItemGroup({
+    required this.key,
+    GlobalKey? headerKey,
+    required List<AudioObject> items,
+    required Widget child,
+  })  : _itemsNotifier = ValueNotifier(items),
+        _header = _AudioListHeader(child: child, headerKey: headerKey);
+
+  set headerHeight(double height) => _header.height = height;
+
+  double get headerHeight => _header.height;
+  RenderSliverPersistentHeader? get headerBox => _header.box;
+
+  set items(List<AudioObject> newValue) {
+    _itemsNotifier.value = newValue;
+  }
+
+  List<AudioObject> get items => _itemsNotifier.value;
+
+  Widget buildHeaderWidget(BuildContext context) =>
+      _header.buildHeaderWidget(context);
+
+  Widget buildListWidget(
+      BuildContext context, RepoType repoType, bool editable) {
+    return AnimatedAudioSliver(
+        repoType: repoType, editable: editable, listNotifier: _itemsNotifier);
+  }
+}
+
+class _AudioListHeader {
+  final Widget child;
   final GlobalKey headerKey;
   final _headerHeightNotifier = ValueNotifier(_kDefaultHeight);
-  final ValueNotifier<List<AudioObject>> _itemsNotifier;
   static const _kDefaultHeight = 30.0;
 
-  _AudioItemGroup(
-      {required this.key,
-      GlobalKey? headerKey,
-      required List<AudioObject> items})
-      : _itemsNotifier = ValueNotifier(items),
-        headerKey = headerKey ?? GlobalKey();
+  _AudioListHeader({
+    GlobalKey? headerKey,
+    required this.child,
+  }) : headerKey = headerKey ?? GlobalKey();
 
-  set headerHeight(double height) {
+  set height(double height) {
     if (height < 0) {
       log.error("height: $height < 0, set to 0");
       _headerHeightNotifier.value = 0;
@@ -299,13 +384,11 @@ class _AudioItemGroup {
     }
   }
 
-  double get headerHeight => _headerHeightNotifier.value;
+  double get height => _headerHeightNotifier.value;
 
-  set items(List<AudioObject> newValue) {
-    _itemsNotifier.value = newValue;
-  }
-
-  List<AudioObject> get items => _itemsNotifier.value;
+  RenderSliverPersistentHeader? get box =>
+      headerKey.currentContext?.findRenderObject()
+          as RenderSliverPersistentHeader?;
 
   Widget buildHeaderWidget(BuildContext context) {
     return ValueListenableBuilder<double>(
@@ -319,16 +402,10 @@ class _AudioItemGroup {
               minHeight: value,
               child: Container(
                   color: Theme.of(context).primaryColor,
-                  child: Center(child: Text(key))),
+                  child: Center(child: child)),
             ),
           );
         }));
-  }
-
-  Widget buildListWidget(
-      BuildContext context, RepoType repoType, bool editable) {
-    return AnimatedAudioSliver(
-        repoType: repoType, editable: editable, listNotifier: _itemsNotifier);
   }
 }
 
@@ -340,7 +417,7 @@ class _AudioListHeaderDelegate extends SliverPersistentHeaderDelegate {
   _AudioListHeaderDelegate(
       {required this.minHeight,
       required this.child,
-      this.maxHeight = _AudioItemGroup._kDefaultHeight});
+      this.maxHeight = _AudioListHeader._kDefaultHeight});
 
   @override
   Widget build(
