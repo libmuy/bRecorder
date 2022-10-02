@@ -12,7 +12,7 @@ class TitleBar extends StatefulWidget implements PreferredSizeWidget {
   final Widget leadingIcon;
   final Widget endingIcon;
   final ValueNotifier<String> titleNotifier;
-  final Widget bottom;
+  final Widget? bottom;
   final double titleHeight;
   final double titleFontSizeFactor;
   final double bottomHeight;
@@ -27,14 +27,15 @@ class TitleBar extends StatefulWidget implements PreferredSizeWidget {
       this.endingOnPressed,
       this.leadingIcon = const Icon(Icons.settings),
       this.endingIcon = const Icon(Icons.edit),
-      this.bottom = const Text(""),
+      this.bottom,
       this.titleHeight = 35,
       this.titleFontSizeFactor = 0.5,
-      this.bottomHeight = 40,
+      double bottomHeight = 40,
       this.titleMargin = 2,
       this.dividerHeight = 1,
       this.onTitleTapped})
-      : super(key: key);
+      : bottomHeight = bottom == null ? 0 : bottomHeight,
+        super(key: key);
 
   @override
   Size get preferredSize {
@@ -110,140 +111,149 @@ class _TitleBarState extends State<TitleBar> {
 
     // _dumpPositions(statusBarHeight, buttonWidth, buttonHeight);
 
+    List<Widget> bottomWidgets;
+    if (widget.bottom == null) {
+      bottomWidgets = [];
+    } else {
+      bottomWidgets = [
+        SizedBox(height: widget.bottomHeight, child: widget.bottom),
+      ];
+    }
+
     return Column(
       children: [
-        SizedBox(
-          height: statusBarHeight,
-        ),
-        Expanded(
-          child: Container(
-            padding: EdgeInsets.all(widget.titleMargin),
-            child: Stack(
-              children: [
-                Center(
-                  child: ListView(
-                    controller: _scrollController,
-                    shrinkWrap: true,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    children: [
-                      SizedBox(
-                        width: buttonWidth,
-                      ),
-                      ValueListenableBuilder<String>(
-                          valueListenable: widget.titleNotifier,
-                          builder: (context, title, _) {
-                            final textStyle = TextStyle(
-                                fontSize: widget.titleHeight *
-                                    widget.titleFontSizeFactor,
-                                // fontSize: 20,
-                                height: 1);
-                            final parts = split(title);
-                            List<Widget> buttons = [];
-                            String path = "/";
-                            for (var i = 0; i < parts.length; i++) {
-                              final p = parts[i];
-                              String newPath = path;
-                              if (i > 0) {
-                                newPath = join(path, p);
-                                path = newPath;
-                                buttons.add(Text(
-                                  "/",
-                                  style: textStyle,
-                                ));
-                              }
-                              buttons.add(MaterialButton(
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.only(
-                                    top: titleEdge,
-                                    bottom: titleEdge,
-                                    left: 10,
-                                    right: 10),
-                                minWidth: 5,
-                                // style: ButtonStyle(
-                                //   // padding: MaterialStateProperty.all(EdgeInsets.zero),
-                                //   minimumSize:
-                                //       MaterialStateProperty.all(Size.zero),
-                                //   tapTargetSize:
-                                //       MaterialTapTargetSize.shrinkWrap,
-                                // ),
-                                onPressed: () {
-                                  log.info("Path button:$newPath clicked");
-                                  widget.onTitleTapped?.call(newPath);
-                                },
-                                child: Text(
-                                  p,
-                                  style: textStyle,
-                                ),
-                              ));
-                            }
-                            _resetScrollPosition(true);
-                            return Row(children: buttons);
-                          }),
-                      SizedBox(
-                        width: buttonWidth,
-                      ),
-                    ],
-                  ),
-                ),
-                Align(
-                  alignment: const Alignment(-1, 0),
-                  child: ShaderMask(
-                      blendMode: BlendMode.dstATop,
-                      shaderCallback: (rect) => LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              backgroundColor,
-                              backgroundColor.withOpacity(.2),
-                              Colors.transparent
-                            ],
-                            stops: const [.8, .9, 1.0],
-                          ).createShader(rect),
-                      child: Container(
-                          width: buttonWidth,
-                          alignment: Alignment.centerLeft,
-                          color: backgroundColor,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                                right: buttonWidth - buttonHeight),
-                            child: leading,
-                          ))),
-                ),
-                Align(
-                  alignment: const Alignment(1, 0),
-                  child: ShaderMask(
-                      blendMode: BlendMode.dstATop,
-                      shaderCallback: (rect) => LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Colors.transparent,
-                              backgroundColor.withOpacity(.2),
-                              backgroundColor,
-                            ],
-                            stops: const [0.0, .1, .2],
-                          ).createShader(rect),
-                      child: Container(
-                          width: buttonWidth,
-                          alignment: Alignment.centerLeft,
-                          color: backgroundColor,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                                left: buttonWidth - buttonHeight),
-                            child: ending,
-                          ))),
-                ),
-              ],
+            SizedBox(
+              height: statusBarHeight,
             ),
-          ),
-        ),
-        Divider(
-          height: widget.dividerHeight,
-          thickness: widget.dividerHeight,
-        ),
-        SizedBox(height: widget.bottomHeight, child: widget.bottom),
-      ],
+            Expanded(
+              child: Container(
+                padding: EdgeInsets.all(widget.titleMargin),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: ListView(
+                        controller: _scrollController,
+                        shrinkWrap: true,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            width: buttonWidth,
+                          ),
+                          ValueListenableBuilder<String>(
+                              valueListenable: widget.titleNotifier,
+                              builder: (context, title, _) {
+                                final textStyle = TextStyle(
+                                    fontSize: widget.titleHeight *
+                                        widget.titleFontSizeFactor,
+                                    // fontSize: 20,
+                                    height: 1);
+                                final parts = split(title);
+                                List<Widget> buttons = [];
+                                String path = "/";
+                                for (var i = 0; i < parts.length; i++) {
+                                  final p = parts[i];
+                                  String newPath = path;
+                                  if (i > 0) {
+                                    newPath = join(path, p);
+                                    path = newPath;
+                                    buttons.add(Text(
+                                      "/",
+                                      style: textStyle,
+                                    ));
+                                  }
+                                  buttons.add(MaterialButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.only(
+                                        top: titleEdge,
+                                        bottom: titleEdge,
+                                        left: 10,
+                                        right: 10),
+                                    minWidth: 5,
+                                    // style: ButtonStyle(
+                                    //   // padding: MaterialStateProperty.all(EdgeInsets.zero),
+                                    //   minimumSize:
+                                    //       MaterialStateProperty.all(Size.zero),
+                                    //   tapTargetSize:
+                                    //       MaterialTapTargetSize.shrinkWrap,
+                                    // ),
+                                    onPressed: () {
+                                      log.info("Path button:$newPath clicked");
+                                      widget.onTitleTapped?.call(newPath);
+                                    },
+                                    child: Text(
+                                      p,
+                                      style: textStyle,
+                                    ),
+                                  ));
+                                }
+                                _resetScrollPosition(true);
+                                return Row(children: buttons);
+                              }),
+                          SizedBox(
+                            width: buttonWidth,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Align(
+                      alignment: const Alignment(-1, 0),
+                      child: ShaderMask(
+                          blendMode: BlendMode.dstATop,
+                          shaderCallback: (rect) => LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  backgroundColor,
+                                  backgroundColor.withOpacity(.2),
+                                  Colors.transparent
+                                ],
+                                stops: const [.8, .9, 1.0],
+                              ).createShader(rect),
+                          child: Container(
+                              width: buttonWidth,
+                              alignment: Alignment.centerLeft,
+                              color: backgroundColor,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                    right: buttonWidth - buttonHeight),
+                                child: leading,
+                              ))),
+                    ),
+                    Align(
+                      alignment: const Alignment(1, 0),
+                      child: ShaderMask(
+                          blendMode: BlendMode.dstATop,
+                          shaderCallback: (rect) => LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.transparent,
+                                  backgroundColor.withOpacity(.2),
+                                  backgroundColor,
+                                ],
+                                stops: const [0.0, .1, .2],
+                              ).createShader(rect),
+                          child: Container(
+                              width: buttonWidth,
+                              alignment: Alignment.centerLeft,
+                              color: backgroundColor,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                    left: buttonWidth - buttonHeight),
+                                child: ending,
+                              ))),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Divider(
+              height: widget.dividerHeight,
+              thickness: widget.dividerHeight,
+            ),
+          ] +
+          bottomWidgets,
     );
   }
 }

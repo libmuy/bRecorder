@@ -72,7 +72,7 @@ class RecordPageState {
     final ret = await _stopRecording();
     if (!ret) return;
     recordStateNotifier.value = RecordState.stopped;
-    _saveWaveformData();
+    // _saveWaveformData();
 
     if (!mounted) return;
     Navigator.of(context).pop();

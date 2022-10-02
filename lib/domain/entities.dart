@@ -242,6 +242,9 @@ class AudioInfo extends AudioObject {
     return AudioInfo(durationMS, path, bytes, timestamp ?? DateTime(1970),
         broken: true, repo: repo);
   }
+
+  @override
+  String toString() => basename(path);
 }
 
 /*=======================================================================*\ 
@@ -367,6 +370,9 @@ class FolderInfo extends AudioObject {
 
   @override
   List<Object> get props => [path, bytes, timestamp, allAudioCount];
+
+  @override
+  String toString() => "${basename(path)}/";
 }
 
 class AudioPref {

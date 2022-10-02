@@ -16,4 +16,9 @@ class GlobalInfo {
   static double PLATFORM_PITCH_MAX_VALUE = 5.0;
   static double PLATFORM_PITCH_MIN_VALUE = 0.0;
   static double PLATFORM_PITCH_DEFAULT_VALUE = 1.0;
+
+  /*=======================================================================*\ 
+    UI parameters
+  \*=======================================================================*/
+  static const kDialogBorderRadius = 15.0;
 }

@@ -3,17 +3,17 @@ import 'dart:async';
 import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/global_info.dart';
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils.dart';
-import '../pages/browser_view.dart';
 import '../ploc/browser_view_state.dart';
 import 'animated_sized_panel.dart';
-import 'folder_selector.dart';
-import 'new_folder_dialog.dart';
+import 'dialogs.dart';
 import 'playback_panel.dart';
 
 final log = Logger('BottomPanel', level: LogLevel.debug);
+const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
 class BottomPanel extends StatefulWidget {
   const BottomPanel({
@@ -42,30 +42,6 @@ class _BottomPanelState extends State<BottomPanel> {
       case AnimationStatus.forward:
         break;
     }
-  }
-
-  void _showNewFolderDialog(BuildContext context) {
-    showModalBottomSheet<void>(
-      elevation: 20,
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(10),
-          topRight: Radius.circular(10),
-        ),
-      ),
-      builder: (BuildContext context) {
-        return SizedBox(
-            height: 400,
-            // color: Colors.amber,
-            child: FolderSelector(
-              folderNotify: (folder) {
-                log.debug("selected folder:${folder.path}");
-                state.moveSelectedToFolder(folder);
-              },
-            ));
-      },
-    );
   }
 
   Widget _buildBottomPanelInternal(BuildContext context, GlobalMode mode) {
@@ -98,7 +74,10 @@ class _BottomPanelState extends State<BottomPanel> {
                       onPressed: selectState.audioSelected ||
                               selectState.folderSelected
                           ? () {
-                              _showNewFolderDialog(context);
+                              showFolderSelecter(context, (folder) {
+                                log.debug("selected folder:${folder.path}");
+                                state.moveSelectedToFolder(folder);
+                              });
                             }
                           : null,
                       child: const Icon(Icons.drive_file_move_outline)),
@@ -149,8 +128,8 @@ class _BottomPanelState extends State<BottomPanel> {
       shadowColor: Colors.black,
       // surfaceTintColor: Colors.red,
       borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(15),
-        topRight: Radius.circular(15),
+        topLeft: Radius.circular(_kBorderRadius),
+        topRight: Radius.circular(_kBorderRadius),
         // bottomLeft: Radius.circular(10),
         // bottomRight: Radius.circular(10)
       ),
