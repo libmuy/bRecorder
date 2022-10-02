@@ -4,7 +4,7 @@ import 'package:brecorder/data/repository_type.dart';
 import 'package:brecorder/domain/entities.dart';
 import 'package:brecorder/presentation/pages/browser_view.dart';
 import 'package:brecorder/presentation/ploc/browser_view_state.dart';
-import 'package:brecorder/presentation/widgets/new_folder_dialog.dart';
+import 'package:brecorder/presentation/widgets/dialogs.dart';
 import 'package:brecorder/presentation/widgets/title_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
@@ -14,11 +14,11 @@ import '../../core/service_locator.dart';
 final log = Logger('FolderSelector');
 
 class FolderSelector extends StatefulWidget {
-  final void Function(FolderInfo folder) folderNotify;
+  final void Function(FolderInfo folder) onFolderSelected;
 
   const FolderSelector({
     Key? key,
-    required this.folderNotify,
+    required this.onFolderSelected,
   }) : super(key: key);
 
   @override
@@ -100,7 +100,7 @@ class _FolderSelectorState extends State<FolderSelector> {
             child: const Text("Select Folder"),
             onPressed: () {
               final copyFrom = currentFolder.copyFrom as FolderInfo?;
-              widget.folderNotify(copyFrom ?? currentFolder);
+              widget.onFolderSelected(copyFrom ?? currentFolder);
 
               Navigator.pop(context);
             },

@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:brecorder/core/utils.dart';
 import 'package:brecorder/presentation/widgets/animated_audio_list.dart';
+import 'package:brecorder/presentation/widgets/dialogs.dart';
 import 'package:brecorder/presentation/widgets/search_box.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
@@ -17,6 +18,9 @@ import '../ploc/browser_view_state.dart';
 
 final log = Logger('BrowserView', level: LogLevel.debug);
 
+/*=======================================================================*\ 
+  Widget
+\*=======================================================================*/
 class BrowserView extends StatefulWidget {
   final RepoType repoType;
   final bool folderOnly;
@@ -42,20 +46,34 @@ class BrowserView extends StatefulWidget {
   State<BrowserView> createState() => _BrowserViewState();
 }
 
+/*=======================================================================*\ 
+  State
+\*=======================================================================*/
 class _BrowserViewState extends State<BrowserView>
     with
         AutomaticKeepAliveClientMixin<BrowserView>,
         SingleTickerProviderStateMixin {
   late BrowserViewState state;
-
   final _folderNotifier = ForcibleValueNotifier(FolderInfo.empty);
   final modeNotifier = sl.get<GlobalModeNotifier>();
   late ScrollController _scrollController;
   bool _scrollSwitch = false;
   Map<String, _AudioItemGroup>? _groups;
+
+// For Search Header
   final _searchBoxHeightNotifier = ValueNotifier(0.0);
   double _lastScrollPosition = 0.0;
+  static const _ksearchBoxHeight = 35.0;
+  static const _ksearchBoxPadding = 4.0;
+  static const _kSearchBoxMaxHeight =
+      _ksearchBoxHeight + (_ksearchBoxPadding * 2);
 
+  @override
+  bool get wantKeepAlive => widget.persistPath;
+
+  /*=======================================================================*\ 
+    Initialization / Finalization
+  \*=======================================================================*/
   @override
   void initState() {
     // log.debug("initState");
@@ -82,15 +100,61 @@ class _BrowserViewState extends State<BrowserView>
     super.dispose();
   }
 
-  @override
-  bool get wantKeepAlive => widget.persistPath;
-
-  List<AudioObject>? get _itemList => widget.folderOnly
-      ? _folderNotifier.value.subfolders
-      : _folderNotifier.value.audios;
-
+  /*=======================================================================*\ 
+    Folder Changed Listener
+    -----------------------
+    Group/Sort the items
+  \*=======================================================================*/
   Future<void> _folderListener() async {
     bool needRebuild = false;
+    Widget buildHeaderEnding(String key) {
+      void sortItems(_AudioItemGroup group,
+          int Function(AudioObject, AudioObject)? compare) {
+        List<AudioObject> folders =
+            List.of(group.items.whereType<FolderInfo>());
+        List<AudioObject> audios = List.of(group.items.whereType<AudioInfo>());
+
+        folders.sort(compare);
+        audios.sort(compare);
+        group.items = folders + audios;
+      }
+
+      return widget.groupByDate
+          ? Text(key)
+          : _SortButton(
+              onSorted: (type, reverse) {
+                final group = _groups![key];
+                setState(() {
+                  int Function(AudioObject, AudioObject)? compare;
+                  switch (type) {
+                    case _SortType.dateTime:
+                      compare = (a, b) => reverse
+                          ? b.timestamp.compareTo(a.timestamp)
+                          : a.timestamp.compareTo(b.timestamp);
+                      break;
+                    case _SortType.name:
+                      compare = (a, b) {
+                        final nameA = basename(a.path);
+                        final nameB = basename(b.path);
+
+                        return reverse
+                            ? nameB.compareTo(nameA)
+                            : nameA.compareTo(nameB);
+                      };
+                      break;
+                    case _SortType.size:
+                      compare = (a, b) => reverse
+                          ? b.bytes.compareTo(a.bytes)
+                          : a.bytes.compareTo(b.bytes);
+                      break;
+                  }
+
+                  sortItems(group!, compare);
+                });
+              },
+            );
+    }
+
     Map<String, List<AudioObject>> groupMap;
     if (widget.groupByDate) {
       final allAudios = _folderNotifier.value.allAudios;
@@ -104,12 +168,18 @@ class _BrowserViewState extends State<BrowserView>
       groupMap = {"/": _folderNotifier.value.subObjects};
     }
 
+    for (final items in groupMap.values) {
+      for (final item in items) {
+        state.resetAudioItemDisplayData(item);
+      }
+    }
+
     // the first time got a folder
     if (_groups == null) {
       _groups = groupMap.map((key, items) => MapEntry(
           key,
           _AudioItemGroup(
-              key: key, items: items, child: _buildHeaderWidget())));
+              key: key, items: items, headerEnding: buildHeaderEnding(key))));
       needRebuild = true;
 
       // folder update
@@ -129,29 +199,31 @@ class _BrowserViewState extends State<BrowserView>
         if (_groups!.containsKey(key)) {
           _groups![key]!.items = items;
         } else {
-          _groups![key] = _AudioItemGroup(
-              key: key, items: items, child: _buildHeaderWidget());
+          _groups![key] = _AudioItemGroup(key: key, items: items);
           needRebuild = true;
         }
       });
-    }
-    for (var group in _groups!.values) {
-      for (final item in group.items) {
-        state.resetAudioItemDisplayData(item);
-      }
     }
 
     if (needRebuild) setState(() {});
   }
 
-  void _setSearchBoxHeight(double offset) {
-    if (_searchBoxHeightNotifier.value >= _kSearchBoxMaxHeight) return;
-    if (offset >= _lastScrollPosition) return;
-    final heightOffset = _lastScrollPosition - offset;
-    _searchBoxHeightNotifier.value += heightOffset;
-  }
-
+  /*=======================================================================*\ 
+    Scroll Listener
+    ----------------
+    Adjust the headers/Search box's height
+  \*=======================================================================*/
   void _scrollListener() {
+    //This is a folder selector? There is no header, search box, so do nothing
+    if (widget.folderOnly) return;
+
+    void setSearchBoxHeight(double offset) {
+      if (_searchBoxHeightNotifier.value >= _kSearchBoxMaxHeight) return;
+      if (offset >= _lastScrollPosition) return;
+      final heightOffset = _lastScrollPosition - offset;
+      _searchBoxHeightNotifier.value += heightOffset;
+    }
+
     final offset = _scrollController.offset;
 
     // log.debug("offset:$offset, sw:$_scrollSwitch");
@@ -164,7 +236,7 @@ class _BrowserViewState extends State<BrowserView>
       if (offset > -50.0) _scrollSwitch = false;
     }
 
-    _setSearchBoxHeight(offset);
+    setSearchBoxHeight(offset);
     _lastScrollPosition = offset;
 
     if (_groups == null || _groups!.length < 2) return;
@@ -223,12 +295,10 @@ class _BrowserViewState extends State<BrowserView>
     }
   }
 
-  static const _ksearchBoxHeight = 35.0;
-  static const _ksearchBoxPadding = 4.0;
-  static const _kSearchBoxMaxHeight =
-      _ksearchBoxHeight + (_ksearchBoxPadding * 2);
-
-  List<Widget> _buildSearchHeader() {
+  /*=======================================================================*\ 
+    Search Header Builder
+  \*=======================================================================*/
+  List<Widget> _buildSearchHeader(context) {
     return [
       SliverPersistentHeader(
         pinned: true,
@@ -271,22 +341,9 @@ class _BrowserViewState extends State<BrowserView>
     return slivers;
   }
 
-  Widget _buildHeaderWidget() {
-    final folder = _folderNotifier.value;
-    final bytes = folder.bytes;
-    final kB = bytes / 1000;
-    final mB = kB / 1000;
-    String sizeStr = "";
-    if (mB > 1) {
-      sizeStr = "${mB.toStringAsFixed(1)} MB";
-    } else {
-      sizeStr = "${kB.toStringAsFixed(1)} KB";
-    }
-    return Text("${folder.allAudioCount} Audios"
-        " - "
-        "$sizeStr");
-  }
-
+  /*=======================================================================*\ 
+    Build method
+  \*=======================================================================*/
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -300,19 +357,36 @@ class _BrowserViewState extends State<BrowserView>
     //     log.debug("scroll has no client");
     //   }
     // });
+    late List<Widget> slivers;
+    if (widget.folderOnly) {
+      slivers = _groups == null
+          ? []
+          : [
+              _groups!.values.first
+                  .buildListWidget(context, widget.repoType, widget.editable),
+            ];
+    } else {
+      slivers = _buildSearchHeader(context) + _buildSubLists(context);
+    }
     return Stack(
       children: [
         CustomScrollView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics()),
-          slivers: _buildSearchHeader() + _buildSubLists(context),
+          slivers: slivers,
           // sl: _listItemWidgets(folderInfo),
         ),
         // Center(
         //   child: MaterialButton(
         //     onPressed: () {
-        //       _list.removeAt(0);
+        //       final ret =
+        //           showAudioItemSortDialog(context, title: "Sort", options: {
+        //         "option1": 1,
+        //         "option2": 2,
+        //         "option3": 3,
+        //       });
+        //       ret.then((value) => log.debug("Dialog return:$value"));
         //     },
         //     child: Container(
         //       color: Colors.blue,
@@ -327,18 +401,25 @@ class _BrowserViewState extends State<BrowserView>
   }
 }
 
+/*=======================================================================*\ 
+  Group
+\*=======================================================================*/
 class _AudioItemGroup {
-  final _AudioListHeader _header;
+  late final _AudioListHeader _header;
   final String key;
-  final ValueNotifier<List<AudioObject>> _itemsNotifier;
+  final ForcibleValueNotifier<List<AudioObject>> _itemsNotifier;
 
   _AudioItemGroup({
     required this.key,
     GlobalKey? headerKey,
+    Widget? headerEnding,
     required List<AudioObject> items,
-    required Widget child,
-  })  : _itemsNotifier = ValueNotifier(items),
-        _header = _AudioListHeader(child: child, headerKey: headerKey);
+  }) : _itemsNotifier = ForcibleValueNotifier(items) {
+    _header = _AudioListHeader(
+        headerKey: headerKey,
+        itemsNotifier: _itemsNotifier,
+        headerEnding: headerEnding ?? const SizedBox());
+  }
 
   set headerHeight(double height) => _header.height = height;
 
@@ -350,6 +431,9 @@ class _AudioItemGroup {
   }
 
   List<AudioObject> get items => _itemsNotifier.value;
+  void forceRebuild() {
+    _itemsNotifier.update(forceNotify: true);
+  }
 
   Widget buildHeaderWidget(BuildContext context) =>
       _header.buildHeaderWidget(context);
@@ -361,15 +445,20 @@ class _AudioItemGroup {
   }
 }
 
+/*=======================================================================*\ 
+  Header
+\*=======================================================================*/
 class _AudioListHeader {
-  final Widget child;
+  final ForcibleValueNotifier<List<AudioObject>> itemsNotifier;
   final GlobalKey headerKey;
   final _headerHeightNotifier = ValueNotifier(_kDefaultHeight);
   static const _kDefaultHeight = 30.0;
+  final Widget headerEnding;
 
   _AudioListHeader({
     GlobalKey? headerKey,
-    required this.child,
+    required this.itemsNotifier,
+    required this.headerEnding,
   }) : headerKey = headerKey ?? GlobalKey();
 
   set height(double height) {
@@ -390,6 +479,38 @@ class _AudioListHeader {
       headerKey.currentContext?.findRenderObject()
           as RenderSliverPersistentHeader?;
 
+  Widget _buildHeaderWidget(List<AudioObject> items) {
+    int bytes = 0;
+    int count = 0;
+    for (var item in items) {
+      bytes += item.bytes;
+
+      if (item is FolderInfo) {
+        count += item.allAudioCount;
+      } else if (item is AudioInfo) {
+        count++;
+      }
+    }
+
+    final kB = bytes / 1000;
+    final mB = kB / 1000;
+    String sizeStr = "";
+    if (mB > 1) {
+      sizeStr = "${mB.toStringAsFixed(1)} MB";
+    } else {
+      sizeStr = "${kB.toStringAsFixed(1)} KB";
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text("$count Audios"
+            " - "
+            "$sizeStr"),
+        headerEnding,
+      ],
+    );
+  }
+
   Widget buildHeaderWidget(BuildContext context) {
     return ValueListenableBuilder<double>(
         valueListenable: _headerHeightNotifier,
@@ -402,7 +523,12 @@ class _AudioListHeader {
               minHeight: value,
               child: Container(
                   color: Theme.of(context).primaryColor,
-                  child: Center(child: child)),
+                  child: Center(
+                      child: ValueListenableBuilder<List<AudioObject>>(
+                          valueListenable: itemsNotifier,
+                          builder: ((context, items, _) {
+                            return _buildHeaderWidget(items);
+                          })))),
             ),
           );
         }));
@@ -436,4 +562,67 @@ class _AudioListHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(SliverPersistentHeaderDelegate oldDelegate) =>
       minExtent != oldDelegate.minExtent || maxExtent != oldDelegate.maxExtent;
+}
+
+/*=======================================================================*\ 
+  Sort Button
+\*=======================================================================*/
+enum _SortType { dateTime, name, size }
+
+class _SortButton extends StatefulWidget {
+  final void Function(_SortType type, bool reverse)? onSorted;
+  const _SortButton({this.onSorted});
+  @override
+  State<_SortButton> createState() => _SortButtonState();
+}
+
+class _SortButtonState extends State<_SortButton> {
+  _SortType type = _SortType.name;
+  bool reverseOrder = false;
+
+  String sortName(_SortType type) {
+    switch (type) {
+      case _SortType.dateTime:
+        return "Date";
+      case _SortType.name:
+        return "Name";
+      case _SortType.size:
+        return "Size";
+    }
+  }
+
+  Widget get orderIcon {
+    if (reverseOrder) return const Icon(Icons.arrow_drop_down);
+    return const Icon(Icons.arrow_drop_up);
+  }
+
+  void onPressed(context) {
+    final options = _SortType.values
+        .asMap()
+        .map((_, sortType) => MapEntry(sortName(sortType), sortType));
+    final ret =
+        showAudioItemSortDialog(context, title: "Sort", options: options);
+    ret.then((newType) {
+      if (newType == null) return;
+      if (newType == type) {
+        reverseOrder = !reverseOrder;
+      } else {
+        type = newType;
+        reverseOrder = false;
+      }
+      setState(() {});
+      widget.onSorted?.call(type, reverseOrder);
+      log.debug("Dialog return:$type");
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialButton(
+      onPressed: () => onPressed(context),
+      child: Row(
+        children: [Text(sortName(type)), orderIcon],
+      ),
+    );
+  }
 }

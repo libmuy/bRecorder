@@ -58,7 +58,7 @@ class FilesystemRepository extends Repository {
     int bytes = 0;
     DateTime timestamp = DateTime(1970);
     try {
-      var file = File(path);
+      final file = File(path);
       timestamp = await file.lastModified();
       bytes = await file.length();
       final ret = await audioAgent.getDuration(path);
