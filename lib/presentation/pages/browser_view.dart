@@ -107,53 +107,6 @@ class _BrowserViewState extends State<BrowserView>
   \*=======================================================================*/
   Future<void> _folderListener() async {
     bool needRebuild = false;
-    Widget buildHeaderEnding(String key) {
-      void sortItems(_AudioItemGroup group,
-          int Function(AudioObject, AudioObject)? compare) {
-        List<AudioObject> folders =
-            List.of(group.items.whereType<FolderInfo>());
-        List<AudioObject> audios = List.of(group.items.whereType<AudioInfo>());
-
-        folders.sort(compare);
-        audios.sort(compare);
-        group.items = folders + audios;
-      }
-
-      return widget.groupByDate
-          ? Text(key)
-          : _SortButton(
-              onSorted: (type, reverse) {
-                final group = _groups![key];
-                setState(() {
-                  int Function(AudioObject, AudioObject)? compare;
-                  switch (type) {
-                    case _SortType.dateTime:
-                      compare = (a, b) => reverse
-                          ? b.timestamp.compareTo(a.timestamp)
-                          : a.timestamp.compareTo(b.timestamp);
-                      break;
-                    case _SortType.name:
-                      compare = (a, b) {
-                        final nameA = basename(a.path);
-                        final nameB = basename(b.path);
-
-                        return reverse
-                            ? nameB.compareTo(nameA)
-                            : nameA.compareTo(nameB);
-                      };
-                      break;
-                    case _SortType.size:
-                      compare = (a, b) => reverse
-                          ? b.bytes.compareTo(a.bytes)
-                          : a.bytes.compareTo(b.bytes);
-                      break;
-                  }
-
-                  sortItems(group!, compare);
-                });
-              },
-            );
-    }
 
     Map<String, List<AudioObject>> groupMap;
     if (widget.groupByDate) {
@@ -179,7 +132,7 @@ class _BrowserViewState extends State<BrowserView>
       _groups = groupMap.map((key, items) => MapEntry(
           key,
           _AudioItemGroup(
-              key: key, items: items, headerEnding: buildHeaderEnding(key))));
+              key: key, items: items, headerEnding: _buildHeaderEnding(key))));
       needRebuild = true;
 
       // folder update
@@ -296,6 +249,65 @@ class _BrowserViewState extends State<BrowserView>
   }
 
   /*=======================================================================*\ 
+    Sort Button
+  \*=======================================================================*/
+  Widget _buildHeaderEnding(String key) {
+    void sortItems(_AudioItemGroup group,
+        int Function(AudioObject, AudioObject)? compare) {
+      List<AudioObject> folders = List.of(group.items.whereType<FolderInfo>());
+      List<AudioObject> audios = List.of(group.items.whereType<AudioInfo>());
+
+      folders.sort(compare);
+      audios.sort(compare);
+      group.items = folders + audios;
+    }
+
+    return widget.groupByDate
+        ? Text(key)
+        : _SortButton(
+            onSorted: (type, reverse) {
+              final group = _groups![key];
+              setState(() {
+                int Function(AudioObject, AudioObject)? compare;
+                switch (type) {
+                  case _SortType.dateTime:
+                    compare = (a, b) => reverse
+                        ? b.timestamp.compareTo(a.timestamp)
+                        : a.timestamp.compareTo(b.timestamp);
+                    break;
+                  case _SortType.name:
+                    compare = (a, b) {
+                      final nameA = basename(a.path);
+                      final nameB = basename(b.path);
+
+                      return reverse
+                          ? nameB.compareTo(nameA)
+                          : nameA.compareTo(nameB);
+                    };
+                    break;
+                  case _SortType.size:
+                    compare = (a, b) => reverse
+                        ? b.bytes.compareTo(a.bytes)
+                        : a.bytes.compareTo(b.bytes);
+                    break;
+                }
+
+                sortItems(group!, compare);
+              });
+            },
+          );
+  }
+
+  /*=======================================================================*\ 
+    Search Box text changed
+  \*=======================================================================*/
+  void _onSearchBoxTextChanged(String text) {
+    for (final group in _groups!.values) {
+      group.filter = text;
+    }
+  }
+
+  /*=======================================================================*\ 
     Search Header Builder
   \*=======================================================================*/
   List<Widget> _buildSearchHeader(context) {
@@ -318,9 +330,10 @@ class _BrowserViewState extends State<BrowserView>
               pinned: false,
               floating: false,
               delegate: _AudioListHeaderDelegate(
-                  child: const SearchBox(
+                  child: SearchBox(
                     height: _ksearchBoxHeight,
                     padding: _ksearchBoxPadding,
+                    onTextChanged: _onSearchBoxTextChanged,
                   ),
                   minHeight: 0,
                   maxHeight: height),
@@ -408,6 +421,7 @@ class _AudioItemGroup {
   late final _AudioListHeader _header;
   final String key;
   final ForcibleValueNotifier<List<AudioObject>> _itemsNotifier;
+  List<AudioObject>? _beforeFilterItems;
 
   _AudioItemGroup({
     required this.key,
@@ -428,6 +442,25 @@ class _AudioItemGroup {
 
   set items(List<AudioObject> newValue) {
     _itemsNotifier.value = newValue;
+  }
+
+  List<AudioObject> _filterItems(String text, List<AudioObject> items) {
+    List<AudioObject> folders = List.of(items.whereType<FolderInfo>());
+    List<AudioObject> audios = List.of(items.whereType<AudioInfo>());
+    filter(obj) => basename(obj.path).contains(text);
+    final ret1 = folders.where(filter).toList();
+    final ret2 = audios.where(filter).toList();
+    return ret1 + ret2;
+  }
+
+  set filter(String text) {
+    if (text.isEmpty) {
+      _itemsNotifier.value = _beforeFilterItems!;
+      _beforeFilterItems = null;
+    } else {
+      _beforeFilterItems ??= _itemsNotifier.value;
+      _itemsNotifier.value = _filterItems(text, _beforeFilterItems!);
+    }
   }
 
   List<AudioObject> get items => _itemsNotifier.value;
