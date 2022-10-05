@@ -648,12 +648,14 @@ class _SortButtonState extends State<_SortButton> {
   }
 
   void onPressed(context) {
+    log.debug("show sort dialog");
     final options = _SortType.values
         .asMap()
         .map((_, sortType) => MapEntry(sortName(sortType), sortType));
     final ret =
         showAudioItemSortDialog(context, title: "Sort", options: options);
     ret.then((newType) {
+      log.debug("sort dialog end");
       if (newType == null) return;
       if (newType == type) {
         reverseOrder = !reverseOrder;

@@ -143,6 +143,13 @@ Future<dynamic> showAudioItemSortDialog(BuildContext context,
       ),
     ),
     builder: (BuildContext context) {
+      // ========= INITIALIZATION =========
+      children = [];
+      optionKeys = [];
+      optionReturn = [];
+      optionHighlights = [];
+      selectedIndex = -1;
+
       // ========= TITLE =========
       children.add(Container(
         alignment: Alignment.center,
