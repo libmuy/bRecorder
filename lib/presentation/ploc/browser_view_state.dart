@@ -1,17 +1,18 @@
 import 'dart:math';
 
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/service_locator.dart';
-import 'package:brecorder/core/utils.dart';
-import 'package:brecorder/data/repository.dart';
-import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
 
+import '../../core/audio_agent.dart';
+import '../../core/logging.dart';
+import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/utils.dart';
+import '../../data/repository.dart';
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
+import '../widgets/audio_list_item/audio_list_item_state.dart';
 
 final log = Logger('HomeState');
 

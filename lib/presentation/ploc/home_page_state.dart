@@ -1,14 +1,13 @@
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/service_locator.dart';
-import 'package:brecorder/data/repository_type.dart';
-import 'package:brecorder/domain/entities.dart';
-import 'package:brecorder/presentation/ploc/browser_view_state.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/utils.dart';
+import '../../core/logging.dart';
+import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/utils.dart';
 import '../../data/repository_type.dart';
-import '../pages/browser_view.dart';
+import '../../domain/entities.dart';
 import '../widgets/bubble_dialog.dart';
+import 'browser_view_state.dart';
 
 final log = Logger('HomeState');
 

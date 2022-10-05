@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/result.dart';
-import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/services.dart';
+
+import '../domain/entities.dart';
+import 'global_info.dart';
+import 'logging.dart';
+import 'result.dart';
 
 final log = Logger('Audio-Agent', level: LogLevel.debug);
 

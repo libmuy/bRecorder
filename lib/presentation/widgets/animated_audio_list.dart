@@ -1,9 +1,11 @@
-import 'package:brecorder/core/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/task_queue.dart';
+import '../../core/utils/utils.dart';
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
@@ -40,9 +42,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   final GlobalKey<SliverAnimatedListState> _listKey =
       GlobalKey<SliverAnimatedListState>();
   final modeNotifier = sl.get<GlobalModeNotifier>();
-
+  final TaskQueue _taskQueue = TaskQueue();
   late _ListModel _list;
   final _listItemAnimationDurationMS = 300.0;
+  bool _cancelUpdateList = false;
 
   @override
   void initState() {
@@ -67,24 +70,78 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     _listListener();
   }
 
-  Future<void> _waitListItemAnimation() async {
-    // await Future.delayed(Duration(
-    //     microseconds: (_listItemAnimationDurationMS.toDouble() * 0.7).toInt()));
-    final ms = _listItemAnimationDurationMS ~/ 10;
-    await Future.delayed(Duration(milliseconds: ms));
-  }
-
-  bool _isVisible(AudioObject obj) {
-    final itemState = obj.displayData as AudioListItemState;
-    final box = itemState.key.currentContext?.findRenderObject() as RenderBox?;
-    return box != null;
-  }
-
   /*=======================================================================*\ 
-    List Change Listener
+    LIST UPDATE: 
   \*=======================================================================*/
-  Future<void> _listListener() async {
+  /*===========================================================*\ 
+    LIST UPDATE: DEBUG: dump range functions
+  \*===========================================================*/
+  String _dumpRange(_Range r) {
     final newItems = widget.listNotifier.value;
+    String val = "";
+    for (var i = r.start; i < r.start + r.len; i++) {
+      val += "${newItems[i]}, ";
+    }
+    String oldListVal = "";
+    if (r.type == _RangeType.existInList) {
+      oldListVal =
+          "In old list:(${r.startInOldList} - ${r.startInOldList + r.len - 1}): ";
+      for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
+        if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
+      }
+    }
+    final preserveStr = "preserve: ${r.preserve}";
+    return ("Range(${r.start} - ${r.start + r.len - 1}): "
+        "${preserveStr.padRight(20)}"
+        "${val.padRight(20)} $oldListVal");
+  }
+
+  void _dumpRanges(List<_Range> ranges) {
+    final newItems = widget.listNotifier.value;
+    log.debug("Old List:${_list.items}");
+    log.debug("New List:$newItems");
+    log.debug("Dump Ranges:-----------------");
+    for (final r in ranges) {
+      log.debug(_dumpRange(r));
+    }
+  }
+
+  String _dumpNewRange(_Range r) {
+    final newItems = widget.listNotifier.value;
+    String val = "";
+    for (var i = r.start; i < r.start + r.len; i++) {
+      val += "${newItems[i]}, ";
+    }
+    final preserveStr = "preserve: ${r.preserve}";
+    return ("New Range(${r.start} - ${r.start + r.len - 1}): "
+        "${preserveStr.padRight(20)}"
+        "${val.padRight(20)}");
+  }
+
+  String _dumpOldRange(_Range r) {
+    String oldListVal = "";
+    if (r.type == _RangeType.existInList) {
+      for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
+        if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
+      }
+    }
+    return ("Old Range(${r.start} - ${r.start + r.len - 1}): "
+        "${oldListVal.padRight(20)}");
+  }
+
+  /*===========================================================*\ 
+    LIST UPDATE: List change listener
+  \*===========================================================*/
+  Future<void> _listListener() async {
+    _taskQueue.replaceAll(Task(
+      (_) => _updateList(List.of(widget.listNotifier.value)),
+      cancel: () => _cancelUpdateList = true,
+    ));
+  }
+
+  Future<void> _updateList(List<AudioObject> newItems) async {
+    if (_cancelUpdateList) _cancelUpdateList = false;
+    log.debug("Update list Start");
     // Divide new list into ranges
     List<_Range> ranges = [];
     int rangeStart = 0;
@@ -92,60 +149,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     _RangeType rangeType = _RangeType.init;
 
     /*===========================================================*\ 
-      DEBUG: dump range functions
-    \*===========================================================*/
-    String dumpRange(_Range r) {
-      String val = "";
-      for (var i = r.start; i < r.start + r.len; i++) {
-        val += "${newItems[i]}, ";
-      }
-      String oldListVal = "";
-      if (r.type == _RangeType.existInList) {
-        oldListVal =
-            "In old list:(${r.startInOldList} - ${r.startInOldList + r.len - 1}): ";
-        for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
-          if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
-        }
-      }
-      final preserveStr = "preserve: ${r.preserve}";
-      return ("Range(${r.start} - ${r.start + r.len - 1}): "
-          "${preserveStr.padRight(20)}"
-          "${val.padRight(20)} $oldListVal");
-    }
-
-    void dumpRanges() {
-      log.debug("Old List:${_list.items}");
-      log.debug("New List:$newItems");
-      log.debug("Dump Ranges:-----------------");
-      for (final r in ranges) {
-        log.debug(dumpRange(r));
-      }
-    }
-
-    String dumpNewRange(_Range r) {
-      String val = "";
-      for (var i = r.start; i < r.start + r.len; i++) {
-        val += "${newItems[i]}, ";
-      }
-      final preserveStr = "preserve: ${r.preserve}";
-      return ("New Range(${r.start} - ${r.start + r.len - 1}): "
-          "${preserveStr.padRight(20)}"
-          "${val.padRight(20)}");
-    }
-
-    String dumpOldRange(_Range r) {
-      String oldListVal = "";
-      if (r.type == _RangeType.existInList) {
-        for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
-          if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
-        }
-      }
-      return ("Old Range(${r.start} - ${r.start + r.len - 1}): "
-          "${oldListVal.padRight(20)}");
-    }
-
-    /*===========================================================*\ 
-      Range Operation functions
+      LIST UPDATE: Range Operation functions
     \*===========================================================*/
     /* ------------------ Create a new range ------------------ */
     void addRange(int index, int indexInOldList) {
@@ -202,6 +206,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       var times = range.len;
       while (times-- > 0) {
         await _list.removeAt(range.startInOldList);
+        if (_cancelUpdateList) return;
       }
       range.type = _RangeType.notExistInList;
 
@@ -216,19 +221,20 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     // Insert ranges which is not exists in current list
     Future<void> insertRangeIntoOldListAt(int index) async {
       final rangeInsert = ranges[index];
-      var dumpStr = dumpNewRange(rangeInsert);
+      var dumpStr = _dumpNewRange(rangeInsert);
       final rangesBefore = ranges.sublist(0, index).where((r) => r.preserve);
       final rangesAfter = ranges.sublist(index + 1).where((r) => r.preserve);
 
       if (rangesAfter.isNotEmpty) {
         final rangeNext = rangesAfter.first;
-        final rangeNextStr = dumpOldRange(rangeNext);
+        final rangeNextStr = _dumpOldRange(rangeNext);
         log.debug("Insert $dumpStr before: $rangeNextStr");
 
         for (var i = 0; i < rangeInsert.len; i++) {
           final index = rangeNext.startInOldList + i;
           final item = newItems[rangeInsert.start + i];
           await _list.insert(index, item);
+          if (_cancelUpdateList) return;
         }
         log.debug("Old List:${_list.items}");
 
@@ -237,12 +243,13 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
         }
       } else if (rangesBefore.isNotEmpty) {
         final rangePrev = rangesBefore.last;
-        final rangePrevStr = dumpOldRange(rangePrev);
+        final rangePrevStr = _dumpOldRange(rangePrev);
         log.debug("Insert $dumpStr after: $rangePrevStr");
         for (var i = 0; i < rangeInsert.len; i++) {
           final index = rangePrev.startInOldList + rangePrev.len + i;
           final item = newItems[rangeInsert.start + i];
           await _list.insert(index, item);
+          if (_cancelUpdateList) return;
         }
         log.debug("Old List:${_list.items}");
         rangePrev.len += rangeInsert.len;
@@ -252,6 +259,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
         for (var i = 0; i < rangeInsert.len; i++) {
           final item = newItems[rangeInsert.start + i];
           await _list.insert(i, item);
+          if (_cancelUpdateList) return;
         }
         log.debug("Old List:${_list.items}");
         rangeInsert.startInOldList = 0;
@@ -268,6 +276,11 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     }
     for (var item in itemsForRemove.reversed) {
       await _list.removeAt(_list.indexOf(item));
+      if (_cancelUpdateList) {
+        _cancelUpdateList = false;
+        log.debug("Update list End: canceled");
+        return;
+      }
     }
 
     /*===========================================================*\ 
@@ -300,10 +313,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     }
     addRange(newItems.length, 0);
 
-    log.debug("========== "
-        "Detected Ranges:"
-        " ========== ");
-    dumpRanges();
+    // log.debug("========== "
+    //     "Detected Ranges:"
+    //     " ========== ");
+    // _dumpRanges(ranges);
 
     /*===========================================================*\ 
       Find out ranges which shoud not be removed
@@ -311,10 +324,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     final rangesInOldList =
         ranges.where((g) => g.type == _RangeType.existInList).toList();
     findPreserveRanges(rangesInOldList, null, null);
-    log.debug("========== "
-        "Checked Ranges:"
-        " ========== ");
-    dumpRanges();
+    // log.debug("========== "
+    //     "Checked Ranges:"
+    //     " ========== ");
+    // _dumpRanges(ranges);
 
     /*===========================================================*\ 
       Remove ranges its order is inconsistent with preserved one
@@ -324,25 +337,40 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
 
     for (var r in rangesForRemove) {
       await removeRangeInOldList(r);
+      if (_cancelUpdateList) {
+        _cancelUpdateList = false;
+        log.debug("Update list End: canceled");
+        return;
+      }
     }
-    log.debug("=================== "
-        "Removed Ranges in Old list"
-        " ================= ");
-    dumpRanges();
+    // log.debug("=================== "
+    //     "Removed Ranges in Old list"
+    //     " ================= ");
+    // _dumpRanges(ranges);
 
     /*===========================================================*\ 
       Insert ranges which is not exists in current list
     \*===========================================================*/
     for (var i = 0; i < ranges.length; i++) {
       if (!ranges[i].preserve) await insertRangeIntoOldListAt(i);
+      if (_cancelUpdateList) {
+        _cancelUpdateList = false;
+        log.debug("Update list End: canceled");
+        return;
+      }
     }
-    log.debug("==================="
-        " Inserted Ranges into Old list "
-        "================= ");
-    log.debug("Old List:${_list.items}");
-    log.debug("New List:$newItems");
+    if (_cancelUpdateList) _cancelUpdateList = false;
+    // log.debug("==================="
+    //     " Inserted Ranges into Old list "
+    //     "================= ");
+    // log.debug("Old List:${_list.items}");
+    // log.debug("New List:$newItems");
+    log.debug("Update list End");
   }
 
+  /*=======================================================================*\ 
+    Build Items
+  \*=======================================================================*/
   // Used to build list items that haven't been removed.
   Widget _buildItem(
       BuildContext context, int index, Animation<double> animation) {
@@ -414,6 +442,9 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     return ret;
   }
 
+  /*=======================================================================*\ 
+    Build method
+  \*=======================================================================*/
   @override
   Widget build(BuildContext context) {
     return SliverAnimatedList(

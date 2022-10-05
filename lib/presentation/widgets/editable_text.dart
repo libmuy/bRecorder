@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:brecorder/core/logging.dart';
+
+import '../../core/logging.dart';
 
 final log = Logger('EditableText');
 

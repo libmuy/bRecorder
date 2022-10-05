@@ -1,23 +1,22 @@
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/utils.dart';
-import 'package:brecorder/data/all_storage_repository.dart';
-import 'package:brecorder/data/icloud_repository.dart';
-import 'package:brecorder/data/playlist_repository.dart';
-import 'package:brecorder/data/repository_type.dart';
-import 'package:brecorder/presentation/pages/browser_view.dart';
-import 'package:brecorder/presentation/ploc/home_page_state.dart';
-import 'package:brecorder/presentation/ploc/browser_view_state.dart';
-import 'package:brecorder/presentation/ploc/record_page_state.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/all_storage_repository.dart';
 import '../data/filesystem_repository.dart';
-import '../data/trash_repository.dart';
+import '../data/icloud_repository.dart';
+import '../data/playlist_repository.dart';
 import '../data/repository.dart';
+import '../data/repository_type.dart';
+import '../data/trash_repository.dart';
+import '../presentation/ploc/browser_view_state.dart';
+import '../presentation/ploc/home_page_state.dart';
+import '../presentation/ploc/record_page_state.dart';
 import '../presentation/widgets/animated_sized_panel.dart';
+import 'audio_agent.dart';
 import 'logging.dart';
+import 'utils/notifiers.dart';
+import 'utils/utils.dart';
 
 final sl = ServiceLocator.instance;
 

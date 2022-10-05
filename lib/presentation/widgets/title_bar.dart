@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
+
+import '../../core/logging.dart';
 
 final log = Logger('TitleBar');
 

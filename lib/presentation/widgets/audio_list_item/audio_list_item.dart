@@ -1,8 +1,9 @@
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/domain/entities.dart';
-import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/logging.dart';
+import '../../../domain/entities.dart';
+import 'audio_list_item_state.dart';
 
 final log = Logger('AudioListItem');
 

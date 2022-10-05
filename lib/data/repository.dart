@@ -1,9 +1,9 @@
-import 'package:brecorder/core/result.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
-import '../core/logging.dart';
-import '../domain/entities.dart';
 
+import '../core/logging.dart';
+import '../core/result.dart';
+import '../domain/entities.dart';
 import '../presentation/ploc/browser_view_state.dart';
 
 final la = fs;

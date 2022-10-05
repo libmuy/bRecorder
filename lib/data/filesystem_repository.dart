@@ -2,16 +2,16 @@
 
 import 'dart:io';
 
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/result.dart';
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/service_locator.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'repository.dart';
+import '../core/audio_agent.dart';
+import '../core/logging.dart';
+import '../core/result.dart';
+import '../core/service_locator.dart';
 import '../domain/entities.dart';
+import 'repository.dart';
 
 final log = Logger('FsRepo');
 

@@ -1,20 +1,21 @@
 import 'dart:async';
 
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/utils.dart';
-import 'package:brecorder/domain/entities.dart';
-import 'package:brecorder/presentation/widgets/animated_sized_panel.dart';
-import 'package:brecorder/presentation/widgets/bubble_dialog.dart';
-import 'package:brecorder/presentation/widgets/rect_slider.dart';
-import 'package:brecorder/presentation/widgets/waveform/waveform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../core/audio_agent.dart';
+import '../../core/global_info.dart';
+import '../../core/logging.dart';
 import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/utils.dart';
+import '../../domain/entities.dart';
+import 'animated_sized_panel.dart';
+import 'bubble_dialog.dart';
 import 'on_off_icon_button.dart';
+import 'rect_slider.dart';
 import 'square_icon_button.dart';
+import 'waveform/waveform.dart';
 
 final log = Logger('PlaybackPanel', level: LogLevel.debug);
 

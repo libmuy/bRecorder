@@ -1,6 +1,6 @@
-import 'package:brecorder/core/result.dart';
 import 'package:flutter/material.dart';
 
+import '../core/result.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 

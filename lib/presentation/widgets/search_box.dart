@@ -1,5 +1,7 @@
-import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
+
+import '../../core/logging.dart';
+import '../../core/utils/notifiers.dart';
 
 final log = Logger('SearchBox');
 
@@ -7,12 +9,14 @@ class SearchBox extends StatefulWidget {
   final double height;
   final double padding;
   final void Function(String text)? onTextChanged;
+  final SimpleNotifier? cancelNotifier;
 
   const SearchBox({
     Key? key,
     this.height = 35.0,
     this.padding = 4.0,
     this.onTextChanged,
+    this.cancelNotifier,
   }) : super(key: key);
 
   @override
@@ -53,6 +57,7 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
       curve: Curves.easeIn,
     );
     _textEditingController = TextEditingController();
+    widget.cancelNotifier?.addListener(_cancelSearch);
   }
 
   @override
@@ -72,6 +77,7 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
   }
 
   void _onTextChanged(String newText) {
+    if (_text == newText) return;
     _text = newText;
     if (_text.isNotEmpty) {
       _clearAnimationController.forward();
@@ -79,6 +85,16 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
       _clearAnimationController.reverse();
     }
     widget.onTextChanged?.call(newText);
+  }
+
+  void _clearInput() {
+    _textEditingController.clear();
+    _onTextChanged("");
+  }
+
+  void _cancelSearch() {
+    _clearInput();
+    _focusNode.unfocus();
   }
 
   @override
@@ -155,10 +171,7 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
                     child: FadeTransition(
                       opacity: _clearAnimation,
                       child: GestureDetector(
-                        onTap: () {
-                          _textEditingController.clear();
-                          _onTextChanged("");
-                        },
+                        onTap: _clearInput,
                         child: Material(
                           clipBehavior: Clip.antiAlias,
                           color: Theme.of(context).highlightColor,

@@ -1,11 +1,10 @@
-import 'package:brecorder/core/service_locator.dart';
-import 'package:brecorder/data/repository_type.dart';
-import 'package:brecorder/presentation/ploc/record_page_state.dart';
-
-import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/utils.dart';
+import '../../core/logging.dart';
+import '../../core/service_locator.dart';
+import '../../core/utils/utils.dart';
+import '../../data/repository_type.dart';
+import '../ploc/record_page_state.dart';
 import '../widgets/editable_text.dart' as brecord;
 import '../widgets/waveform/waveform.dart';
 
