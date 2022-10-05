@@ -1,4 +1,7 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../core/logging.dart';
 import '../../core/utils/notifiers.dart';
@@ -32,6 +35,9 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
   late final Animation<double> _cancelAnimation;
   late final TextEditingController _textEditingController;
   final _focusNode = FocusNode();
+  final _cancelTxtKey = GlobalKey();
+  Size? _cancelTextSize;
+  late final _fontSize = widget.height * 0.6;
 
   @override
   void initState() {
@@ -97,133 +103,180 @@ class _SearchBoxState extends State<SearchBox> with TickerProviderStateMixin {
     _focusNode.unfocus();
   }
 
+  Widget _buildCancelText() {
+    final cancelTxt = Text(
+      key: _cancelTxtKey,
+      "Cancel",
+      style: TextStyle(
+        fontWeight: FontWeight.w300,
+        color: Colors.white,
+        fontSize: _fontSize,
+        height: 1,
+      ),
+    );
+    if (_cancelTextSize == null) {
+      SchedulerBinding.instance.addPostFrameCallback(
+        (_) {
+          final box =
+              _cancelTxtKey.currentContext?.findRenderObject() as RenderBox?;
+          setState(() {
+            _cancelTextSize = box?.size;
+          });
+        },
+      );
+      return cancelTxt;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        _focusNode.unfocus();
+      },
+      child: SizeTransition(
+        axis: Axis.horizontal,
+        sizeFactor: _cancelAnimation,
+        child: SizedBox(
+          height: double.infinity,
+          width: _cancelTextSize!.width + widget.padding,
+          child: Stack(
+            // alignment: Alignment.bottomCenter,
+            // // height: widget.height + widget.padding + (borderWidth * 2),
+            // height: double.infinity,
+            // // color: Colors.red,
+            // padding: EdgeInsets.only(
+            //     right: widget.padding, bottom: widget.padding * 3),
+            children: [
+              Positioned(
+                right: widget.padding,
+                bottom: (widget.height - _fontSize) / 2 + widget.padding,
+                child: cancelTxt,
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(context) {
-    final fontSize = widget.height * 0.6;
     final cancelButtonFontSize = widget.height * 0.4;
     const borderWidth = 0.5;
-    final boderRadius = fontSize * 0.6;
+    final boderRadius = _fontSize * 0.6;
     final cancelButtonBoderRadius = cancelButtonFontSize * 0.6;
 
     return Container(
-      padding: EdgeInsets.only(
-          left: widget.padding, top: widget.padding, right: widget.padding),
-      alignment: Alignment.center,
       color: Theme.of(context).primaryColor,
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: widget.height + (borderWidth * 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                border: Border.all(
-                  color: Theme.of(context).hintColor,
-                  width: borderWidth,
-                ),
-                borderRadius: BorderRadius.circular(boderRadius),
-              ),
-              child: Stack(clipBehavior: Clip.antiAlias, children: [
-                Positioned(
-                  left: (widget.height - fontSize) / 2,
-                  bottom: (widget.height - fontSize) / 2,
-                  child: Icon(
-                    Icons.search,
-                    size: fontSize,
-                  ),
-                ),
-                Positioned(
-                  left: widget.height,
-                  bottom: (widget.height - fontSize) / 2,
-                  right: (widget.height - fontSize) / 2,
-                  child: TextFormField(
-                    onChanged: _onTextChanged,
-                    controller: _textEditingController,
-                    focusNode: _focusNode,
-                    // autofocus: true, //TextFieldが表示されるときにフォーカスする（キーボードを表示する）
-                    cursorColor: Colors.white, //カーソルの色
-                    style: TextStyle(
-                      fontWeight: FontWeight.w300,
-                      color: Colors.white,
-                      fontSize: fontSize,
-                      height: 1,
-                    ),
-
-                    textInputAction: TextInputAction.search, //キーボードのアクションボタンを指定
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      // enabledBorder: OutlineInputBorder(),
-                      hintText: 'Search', //何も入力してないときに表示されるテキスト
-                      hintStyle: TextStyle(
-                        color: Colors.white60,
-                        fontSize: fontSize,
-                        height: 1,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  _focusNode.requestFocus();
+                },
+                child: Container(
+                  // color: Colors.green,
+                  // padding: EdgeInsets.only(
+                  //   left: widget.padding,
+                  //   right: widget.padding,
+                  // ),
+                  padding: EdgeInsets.all(widget.padding),
+                  child: Container(
+                    height: widget.height + (borderWidth * 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      border: Border.all(
+                        color: Theme.of(context).hintColor,
+                        width: borderWidth,
                       ),
+                      borderRadius: BorderRadius.circular(boderRadius),
                     ),
-                  ),
-                ),
-                Positioned(
-                    bottom: (widget.height - cancelButtonFontSize) / 4,
-                    right: (widget.height - cancelButtonFontSize) / 4,
-                    child: FadeTransition(
-                      opacity: _clearAnimation,
-                      child: GestureDetector(
-                        onTap: _clearInput,
-                        child: Material(
-                          clipBehavior: Clip.antiAlias,
-                          color: Theme.of(context).highlightColor,
-                          shadowColor: Colors.black,
-                          // surfaceTintColor: Colors.red,
-                          borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(cancelButtonBoderRadius),
-                              topRight:
-                                  Radius.circular(cancelButtonBoderRadius),
-                              bottomLeft:
-                                  Radius.circular(cancelButtonBoderRadius),
-                              bottomRight:
-                                  Radius.circular(cancelButtonBoderRadius)),
-                          elevation: 10,
-                          child: Container(
-                              alignment: Alignment.center,
-                              padding: EdgeInsets.all(
-                                  (widget.height - cancelButtonFontSize) / 4),
-                              child: Icon(
-                                Icons.clear,
-                                size: cancelButtonFontSize,
-                              )),
+                    child: Stack(clipBehavior: Clip.antiAlias, children: [
+                      Positioned(
+                        left: (widget.height - _fontSize) / 2,
+                        bottom: (widget.height - _fontSize) / 2,
+                        child: Icon(
+                          Icons.search,
+                          size: _fontSize,
                         ),
                       ),
-                    ))
-              ]),
-            ),
-          ),
-          SizeTransition(
-            axis: Axis.horizontal,
-            sizeFactor: _cancelAnimation,
-            child: GestureDetector(
-              onTap: () {
-                _focusNode.unfocus();
-              },
-              child: Container(
-                alignment: Alignment.center,
-                padding:
-                    EdgeInsets.all((widget.height - cancelButtonFontSize) / 4),
-                child: Text(
-                  "Cancel",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w300,
-                    color: Colors.white,
-                    fontSize: fontSize,
-                    height: 1,
+                      Positioned(
+                        left: widget.height,
+                        bottom: (widget.height - _fontSize) / 2,
+                        right: (widget.height - _fontSize) / 2,
+                        child: TextFormField(
+                          onChanged: _onTextChanged,
+                          controller: _textEditingController,
+                          focusNode: _focusNode,
+                          // autofocus: true, //TextFieldが表示されるときにフォーカスする（キーボードを表示する）
+                          cursorColor: Colors.white, //カーソルの色
+                          style: TextStyle(
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                            fontSize: _fontSize,
+                            height: 1,
+                          ),
+
+                          textInputAction:
+                              TextInputAction.search, //キーボードのアクションボタンを指定
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            // enabledBorder: OutlineInputBorder(),
+                            hintText: 'Search', //何も入力してないときに表示されるテキスト
+                            hintStyle: TextStyle(
+                              color: Colors.white60,
+                              fontSize: _fontSize,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                          bottom: (widget.height - cancelButtonFontSize) / 4,
+                          right: (widget.height - cancelButtonFontSize) / 4,
+                          child: FadeTransition(
+                            opacity: _clearAnimation,
+                            child: GestureDetector(
+                              onTap: _clearInput,
+                              child: Material(
+                                clipBehavior: Clip.antiAlias,
+                                color: Theme.of(context).highlightColor,
+                                shadowColor: Colors.black,
+                                // surfaceTintColor: Colors.red,
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(
+                                        cancelButtonBoderRadius),
+                                    topRight: Radius.circular(
+                                        cancelButtonBoderRadius),
+                                    bottomLeft: Radius.circular(
+                                        cancelButtonBoderRadius),
+                                    bottomRight: Radius.circular(
+                                        cancelButtonBoderRadius)),
+                                elevation: 10,
+                                child: Container(
+                                    alignment: Alignment.center,
+                                    padding: EdgeInsets.all(
+                                        (widget.height - cancelButtonFontSize) /
+                                            4),
+                                    child: Icon(
+                                      Icons.clear,
+                                      size: cancelButtonFontSize,
+                                    )),
+                              ),
+                            ),
+                          ))
+                    ]),
                   ),
                 ),
               ),
             ),
-          )
-        ],
+            _buildCancelText(),
+          ],
+        ),
       ),
     );
   }
