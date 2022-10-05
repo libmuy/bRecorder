@@ -1,9 +1,5 @@
 import 'dart:async';
 
-import 'package:brecorder/core/utils.dart';
-import 'package:brecorder/presentation/widgets/animated_audio_list.dart';
-import 'package:brecorder/presentation/widgets/dialogs.dart';
-import 'package:brecorder/presentation/widgets/search_box.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -12,9 +8,13 @@ import 'package:path/path.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
+import '../widgets/animated_audio_list.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/search_box.dart';
 
 final log = Logger('BrowserView', level: LogLevel.debug);
 
@@ -61,6 +61,7 @@ class _BrowserViewState extends State<BrowserView>
   Map<String, _AudioItemGroup>? _groups;
 
 // For Search Header
+  final _searchCancelNotifier = SimpleNotifier();
   final _searchBoxHeightNotifier = ValueNotifier(0.0);
   double _lastScrollPosition = 0.0;
   static const _ksearchBoxHeight = 35.0;
@@ -107,6 +108,9 @@ class _BrowserViewState extends State<BrowserView>
   \*=======================================================================*/
   Future<void> _folderListener() async {
     bool needRebuild = false;
+
+    // Cancel when folder changed
+    _searchCancelNotifier.notify();
 
     Map<String, List<AudioObject>> groupMap;
     if (widget.groupByDate) {
@@ -333,6 +337,7 @@ class _BrowserViewState extends State<BrowserView>
                   child: SearchBox(
                     height: _ksearchBoxHeight,
                     padding: _ksearchBoxPadding,
+                    cancelNotifier: _searchCancelNotifier,
                     onTextChanged: _onSearchBoxTextChanged,
                   ),
                   minHeight: 0,
@@ -381,6 +386,19 @@ class _BrowserViewState extends State<BrowserView>
     } else {
       slivers = _buildSearchHeader(context) + _buildSubLists(context);
     }
+    slivers.add(
+      SliverList(
+        delegate: SliverChildListDelegate([
+          ValueListenableBuilder<double>(
+              valueListenable: state.bottomPanelPlaceholderHeightNotifier,
+              builder: (context, height, _) {
+                return SizedBox(
+                  height: height,
+                );
+              }),
+        ]),
+      ),
+    );
     return Stack(
       children: [
         CustomScrollView(

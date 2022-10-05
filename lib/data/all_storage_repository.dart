@@ -1,13 +1,13 @@
 // ignore_for_file: unused_element
 
-import 'package:brecorder/core/result.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
 import '../core/logging.dart';
+import '../core/result.dart';
 import '../core/service_locator.dart';
-import 'repository.dart';
 import '../domain/entities.dart';
+import 'repository.dart';
 import 'repository_type.dart';
 
 final log = Logger('FolderSelector');

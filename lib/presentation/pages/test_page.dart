@@ -1,15 +1,15 @@
 import 'dart:io';
 
-import 'package:brecorder/core/audio_agent.dart';
-import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../core/utils.dart';
+import '../../core/audio_agent.dart';
+import '../../core/global_info.dart';
+import '../../core/logging.dart';
+import '../../core/utils/utils.dart';
+import '../../domain/entities.dart';
 import '../widgets/waveform/waveform.dart';
 
 final log = Logger('TestPage');

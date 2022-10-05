@@ -1,7 +1,6 @@
-import 'package:brecorder/core/global_info.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
+import '../../core/global_info.dart';
 import '../../core/logging.dart';
 import '../../domain/entities.dart';
 import 'folder_selector.dart';

@@ -1,7 +1,7 @@
-import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/logging.dart';
+import '../../../domain/entities.dart';
 
 class AudioListItemState {
   final AudioObject audioObject;

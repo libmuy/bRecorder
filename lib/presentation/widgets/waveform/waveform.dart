@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils.dart';
+import '../../../core/global_info.dart';
+import '../../../core/logging.dart';
+import '../../../core/utils/utils.dart';
 import 'center_bar_painter.dart';
 import 'waveform_painter.dart';
 

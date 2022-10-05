@@ -1,15 +1,15 @@
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/core/service_locator.dart';
-import 'package:brecorder/presentation/pages/browser_view.dart';
-import 'package:brecorder/presentation/pages/record_page.dart';
-import 'package:brecorder/presentation/ploc/browser_view_state.dart';
-import 'package:brecorder/presentation/widgets/bottom_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/utils.dart';
+import '../../core/logging.dart';
+import '../../core/service_locator.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/utils.dart';
 import '../ploc/home_page_state.dart';
+import '../widgets/bottom_panel.dart';
 import '../widgets/title_bar.dart';
+import 'browser_view.dart';
+import 'record_page.dart';
 
 final log = Logger('HomePage');
 

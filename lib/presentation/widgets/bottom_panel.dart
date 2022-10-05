@@ -1,13 +1,14 @@
 import 'dart:async';
 
-import 'package:brecorder/presentation/ploc/home_page_state.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/global_info.dart';
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
-import '../../core/utils.dart';
+import '../../core/utils/notifiers.dart';
+import '../../core/utils/utils.dart';
 import '../ploc/browser_view_state.dart';
+import '../ploc/home_page_state.dart';
 import 'animated_sized_panel.dart';
 import 'dialogs.dart';
 import 'playback_panel.dart';

@@ -1,7 +1,7 @@
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/presentation/widgets/icons/audio_icons.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/logging.dart';
+import 'icons/audio_icons.dart';
 import 'square_icon_button.dart';
 
 final log = Logger('OnOffIconButton');

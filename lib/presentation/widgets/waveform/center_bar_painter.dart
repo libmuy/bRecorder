@@ -1,5 +1,6 @@
-import 'package:brecorder/core/logging.dart';
 import 'package:flutter/material.dart';
+
+import '../../../core/logging.dart';
 
 final log = Logger('WaveForm');
 

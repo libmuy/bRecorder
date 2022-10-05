@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:brecorder/core/utils.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/logging.dart';
-import 'size_measurer.dart';
+import '../../core/utils/notifiers.dart';
 
 class AnimatedSizedPanel extends StatefulWidget {
   final bool show;

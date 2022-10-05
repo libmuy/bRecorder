@@ -1,15 +1,15 @@
-import 'package:brecorder/core/logging.dart';
-import 'package:brecorder/data/all_storage_repository.dart';
-import 'package:brecorder/data/repository_type.dart';
-import 'package:brecorder/domain/entities.dart';
-import 'package:brecorder/presentation/pages/browser_view.dart';
-import 'package:brecorder/presentation/ploc/browser_view_state.dart';
-import 'package:brecorder/presentation/widgets/dialogs.dart';
-import 'package:brecorder/presentation/widgets/title_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
+import '../../core/logging.dart';
 import '../../core/service_locator.dart';
+import '../../data/all_storage_repository.dart';
+import '../../data/repository_type.dart';
+import '../../domain/entities.dart';
+import '../pages/browser_view.dart';
+import '../ploc/browser_view_state.dart';
+import 'dialogs.dart';
+import 'title_bar.dart';
 
 final log = Logger('FolderSelector');
 

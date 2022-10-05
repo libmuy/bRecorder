@@ -1,14 +1,13 @@
 import 'dart:convert';
 
-import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/data/repository.dart';
-import 'package:equatable/equatable.dart';
 import 'package:collection/collection.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/service_locator.dart';
+import '../data/repository.dart';
 
 const _prefKeyNextAudioId = "nextAudioId";
 
