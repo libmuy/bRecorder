@@ -17,6 +17,9 @@ class AllStorageRepository extends Repository {
   Map<String, Repository>? _nameToRepo;
 
   @override
+  final type = RepoType.allStoreage;
+
+  @override
   final String name = "All Storages";
 
   @override

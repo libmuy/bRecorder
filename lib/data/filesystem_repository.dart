@@ -2,6 +2,7 @@
 
 import 'dart:io';
 
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,6 +19,9 @@ final log = Logger('FsRepo');
 class FilesystemRepository extends Repository {
   String? _rootPath;
   final audioAgent = sl.get<AudioServiceAgent>();
+
+  @override
+  final type = RepoType.filesystem;
 
   @override
   final String name = "Local Stroage";

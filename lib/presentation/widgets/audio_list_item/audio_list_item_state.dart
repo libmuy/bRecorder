@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/logging.dart';
+import '../../../core/service_locator.dart';
 import '../../../domain/entities.dart';
 
 class AudioListItemState {
+  static double? height;
   final AudioObject audioObject;
   var itemModeNotifier = ValueNotifier(AudioListItemMode.normal);
   var highlightNotifier = ValueNotifier(false);
@@ -11,6 +13,22 @@ class AudioListItemState {
   late GlobalKey key;
 
   final log = Logger('AudioListItemState', level: LogLevel.debug);
+
+  void ensureVisible() async {
+    const duration = Duration(milliseconds: 400);
+    const curve = Curves.easeInOut;
+
+    try {
+      Scrollable.ensureVisible(key.currentContext!,
+          duration: duration, curve: curve);
+    } catch (e) {
+      log.warning("cannot show Audio list item, error:$e");
+      final browserViewState = sl.getBrowserViewState(audioObject.repo!.type);
+      browserViewState.scrollTo(audioObject, duration: duration, curve: curve);
+      await Future.delayed(duration);
+      ensureVisible();
+    }
+  }
 
   AudioListItemState(this.audioObject,
       {AudioListItemMode? mode, GlobalKey? key}) {
@@ -22,13 +40,7 @@ class AudioListItemState {
         log.debug("play started: ${audio.path}");
         highlight = true;
         playing = true;
-        try {
-          Scrollable.ensureVisible(this.key.currentContext!,
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut);
-        } catch (e) {
-          log.warning("cannot show Audio list item, error:$e");
-        }
+        ensureVisible();
       };
       audio.onPlayPaused = () {
         log.debug("play paused: ${audio.path}");
