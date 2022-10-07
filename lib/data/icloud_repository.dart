@@ -1,3 +1,4 @@
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -15,6 +16,9 @@ class ICloudRepository extends Repository {
   Future<String> get rootPath async {
     return "";
   }
+
+  @override
+  final type = RepoType.iCloud;
 
   @override
   final String name = "iCloud";

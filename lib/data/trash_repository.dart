@@ -1,3 +1,4 @@
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -10,6 +11,9 @@ class TrashRepository extends Repository {
       {bool folderOnly = false}) async {
     return Succeed(FolderInfo(relativePath, 0, DateTime(1907), 0));
   }
+
+  @override
+  final type = RepoType.trash;
 
   @override
   Future<String> get rootPath async {

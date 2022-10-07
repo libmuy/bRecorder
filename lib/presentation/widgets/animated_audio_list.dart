@@ -483,6 +483,7 @@ class _ListModel {
   final _removedItems = <int, AudioObject?>{};
   final int durationMS;
   FolderInfo? currentFolder;
+  bool _showChildOffset = true;
 
   SliverAnimatedListState get _animatedList => listKey.currentState!;
 
@@ -507,6 +508,21 @@ class _ListModel {
     if (!isVisible && index > 0) isVisible = _isVisible(_items[index - 1]);
 
     if (isVisible) await _waitListItemAnimation();
+
+    if (_items.length > 5 && _showChildOffset) {
+      final firstItem = items[0].displayData as AudioListItemState;
+      final secondItem = items[1].displayData as AudioListItemState;
+
+      // final boxParent = context.findRenderObject() as RenderBox?;
+      final boxChild1 =
+          firstItem.key.currentContext?.findRenderObject() as RenderBox?;
+      final boxChild2 =
+          secondItem.key.currentContext?.findRenderObject() as RenderBox?;
+      // log.debug("parent Offset:${boxParent}");
+      log.debug("first  List Item Offset:${boxChild1}");
+      log.debug("second List Item Offset:${boxChild2}");
+      _showChildOffset = false;
+    }
   }
 
   Future<AudioObject> removeAt(int index) async {

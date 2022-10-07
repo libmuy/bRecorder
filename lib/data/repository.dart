@@ -1,3 +1,4 @@
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart';
 
@@ -12,6 +13,7 @@ abstract class Repository {
   abstract final String name;
   abstract final Icon icon;
   abstract final bool realStorage;
+  abstract final RepoType type;
   FolderInfo? cache;
   final log = Logger('Repo');
 

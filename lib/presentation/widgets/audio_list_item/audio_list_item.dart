@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/logging.dart';
 import '../../../domain/entities.dart';
 import 'audio_list_item_state.dart';
 
-final log = Logger('AudioListItem');
+final log = Logger('AudioListItem', level: LogLevel.debug);
 
 class AudioListItem extends StatefulWidget {
   final AudioObject audioItem;
@@ -69,6 +70,17 @@ class _AudioListItemState extends State<AudioListItem> {
 
   @override
   Widget build(context) {
+    if (AudioListItemState.height == null) {
+      SchedulerBinding.instance.addPostFrameCallback(
+        (_) {
+          if (AudioListItemState.height != null) return;
+          final box = context.findRenderObject() as RenderBox?;
+          AudioListItemState.height = box?.size.height;
+          log.debug("Audio Item Height:${AudioListItemState.height}");
+        },
+      );
+    }
+
     return InkWell(
       onTap: () {
         widget.onTap?.call(false);

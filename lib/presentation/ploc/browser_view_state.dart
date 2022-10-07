@@ -42,6 +42,11 @@ abstract class BrowserViewState {
   List<AudioInfo> _selectedAudios = [];
   final bottomPanelPlaceholderHeightNotifier = ValueNotifier(0.0);
   late bool _editable;
+  void Function(
+    AudioObject audioObject, {
+    required Duration duration,
+    required Curve curve,
+  })? _scrollToCallback;
 
   // About Audio Playback
   final _agent = sl.get<AudioServiceAgent>();
@@ -54,12 +59,19 @@ abstract class BrowserViewState {
     _repo = sl.getRepository(dataSourceType);
   }
 
-  void init(
-      {required bool folderOnly,
-      required ValueNotifier<String> titleNotifier,
-      required ForcibleValueNotifier<FolderInfo> folderNotifier,
-      required bool editable,
-      void Function(FolderInfo folder)? onFolderChanged}) {
+  void init({
+    required bool folderOnly,
+    required ValueNotifier<String> titleNotifier,
+    required ForcibleValueNotifier<FolderInfo> folderNotifier,
+    required bool editable,
+    void Function(FolderInfo folder)? onFolderChanged,
+    void Function(
+      AudioObject audioObject, {
+      required Duration duration,
+      required Curve curve,
+    })?
+        scrollTo,
+  }) {
     assert(titleNotifier.value != "");
     _editable = editable;
     _onFolderChanged = onFolderChanged;
@@ -72,6 +84,7 @@ abstract class BrowserViewState {
       _agent.addAudioEventListener(AudioEventType.paused, _playingListener);
       _agent.addAudioEventListener(AudioEventType.complete, _playingListener);
     }
+    _scrollToCallback = scrollTo;
     _initialized = true;
     refresh();
   }
@@ -237,6 +250,14 @@ abstract class BrowserViewState {
       case GlobalMode.edit:
         break;
     }
+  }
+
+  void scrollTo(
+    AudioObject audioObject, {
+    required Duration duration,
+    required Curve curve,
+  }) {
+    _scrollToCallback?.call(audioObject, duration: duration, curve: curve);
   }
 
   /*=======================================================================*\ 

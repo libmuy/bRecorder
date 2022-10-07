@@ -1,3 +1,4 @@
+import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -15,6 +16,9 @@ class PlaylistRepository extends Repository {
   Future<String> get rootPath async {
     return "";
   }
+
+  @override
+  final type = RepoType.playlist;
 
   @override
   final Icon icon = const Icon(Icons.playlist_play_outlined);

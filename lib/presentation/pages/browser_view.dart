@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -59,11 +60,13 @@ class _BrowserViewState extends State<BrowserView>
   late ScrollController _scrollController;
   bool _scrollSwitch = false;
   Map<String, _AudioItemGroup>? _groups;
+  final _scrollViewKey = GlobalKey();
 
 // For Search Header
   final _searchCancelNotifier = SimpleNotifier();
   final _searchBoxHeightNotifier = ValueNotifier(0.0);
   double _lastScrollPosition = 0.0;
+  static const _ksearchBoxTopPadding = 10.0;
   static const _ksearchBoxHeight = 35.0;
   static const _ksearchBoxPadding = 4.0;
   static const _kSearchBoxMaxHeight =
@@ -87,7 +90,8 @@ class _BrowserViewState extends State<BrowserView>
         folderOnly: widget.folderOnly,
         titleNotifier: widget.titleNotifier,
         folderNotifier: _folderNotifier,
-        onFolderChanged: widget.onFolderChanged);
+        onFolderChanged: widget.onFolderChanged,
+        scrollTo: _scrollToIndex);
     _folderNotifier.addListener(_folderListener);
   }
 
@@ -324,8 +328,8 @@ class _BrowserViewState extends State<BrowserView>
               color: Theme.of(context).primaryColor,
               child: Center(child: Container()),
             ),
-            minHeight: 10,
-            maxHeight: 10),
+            minHeight: _ksearchBoxTopPadding,
+            maxHeight: _ksearchBoxTopPadding),
       ),
       ValueListenableBuilder<double>(
           valueListenable: _searchBoxHeightNotifier,
@@ -360,21 +364,43 @@ class _BrowserViewState extends State<BrowserView>
   }
 
   /*=======================================================================*\ 
+    Scroll to AudioObject item index
+  \*=======================================================================*/
+  void _scrollToIndex(
+    AudioObject audioObject, {
+    required Duration duration,
+    required Curve curve,
+  }) {
+    if (AudioListItemState.height == null) {
+      log.warning("AudioListeItem's height is unknow, can't scroll to it");
+      return;
+    }
+    int index = 0;
+    for (final group in _groups!.values) {
+      final i = group.items.indexOf(audioObject);
+      if (i < 0) {
+        index += group.items.length;
+      } else {
+        index += i;
+        break;
+      }
+    }
+    final offset = _searchBoxHeightNotifier.value +
+        _ksearchBoxTopPadding +
+        _AudioListHeader._kDefaultHeight +
+        (AudioListItemState.height! * index);
+
+    _scrollController.animateTo(offset,
+        duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+  }
+
+  /*=======================================================================*\ 
     Build method
   \*=======================================================================*/
   @override
   Widget build(BuildContext context) {
     super.build(context);
     log.debug("group count:${_groups?.length}");
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (_scrollController.hasClients) {
-    //     _scrollController.animateTo(_scrollController.position.maxScrollExtent,
-    //         duration: Duration(milliseconds: 300), curve: Curves.elasticOut);
-    //   } else {
-    //     // Timer(Duration(milliseconds: 400), () => _scrollToBottom());
-    //     log.debug("scroll has no client");
-    //   }
-    // });
     late List<Widget> slivers;
     if (widget.folderOnly) {
       slivers = _groups == null
@@ -402,6 +428,7 @@ class _BrowserViewState extends State<BrowserView>
     return Stack(
       children: [
         CustomScrollView(
+          key: _scrollViewKey,
           controller: _scrollController,
           physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics()),
