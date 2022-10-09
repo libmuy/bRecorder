@@ -91,6 +91,7 @@ abstract class Repository {
     }
 
     obj.parent = null;
+    obj.destory();
     if (obj is AudioInfo) return;
 
     final folder = obj as FolderInfo;
@@ -212,7 +213,7 @@ abstract class Repository {
       return Fail(ErrMsg("Add audio info into cache failed!"));
     }
 
-    return Succeed();
+    return ret;
   }
 
   Future<Result> removeObject(AudioObject obj) async {

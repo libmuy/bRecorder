@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/services.dart';
 
@@ -367,6 +368,12 @@ class AudioServiceAgent {
 
 // Set playback parameters
   Future<Result> setPitch(double pitch) async {
+    if (pitch > GlobalInfo.PLATFORM_PITCH_MAX_VALUE) {
+      pitch = GlobalInfo.PLATFORM_PITCH_MAX_VALUE;
+    }
+    if (pitch < GlobalInfo.PLATFORM_PITCH_MIN_VALUE) {
+      pitch = GlobalInfo.PLATFORM_PITCH_MIN_VALUE;
+    }
     if (!await _callVoidPlatformMethod("setPitch", {"pitch": pitch})) {
       return Fail(PlatformFailure());
     }

@@ -1,15 +1,22 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:brecorder/core/global_info.dart';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/logging.dart';
 import '../core/service_locator.dart';
 import '../data/repository.dart';
 
 const _prefKeyNextAudioId = "nextAudioId";
+
+final log = Logger('Entity', level: LogLevel.debug);
 
 /*=======================================================================*\ 
   Audio Object Equatable (copy from equatable)
@@ -100,6 +107,8 @@ class AudioObject extends AudioEqual {
     return await repo!.absolutePath(path);
   }
 
+  void destory() {}
+
   String get mapKey => basename(path);
   AudioObject(this.path, this.bytes, this.timestamp,
       {this.repo, this.parent, this.displayData});
@@ -132,7 +141,9 @@ class AudioInfo extends AudioObject {
   final int durationMS;
   int currentPosition;
   bool broken;
+  String _path;
   AudioPref? _pref;
+  Float32List? _waveformData;
   void Function()? onPlayStopped;
   void Function()? onPlayPaused;
   void Function()? onPlayStarted;
@@ -143,37 +154,61 @@ class AudioInfo extends AudioObject {
       Repository? repo,
       FolderInfo? parent,
       displayData})
-      : super(path, bytes, timestamp,
+      : _path = path,
+        super(path, bytes, timestamp,
             repo: repo, parent: parent, displayData: displayData);
 
   @override
   List<Object> get props => [durationMS, path, bytes, timestamp];
 
-  static Future<int> _getNextAudioIdAsync({bool update = false}) async {
+  @override
+  String get path => _path;
+
+  @override
+  set path(String newPath) => _setPath(newPath);
+
+  void _setPath(String newPath) async {
+    if (!await hasPerf) {
+      _path = newPath;
+      return;
+    } else {
+      final sharedPref = await sl.asyncPref;
+      final oldIdKey = _prefIdKey;
+      _path = newPath;
+      final newIdKey = _prefIdKey;
+      sharedPref.setInt(newIdKey, await id);
+      sharedPref.remove(oldIdKey);
+    }
+  }
+
+  @override
+  void destory() async {
+    if (!await hasPerf) return;
     final sharedPref = await sl.asyncPref;
-    return _getNextAudioIdHelper(sharedPref, update: update);
+    sharedPref.remove(await _prefKey);
+    sharedPref.remove(_prefIdKey);
   }
 
-  static int _getAndUpdateNextAudioId({bool update = false}) {
-    return _getNextAudioIdHelper(sl.pref, update: update);
-  }
-
-  static int _getNextAudioIdHelper(SharedPreferences pref,
-      {bool update = false}) {
-    int? id = pref.getInt(_prefKeyNextAudioId);
+  static Future<int> _getNextAudioId() async {
+    final sharedPref = await sl.asyncPref;
+    int? id = sharedPref.getInt(_prefKeyNextAudioId);
     id ??= 0;
 
-    if (update) sl.pref.setInt(_prefKeyNextAudioId, id + 1);
+    sl.pref.setInt(_prefKeyNextAudioId, id + 1);
     return id;
   }
 
   String get _prefIdKey {
-    return "id_of_${repo!.name}$path";
+    return "id_of_${repo!.name}$path".hashCode.toString();
   }
 
   Future<int> get id async {
-    if (!(await hasPerf)) {
-      _id ??= await _getNextAudioIdAsync(update: true);
+    if (!await hasPerf) {
+      final sharedPref = await sl.asyncPref;
+      _id = sharedPref.getInt(_prefKeyNextAudioId) ?? 0;
+
+      sl.pref.setInt(_prefKeyNextAudioId, _id! + 1);
+      sl.pref.setInt(_prefIdKey, _id!);
     }
     return _id!;
   }
@@ -182,6 +217,8 @@ class AudioInfo extends AudioObject {
     if (_id == null) {
       final sharedPref = await sl.asyncPref;
       _id = sharedPref.getInt(_prefIdKey);
+      log.debug("Perf ID: key:$_prefIdKey");
+      log.debug("Perf ID: val:$_id");
     }
 
     return _id != null;
@@ -191,8 +228,35 @@ class AudioInfo extends AudioObject {
     return "audio_${await id}";
   }
 
+  Future<String> get _waveformPath async {
+    final docDir = await getApplicationDocumentsDirectory();
+    var dir = join(docDir.path, "brecorder/waveform");
+    await Directory(dir).create(recursive: true);
+
+    return join(dir, "audio_${await id}.waveform");
+  }
+
+  Future<Float32List?> get waveformData async {
+    if (_waveformData != null) return _waveformData!;
+    final file = File(await _waveformPath);
+    if (!await file.exists()) return null;
+    final bin = await file.readAsBytes();
+    _waveformData = bin.buffer.asFloat32List();
+    return _waveformData!;
+  }
+
+  void setWaveformData(Float32List data) {
+    _waveformData = data;
+    _waveformPath.then((path) {
+      final output = File(path);
+      output.writeAsBytes(data.buffer.asUint8List());
+    });
+  }
+
   void savePref() async {
     final sharedPref = await sl.asyncPref;
+    log.debug("save perf key: ${await _prefKey}");
+    log.debug("    json: ${jsonEncode(await pref)}");
     sharedPref.setString(await _prefKey, jsonEncode(await pref));
   }
 
@@ -201,8 +265,10 @@ class AudioInfo extends AudioObject {
     if (_pref != null) return _pref!;
     final prefStr = sharedPref.getString(await _prefKey);
     if (prefStr != null) {
+      log.debug("Perf: restored");
       _pref = AudioPref.fromJson(jsonDecode(prefStr));
     } else {
+      log.debug("Perf: create new");
       _pref = AudioPref();
       savePref();
     }
@@ -380,8 +446,8 @@ class AudioPref {
   double volume;
   int position;
 
-  AudioPref(
-      {this.pitch = 0, this.speed = 1, this.volume = 1, this.position = 0});
+  AudioPref({double? pitch, this.speed = 1, this.volume = 1, this.position = 0})
+      : pitch = pitch ?? GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE;
 
   factory AudioPref.fromJson(Map<String, dynamic> json) {
     return AudioPref(

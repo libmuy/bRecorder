@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/logging.dart';
 import 'square_icon_button.dart';
 
-final log = Logger('OnOffIconButton', level: LogLevel.debug);
+final log = Logger('OnOffIconButton');
 
 class OnOffIconButton extends StatefulWidget {
   final IconData? icon;

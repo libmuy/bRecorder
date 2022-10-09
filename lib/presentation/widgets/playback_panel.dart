@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -17,7 +18,7 @@ import 'rect_slider.dart';
 import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
-final log = Logger('PlaybackPanel', level: LogLevel.debug);
+final log = Logger('PlaybackPanel');
 
 class PlaybackPanel extends StatefulWidget {
   final EdgeInsets padding;
@@ -48,7 +49,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   final _durationNotifier = ValueNotifier(0.0);
   bool needResume = false;
   Timer? _timer;
-  List<double> _waveformData = List.empty();
+  final _waveformDataNotifier = ValueNotifier(Float32List(0));
 
   //Options Animation controll
   static final _pitchDefaultValue = GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE;
@@ -143,6 +144,8 @@ class _PlaybackPanelState extends State<PlaybackPanel>
     if (event == AudioEventType.started) {
       _playingNotifier.value = true;
       currentAudio = audio;
+      currentAudio!.waveformData
+          .then((data) => _waveformDataNotifier.value = data ?? Float32List(0));
       final seconds = currentAudio!.durationMS / 1000.0;
       if (seconds < _positionNotifier.value) {
         _positionNotifier.value = seconds;
@@ -226,7 +229,11 @@ class _PlaybackPanelState extends State<PlaybackPanel>
               },
               child: SizedBox(
                 height: height,
-                child: Waveform(_waveformData),
+                child: ValueListenableBuilder<Float32List>(
+                    valueListenable: _waveformDataNotifier,
+                    builder: (context, data, _) {
+                      return Waveform(data.toList());
+                    }),
               ));
         });
   }
