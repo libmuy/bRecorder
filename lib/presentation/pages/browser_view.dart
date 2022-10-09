@@ -61,6 +61,8 @@ class _BrowserViewState extends State<BrowserView>
   bool _scrollSwitch = false;
   Map<String, _AudioItemGroup>? _groups;
   final _scrollViewKey = GlobalKey();
+  _SortType _sortType = _SortType.name;
+  bool _sortReverse = false;
 
 // For Search Header
   final _searchCancelNotifier = SimpleNotifier();
@@ -140,7 +142,9 @@ class _BrowserViewState extends State<BrowserView>
       _groups = groupMap.map((key, items) => MapEntry(
           key,
           _AudioItemGroup(
-              key: key, items: items, headerEnding: _buildHeaderEnding(key))));
+              key: key,
+              items: _sortItems(items),
+              headerEnding: _buildHeaderEnding(key))));
       needRebuild = true;
 
       // folder update
@@ -158,9 +162,9 @@ class _BrowserViewState extends State<BrowserView>
       // update groups
       groupMap.forEach((key, items) {
         if (_groups!.containsKey(key)) {
-          _groups![key]!.items = items;
+          _groups![key]!.items = _sortItems(items);
         } else {
-          _groups![key] = _AudioItemGroup(key: key, items: items);
+          _groups![key] = _AudioItemGroup(key: key, items: _sortItems(items));
           needRebuild = true;
         }
       });
@@ -259,48 +263,46 @@ class _BrowserViewState extends State<BrowserView>
   /*=======================================================================*\ 
     Sort Button
   \*=======================================================================*/
-  Widget _buildHeaderEnding(String key) {
-    void sortItems(_AudioItemGroup group,
-        int Function(AudioObject, AudioObject)? compare) {
-      List<AudioObject> folders = List.of(group.items.whereType<FolderInfo>());
-      List<AudioObject> audios = List.of(group.items.whereType<AudioInfo>());
+  List<AudioObject> _sortItems(List<AudioObject> items) {
+    List<AudioObject> folders = List.of(items.whereType<FolderInfo>());
+    List<AudioObject> audios = List.of(items.whereType<AudioInfo>());
+    int Function(AudioObject, AudioObject)? compare;
+    switch (_sortType) {
+      case _SortType.dateTime:
+        compare = (a, b) => _sortReverse
+            ? b.timestamp.compareTo(a.timestamp)
+            : a.timestamp.compareTo(b.timestamp);
+        break;
+      case _SortType.name:
+        compare = (a, b) {
+          final nameA = basename(a.path);
+          final nameB = basename(b.path);
 
-      folders.sort(compare);
-      audios.sort(compare);
-      group.items = folders + audios;
+          return _sortReverse ? nameB.compareTo(nameA) : nameA.compareTo(nameB);
+        };
+        break;
+      case _SortType.size:
+        compare = (a, b) => _sortReverse
+            ? b.bytes.compareTo(a.bytes)
+            : a.bytes.compareTo(b.bytes);
+        break;
     }
 
+    folders.sort(compare);
+    audios.sort(compare);
+    return folders + audios;
+  }
+
+  Widget _buildHeaderEnding(String key) {
     return widget.groupByDate
         ? Text(key)
         : _SortButton(
             onSorted: (type, reverse) {
               final group = _groups![key];
               setState(() {
-                int Function(AudioObject, AudioObject)? compare;
-                switch (type) {
-                  case _SortType.dateTime:
-                    compare = (a, b) => reverse
-                        ? b.timestamp.compareTo(a.timestamp)
-                        : a.timestamp.compareTo(b.timestamp);
-                    break;
-                  case _SortType.name:
-                    compare = (a, b) {
-                      final nameA = basename(a.path);
-                      final nameB = basename(b.path);
-
-                      return reverse
-                          ? nameB.compareTo(nameA)
-                          : nameA.compareTo(nameB);
-                    };
-                    break;
-                  case _SortType.size:
-                    compare = (a, b) => reverse
-                        ? b.bytes.compareTo(a.bytes)
-                        : a.bytes.compareTo(b.bytes);
-                    break;
-                }
-
-                sortItems(group!, compare);
+                _sortType = type;
+                _sortReverse = reverse;
+                group!.items = _sortItems(group.items);
               });
             },
           );
@@ -435,25 +437,19 @@ class _BrowserViewState extends State<BrowserView>
           slivers: slivers,
           // sl: _listItemWidgets(folderInfo),
         ),
-        // Center(
-        //   child: MaterialButton(
-        //     onPressed: () {
-        //       final ret =
-        //           showAudioItemSortDialog(context, title: "Sort", options: {
-        //         "option1": 1,
-        //         "option2": 2,
-        //         "option3": 3,
-        //       });
-        //       ret.then((value) => log.debug("Dialog return:$value"));
-        //     },
-        //     child: Container(
-        //       color: Colors.blue,
-        //       width: 100,
-        //       height: 50,
-        //       child: const Text("Test"),
-        //     ),
-        //   ),
-        // ),
+        Center(
+          child: MaterialButton(
+            onPressed: () {
+              sl.pref.clear();
+            },
+            child: Container(
+              color: Colors.blue,
+              width: 100,
+              height: 50,
+              child: const Text("Test"),
+            ),
+          ),
+        ),
       ],
     );
   }

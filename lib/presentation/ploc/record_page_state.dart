@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:brecorder/domain/entities.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart';
@@ -62,21 +63,22 @@ class RecordPageState {
     }
   }
 
-  void _saveWaveformData() {
+  void _saveWaveformData(AudioInfo audio) {
     final data = Float32List.fromList(waveformNotifier.value);
-    final output = File(waveformPath);
-    output.writeAsBytes(data.buffer.asUint8List());
+    audio.setWaveformData(data);
   }
 
   void stopButtonOnPressed(BuildContext context, bool mounted) async {
     final ret = await _stopRecording();
     if (!ret) return;
     recordStateNotifier.value = RecordState.stopped;
-    // _saveWaveformData();
 
     if (!mounted) return;
     Navigator.of(context).pop();
-    await repo.notifyNewAudio(audioPath);
+    final audioResult = await repo.notifyNewAudio(audioPath);
+    if (audioResult.succeed) {
+      _saveWaveformData(audioResult.value);
+    }
 
     sl.get<HomePageState>().recordDone();
   }
@@ -93,7 +95,6 @@ class RecordPageState {
   Future<bool> _startRecording() async {
     final base = join(dirPath, recordingFileName);
     audioPath = "$base.m4a";
-    waveformPath = "$base.waveform";
     final absPath = await repo.absolutePath(audioPath);
     log.info("Start recording: $audioPath");
     final f = File(absPath);
