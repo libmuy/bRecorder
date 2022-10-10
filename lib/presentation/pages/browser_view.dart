@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 
 import '../../core/logging.dart';
@@ -55,14 +53,11 @@ class _BrowserViewState extends State<BrowserView>
         AutomaticKeepAliveClientMixin<BrowserView>,
         SingleTickerProviderStateMixin {
   late BrowserViewState state;
-  final _folderNotifier = ForcibleValueNotifier(FolderInfo.empty);
   final modeNotifier = sl.get<GlobalModeNotifier>();
   late ScrollController _scrollController;
   bool _scrollSwitch = false;
   Map<String, _AudioItemGroup>? _groups;
   final _scrollViewKey = GlobalKey();
-  _SortType _sortType = _SortType.name;
-  bool _sortReverse = false;
 
 // For Search Header
   final _searchCancelNotifier = SimpleNotifier();
@@ -87,23 +82,17 @@ class _BrowserViewState extends State<BrowserView>
     state = sl.getBrowserViewState(widget.repoType);
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
-    state.init(
-        editable: widget.editable,
-        folderOnly: widget.folderOnly,
-        titleNotifier: widget.titleNotifier,
-        folderNotifier: _folderNotifier,
-        onFolderChanged: widget.onFolderChanged,
-        scrollTo: _scrollToIndex);
-    _folderNotifier.addListener(_folderListener);
+    state.init(widget: widget, scrollTo: _scrollToIndex);
+    state.groupNotifier.addListener(_folderListener);
   }
 
   @override
   void dispose() {
     log.debug("dispose");
     if (widget.destoryRepoCache) state.destoryRepositoryCache();
+    state.groupNotifier.removeListener(_folderListener);
     state.dispose();
     _scrollController.dispose();
-    _folderNotifier.removeListener(_folderListener);
     super.dispose();
   }
 
@@ -114,36 +103,17 @@ class _BrowserViewState extends State<BrowserView>
   \*=======================================================================*/
   Future<void> _folderListener() async {
     bool needRebuild = false;
-
+    final groupMap = state.groupNotifier.value;
     // Cancel when folder changed
     _searchCancelNotifier.notify();
 
-    Map<String, List<AudioObject>> groupMap;
-    if (widget.groupByDate) {
-      final allAudios = _folderNotifier.value.allAudios;
-      if (allAudios == null) return;
-      DateFormat dateFormat = DateFormat('yyyy-MM-dd');
-
-      // final groups = allAudios?.
-      groupMap = groupBy(
-          allAudios, (AudioObject audio) => dateFormat.format(audio.timestamp));
-    } else {
-      groupMap = {"/": _folderNotifier.value.subObjects};
-    }
-
-    for (final items in groupMap.values) {
-      for (final item in items) {
-        state.resetAudioItemDisplayData(item);
-      }
-    }
-
     // the first time got a folder
     if (_groups == null) {
-      _groups = groupMap.map((key, items) => MapEntry(
+      _groups = groupMap.map((key, model) => MapEntry(
           key,
           _AudioItemGroup(
               key: key,
-              items: _sortItems(items),
+              items: model.objects,
               headerEnding: _buildHeaderEnding(key))));
       needRebuild = true;
 
@@ -160,11 +130,11 @@ class _BrowserViewState extends State<BrowserView>
       }
 
       // update groups
-      groupMap.forEach((key, items) {
+      groupMap.forEach((key, model) {
         if (_groups!.containsKey(key)) {
-          _groups![key]!.items = _sortItems(items);
+          _groups![key]!.items = model.objects;
         } else {
-          _groups![key] = _AudioItemGroup(key: key, items: _sortItems(items));
+          _groups![key] = _AudioItemGroup(key: key, items: model.objects);
           needRebuild = true;
         }
       });
@@ -195,7 +165,7 @@ class _BrowserViewState extends State<BrowserView>
     if (_scrollSwitch == false) {
       if (offset < -50.0) {
         _scrollSwitch = true;
-        _folderNotifier.value.dump();
+        // _folderNotifier.value.dump();
       }
     } else {
       if (offset > -50.0) _scrollSwitch = false;
@@ -263,49 +233,10 @@ class _BrowserViewState extends State<BrowserView>
   /*=======================================================================*\ 
     Sort Button
   \*=======================================================================*/
-  List<AudioObject> _sortItems(List<AudioObject> items) {
-    List<AudioObject> folders = List.of(items.whereType<FolderInfo>());
-    List<AudioObject> audios = List.of(items.whereType<AudioInfo>());
-    int Function(AudioObject, AudioObject)? compare;
-    switch (_sortType) {
-      case _SortType.dateTime:
-        compare = (a, b) => _sortReverse
-            ? b.timestamp.compareTo(a.timestamp)
-            : a.timestamp.compareTo(b.timestamp);
-        break;
-      case _SortType.name:
-        compare = (a, b) {
-          final nameA = basename(a.path);
-          final nameB = basename(b.path);
-
-          return _sortReverse ? nameB.compareTo(nameA) : nameA.compareTo(nameB);
-        };
-        break;
-      case _SortType.size:
-        compare = (a, b) => _sortReverse
-            ? b.bytes.compareTo(a.bytes)
-            : a.bytes.compareTo(b.bytes);
-        break;
-    }
-
-    folders.sort(compare);
-    audios.sort(compare);
-    return folders + audios;
-  }
-
   Widget _buildHeaderEnding(String key) {
     return widget.groupByDate
         ? Text(key)
-        : _SortButton(
-            onSorted: (type, reverse) {
-              final group = _groups![key];
-              setState(() {
-                _sortType = type;
-                _sortReverse = reverse;
-                group!.items = _sortItems(group.items);
-              });
-            },
-          );
+        : _SortButton(onSorted: state.setAudioItemsSortOrder);
   }
 
   /*=======================================================================*\ 
@@ -641,26 +572,25 @@ class _AudioListHeaderDelegate extends SliverPersistentHeaderDelegate {
 /*=======================================================================*\ 
   Sort Button
 \*=======================================================================*/
-enum _SortType { dateTime, name, size }
 
 class _SortButton extends StatefulWidget {
-  final void Function(_SortType type, bool reverse)? onSorted;
+  final void Function(AudioItemSortType type, bool reverse)? onSorted;
   const _SortButton({this.onSorted});
   @override
   State<_SortButton> createState() => _SortButtonState();
 }
 
 class _SortButtonState extends State<_SortButton> {
-  _SortType type = _SortType.name;
+  AudioItemSortType type = AudioItemSortType.name;
   bool reverseOrder = false;
 
-  String sortName(_SortType type) {
+  String sortName(AudioItemSortType type) {
     switch (type) {
-      case _SortType.dateTime:
+      case AudioItemSortType.dateTime:
         return "Date";
-      case _SortType.name:
+      case AudioItemSortType.name:
         return "Name";
-      case _SortType.size:
+      case AudioItemSortType.size:
         return "Size";
     }
   }
@@ -672,7 +602,7 @@ class _SortButtonState extends State<_SortButton> {
 
   void onPressed(context) {
     log.debug("show sort dialog");
-    final options = _SortType.values
+    final options = AudioItemSortType.values
         .asMap()
         .map((_, sortType) => MapEntry(sortName(sortType), sortType));
     final ret =
@@ -702,3 +632,9 @@ class _SortButtonState extends State<_SortButton> {
     );
   }
 }
+
+typedef ScrollToFunc = void Function(
+  AudioObject audioObject, {
+  required Duration duration,
+  required Curve curve,
+});

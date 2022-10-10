@@ -1,7 +1,9 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 
 import '../../core/audio_agent.dart';
@@ -12,9 +14,10 @@ import '../../core/utils/utils.dart';
 import '../../data/repository.dart';
 import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
+import '../pages/browser_view.dart';
 import '../widgets/audio_list_item/audio_list_item_state.dart';
 
-final log = Logger('HomeState');
+final log = Logger('BrowserState', level: LogLevel.debug);
 
 final fs = sl.getRepository(RepoType.filesystem);
 final all = sl.getRepository(RepoType.allStoreage);
@@ -27,26 +30,23 @@ abstract class BrowserViewState {
   bool _initialized = false;
 
   //About Repository
-  late final Repository _repo;
-  bool _folderOnly = false;
-  late ForcibleValueNotifier<FolderInfo> _folderNotifier;
-  void Function(FolderInfo folder)? _onFolderChanged;
+  final Repository _repo;
+  final ForcibleValueNotifier<FolderInfo> _folderNotifier =
+      ForcibleValueNotifier(FolderInfo.empty);
 
   // About Display
   final _modeNotifier = sl.get<GlobalModeNotifier>();
-  late ValueNotifier<String> _titleNotifier;
-  int? _currentAudioIndex;
+  late final BrowserView widget;
   ValueNotifier<AudioListItemSelectedState> selectStateNotifier =
       ValueNotifier(AudioListItemSelectedState.noSelected);
   List<FolderInfo> _selectedFolders = [];
   List<AudioInfo> _selectedAudios = [];
   final bottomPanelPlaceholderHeightNotifier = ValueNotifier(0.0);
-  late bool _editable;
-  void Function(
-    AudioObject audioObject, {
-    required Duration duration,
-    required Curve curve,
-  })? _scrollToCallback;
+  ScrollToFunc? _scrollToCallback;
+  AudioItemSortType _sortType = AudioItemSortType.name;
+  bool _sortReverse = false;
+
+  final groupNotifier = ForcibleValueNotifier(<String, AudioItemGroupModel>{});
 
   // About Audio Playback
   final _agent = sl.get<AudioServiceAgent>();
@@ -55,31 +55,16 @@ abstract class BrowserViewState {
   /*=======================================================================*\ 
     Constructor, initializier, finalizer
   \*=======================================================================*/
-  BrowserViewState(RepoType dataSourceType) {
-    _repo = sl.getRepository(dataSourceType);
-  }
+  BrowserViewState(RepoType dataSourceType)
+      : _repo = sl.getRepository(dataSourceType);
 
   void init({
-    required bool folderOnly,
-    required ValueNotifier<String> titleNotifier,
-    required ForcibleValueNotifier<FolderInfo> folderNotifier,
-    required bool editable,
-    void Function(FolderInfo folder)? onFolderChanged,
-    void Function(
-      AudioObject audioObject, {
-      required Duration duration,
-      required Curve curve,
-    })?
-        scrollTo,
+    required BrowserView widget,
+    ScrollToFunc? scrollTo,
   }) {
-    assert(titleNotifier.value != "");
-    _editable = editable;
-    _onFolderChanged = onFolderChanged;
-    _titleNotifier = titleNotifier;
-    _folderNotifier = folderNotifier;
+    this.widget = widget;
     _modeNotifier.addListener(_modeListener);
-    _folderOnly = folderOnly;
-    if (!_folderOnly) {
+    if (!widget.folderOnly) {
       _agent.addAudioEventListener(AudioEventType.started, _playingListener);
       _agent.addAudioEventListener(AudioEventType.paused, _playingListener);
       _agent.addAudioEventListener(AudioEventType.complete, _playingListener);
@@ -91,7 +76,7 @@ abstract class BrowserViewState {
 
   void dispose() {
     _modeNotifier.removeListener(_modeListener);
-    if (!_folderOnly) {
+    if (!widget.folderOnly) {
       _agent.removeAudioEventListener(AudioEventType.started, _playingListener);
       _agent.removeAudioEventListener(AudioEventType.paused, _playingListener);
       _agent.removeAudioEventListener(
@@ -107,9 +92,7 @@ abstract class BrowserViewState {
   }
 
   FolderInfo get _currentFolder => _folderNotifier.value;
-  List<AudioInfo>? get _audios => _currentFolder.audios;
-  int get _audioCount => _currentFolder.audioCount;
-
+  int? _currentAudioIndex;
   AudioInfo? get _currentAudio {
     if (_currentAudioIndex == null || _audioCount <= 0) {
       return null;
@@ -118,14 +101,29 @@ abstract class BrowserViewState {
     return _audios![_currentAudioIndex!];
   }
 
+  List<AudioInfo>? get _audios {
+    final groups = groupNotifier.value.values;
+    if (groups.isEmpty) return null;
+
+    List<AudioInfo> audios = [];
+    for (var group in groups) {
+      final subAudios = group.audios;
+      if (subAudios != null) audios += subAudios;
+    }
+
+    return audios;
+  }
+
+  int get _audioCount => _audios?.length ?? 0;
+
   /*=======================================================================*\ 
     Display
   \*=======================================================================*/
   void _notifyTitle() {
     if (_rootPath == "/") {
-      _titleNotifier.value = _repo.name;
+      widget.titleNotifier.value = _repo.name;
     } else {
-      _titleNotifier.value = _repo.name + _rootPath;
+      widget.titleNotifier.value = _repo.name + _rootPath;
     }
   }
 
@@ -183,7 +181,7 @@ abstract class BrowserViewState {
 
   void folderOnTap(FolderInfo folder) {
     final state = folder.displayData as AudioListItemState;
-    if (_isEditMode && _editable) {
+    if (_isEditMode && widget.editable) {
       state.toggleSelected();
       if (state.selected) {
         _addSelectedItem(folder);
@@ -265,7 +263,8 @@ abstract class BrowserViewState {
   \*=======================================================================*/
   void resetAudioItemDisplayData(AudioObject obj) {
     var itemState = AudioListItemMode.normal;
-    if (_editable && _isEditMode) itemState = AudioListItemMode.notSelected;
+    if (widget.editable && _isEditMode)
+      itemState = AudioListItemMode.notSelected;
     if (obj.displayData == null) {
       obj.displayData = AudioListItemState(obj, mode: itemState);
     } else {
@@ -275,20 +274,62 @@ abstract class BrowserViewState {
     }
   }
 
+  void setAudioItemsSortOrder(AudioItemSortType type, bool reverse) {
+    if (_sortType == type && _sortReverse == reverse) return;
+    _sortType = type;
+    _sortReverse = reverse;
+    _sortAllAudioItems();
+  }
+
+  void _sortAllAudioItems() {
+    groupNotifier.value.forEach(
+      (key, group) {
+        group._sortItems(_sortType, _sortReverse);
+      },
+    );
+    groupNotifier.update(forceNotify: true);
+  }
+
   void cd(String path, {bool force = false}) async {
     if (!_initialized) return;
     if (equals(path, _rootPath) && !force) return;
     _currentAudioIndex = null;
-    _repo.getFolderInfo(path, folderOnly: _folderOnly).then((result) async {
+    _repo
+        .getFolderInfo(path, folderOnly: widget.folderOnly)
+        .then((result) async {
+      final FolderInfo folderInfo = result.value;
       if (result.succeed) {
-        final FolderInfo folderInfo = result.value;
         log.debug("folder changed to:${_repo.name}$path");
+
+        if (widget.groupByDate) {
+          DateFormat dateFormat = DateFormat('yyyy-MM-dd');
+          final allAudios = folderInfo.allAudios;
+          if (allAudios == null) return;
+
+          // final groups = allAudios?.
+          groupNotifier.value = groupBy(allAudios,
+                  (AudioObject audio) => dateFormat.format(audio.timestamp))
+              .map((key, value) =>
+                  MapEntry(key, AudioItemGroupModel(audios: value)));
+        } else {
+          groupNotifier.value = {
+            "/": AudioItemGroupModel(
+                folders: folderInfo.subfolders, audios: folderInfo.audios)
+          };
+        }
+
+        for (final group in groupNotifier.value.values) {
+          for (final item in group.objects) {
+            resetAudioItemDisplayData(item);
+          }
+        }
+        _sortAllAudioItems();
+
         // folderInfo.dump();
         _resetSelectedItem();
         _folderNotifier.update(newValue: folderInfo, forceNotify: force);
-        _onFolderChanged?.call(folderInfo);
+        widget.onFolderChanged?.call(folderInfo);
         _notifyTitle();
-        _currentAudioIndex = 0;
         if (mode == GlobalMode.playback) {
           await _agent.stopPlayIfPlaying();
           mode = GlobalMode.normal;
@@ -477,5 +518,55 @@ class AudioListItemSelectedState {
   static AudioListItemSelectedState get noSelected {
     return AudioListItemSelectedState(
         audioSelected: false, folderSelected: false);
+  }
+}
+
+enum AudioItemSortType { dateTime, name, size }
+
+class AudioItemGroupModel {
+  List<FolderInfo>? folders;
+  List<AudioInfo>? audios;
+
+  AudioItemGroupModel({this.folders, this.audios});
+
+  List<AudioObject> get objects {
+    if (folders == null && audios == null) return [];
+    if (folders == null) return audios!;
+    if (audios == null) return folders!;
+    return folderObjects! + audioObjects!;
+  }
+
+  List<AudioObject>? get audioObjects =>
+      // ignore: unnecessary_cast
+      audios?.map((e) => e as AudioObject).toList();
+  List<AudioObject>? get folderObjects =>
+      // ignore: unnecessary_cast
+      folders?.map((e) => e as AudioObject).toList();
+
+  void _sortItems(AudioItemSortType sortType, bool reverseOrder) {
+    int Function(AudioObject, AudioObject)? compare;
+    switch (sortType) {
+      case AudioItemSortType.dateTime:
+        compare = (a, b) => reverseOrder
+            ? b.timestamp.compareTo(a.timestamp)
+            : a.timestamp.compareTo(b.timestamp);
+        break;
+      case AudioItemSortType.name:
+        compare = (a, b) {
+          final nameA = basename(a.path);
+          final nameB = basename(b.path);
+
+          return reverseOrder ? nameB.compareTo(nameA) : nameA.compareTo(nameB);
+        };
+        break;
+      case AudioItemSortType.size:
+        compare = (a, b) => reverseOrder
+            ? b.bytes.compareTo(a.bytes)
+            : a.bytes.compareTo(b.bytes);
+        break;
+    }
+
+    folders?.sort(compare);
+    audios?.sort(compare);
   }
 }
