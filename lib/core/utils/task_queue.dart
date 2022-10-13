@@ -4,7 +4,7 @@ import 'dart:collection';
 
 import '../logging.dart';
 
-final log = Logger('TaskQueue', level: LogLevel.debug);
+final log = Logger('TaskQueue');
 
 class TaskQueue {
   final Queue<Task> _queue = Queue();

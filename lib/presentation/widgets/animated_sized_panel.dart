@@ -35,9 +35,7 @@ class AnimatedSizedPanel extends StatefulWidget {
 
 class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
     with SingleTickerProviderStateMixin {
-  final log = Logger(
-    'SizedPanel',
-  );
+  final log = Logger('SizedPanel', level: LogLevel.debug);
   //Bottom Panel Drag Processing
   double _startDragPos = 0;
   double _endDragPos = 0;

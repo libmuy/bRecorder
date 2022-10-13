@@ -4,7 +4,7 @@ import '../../core/logging.dart';
 import 'icons/audio_icons.dart';
 import 'square_icon_button.dart';
 
-final log = Logger('OnOffIconButton');
+final log = Logger('OnOffIconButton', level: LogLevel.debug);
 
 class RectThumbSlider extends StatefulWidget {
   final ValueNotifier<double> valueNotifier;
@@ -136,6 +136,7 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
         valueListenable: widget.valueNotifier,
         builder: (context, value, _) {
           if (value > max) value = max;
+          if (value.isNaN || value < 0) value = 0;
           if (widget.icon == null) {
             return _internalSlider(context, value, min, max);
           }
@@ -276,10 +277,6 @@ class RectSliderThumbShape extends SliderComponentShape {
     required double textScaleFactor,
     required Size sizeWithOverflow,
   }) {
-    assert(context != null);
-    assert(center != null);
-    assert(enableAnimation != null);
-    assert(sliderTheme != null);
     assert(sliderTheme.disabledThumbColor != null);
     assert(sliderTheme.thumbColor != null);
 

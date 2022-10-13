@@ -1,22 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:brecorder/core/global_info.dart';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/global_info.dart';
 import '../core/logging.dart';
 import '../core/service_locator.dart';
 import '../data/repository.dart';
 
 const _prefKeyNextAudioId = "nextAudioId";
 
-final log = Logger('Entity', level: LogLevel.debug);
+final log = Logger('Entity');
 
 /*=======================================================================*\ 
   Audio Object Equatable (copy from equatable)
@@ -189,15 +187,6 @@ class AudioInfo extends AudioObject {
     sharedPref.remove(_prefIdKey);
   }
 
-  static Future<int> _getNextAudioId() async {
-    final sharedPref = await sl.asyncPref;
-    int? id = sharedPref.getInt(_prefKeyNextAudioId);
-    id ??= 0;
-
-    sl.pref.setInt(_prefKeyNextAudioId, id + 1);
-    return id;
-  }
-
   String get _prefIdKey {
     return "id_of_${repo!.name}$path".hashCode.toString();
   }
@@ -209,6 +198,9 @@ class AudioInfo extends AudioObject {
 
       sl.pref.setInt(_prefKeyNextAudioId, _id! + 1);
       sl.pref.setInt(_prefIdKey, _id!);
+      log.debug("create audio($this)'s id:$_id");
+    } else {
+      log.debug("get    audio($this)'s id:$_id");
     }
     return _id!;
   }
@@ -217,8 +209,6 @@ class AudioInfo extends AudioObject {
     if (_id == null) {
       final sharedPref = await sl.asyncPref;
       _id = sharedPref.getInt(_prefIdKey);
-      log.debug("Perf ID: key:$_prefIdKey");
-      log.debug("Perf ID: val:$_id");
     }
 
     return _id != null;
@@ -233,7 +223,7 @@ class AudioInfo extends AudioObject {
     var dir = join(docDir.path, "brecorder/waveform");
     await Directory(dir).create(recursive: true);
 
-    return join(dir, "audio_${await id}.waveform");
+    return join(dir, "${await _prefKey}.waveform");
   }
 
   Future<Float32List?> get waveformData async {

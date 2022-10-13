@@ -88,8 +88,6 @@ Future<void> _listListener(List<String> newItems) async {
 
   dumpRanges();
 
-  final rangesInOldList = ranges.where((g) => g.type == _RangeType.existInList);
-
   // // add new item not exists in current list
   // for (var i = 0; i < newItems.length; i++) {
   //   final item = newItems[i];
@@ -115,17 +113,17 @@ void main() {
 class _ListModel<E> {
   _ListModel({
     Iterable<E>? initialItems,
-  }) : _items = List<E>.from(initialItems ?? <E>[]);
-  List<E> _items;
+  }) : items = List<E>.from(initialItems ?? <E>[]);
+  List<E> items;
 
   void insert(int index, E item) {
-    _items.insert(index, item);
+    items.insert(index, item);
   }
 
   E removeAt(int index) {
     // log.debug("remove item:$index");
 
-    final E removedItem = _items.removeAt(index);
+    final E removedItem = items.removeAt(index);
     return removedItem;
   }
 
@@ -137,14 +135,11 @@ class _ListModel<E> {
     insert(length, item);
   }
 
-  int get length => _items.length;
+  int get length => items.length;
 
-  E operator [](int index) => _items[index];
+  E operator [](int index) => items[index];
 
-  int indexOf(E item) => _items.indexOf(item);
-
-  List<E> get items => _items;
-  set items(List<E> newItems) => _items = newItems;
+  int indexOf(E item) => items.indexOf(item);
 }
 
 class _Range {

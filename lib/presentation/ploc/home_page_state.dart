@@ -21,7 +21,6 @@ class HomePageState {
     TabInfo(repoType: RepoType.trash),
   ];
   int currentTabIndex = 0;
-  int _testCnt = 0;
 
   bool get isRoot {
     if (currentTab.currentPath == "/") {
@@ -76,94 +75,6 @@ class HomePageState {
         }
         break;
     }
-  }
-
-  void _routeTestPage(BuildContext context) {
-    Navigator.push(
-        context,
-        PageRouteBuilder(
-          barrierDismissible: true,
-          fullscreenDialog: true,
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) => Stack(
-            children: [
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  color: Colors.red,
-                  height: 200,
-                  child: Text("sample"),
-                ),
-              ),
-            ],
-          ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return const FadeUpwardsPageTransitionsBuilder().buildTransitions(
-                MaterialPageRoute(
-                  builder: (context) => Container(
-                    color: Colors.blue,
-                    height: 200,
-                  ),
-                ),
-                context,
-                animation,
-                secondaryAnimation,
-                child);
-          },
-        ));
-  }
-
-  void _routeTestPage2(BuildContext context) {
-    Navigator.push(
-        context,
-        RawDialogRoute(
-            barrierDismissible: false,
-            barrierColor: Colors.transparent,
-            // fullscreenDialog: true,
-            // opaque: false,
-            pageBuilder: (context, animation, secondaryAnimation) => Stack(
-                  children: [
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        color: Colors.red,
-                        height: 200,
-                        child: Text("sample"),
-                      ),
-                    ),
-                  ],
-                )));
-  }
-
-  void _routeTestPage3(BuildContext context) {
-    Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 300),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
-          barrierDismissible: true,
-          fullscreenDialog: true,
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) {
-            return BubbleDialog(
-              position: const Offset(50, 300),
-              child: SizedBox(
-                  child: Container(
-                color: Colors.red,
-                child: const Text("sample"),
-              )),
-            );
-          },
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            var tween = Tween(begin: 0.0, end: 1.0)
-                .chain(CurveTween(curve: Curves.ease));
-
-            return FadeTransition(
-              opacity: animation.drive(tween),
-              child: child,
-            );
-          },
-        ));
   }
 
   void titleBarLeadingOnPressed(BuildContext context) {

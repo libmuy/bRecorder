@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/services.dart';
 
@@ -155,7 +154,8 @@ class AudioServiceAgent {
         int? positionMs = data["position"];
         if (positionMs == null) {
           positionMs = 0;
-          log.error("position updated with null");
+          log.error("position updated with null, ignore this");
+          return;
         }
         _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
         // log.debug("position update notification: $positionMs ms");
@@ -292,6 +292,7 @@ class AudioServiceAgent {
   }
 
   Future<Result> pausePlay() async {
+    if (state != AudioState.playing) return Succeed();
     if (!await _callVoidPlatformMethod("pausePlay")) {
       return Fail(PlatformFailure());
     }
