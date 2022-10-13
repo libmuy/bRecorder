@@ -18,7 +18,7 @@ import 'rect_slider.dart';
 import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
-final log = Logger('PlaybackPanel');
+final log = Logger('PlaybackPanel', level: LogLevel.debug);
 
 class PlaybackPanel extends StatefulWidget {
   final EdgeInsets padding;
@@ -50,6 +50,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   bool needResume = false;
   Timer? _timer;
   final _waveformDataNotifier = ValueNotifier(Float32List(0));
+  final WaveformDelegate _waveformDelegate = WaveformDelegate();
 
   //Options Animation controll
   static final _pitchDefaultValue = GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE;
@@ -57,26 +58,13 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   static const _speedDefaultValue = 1.0;
   static const _timerDefaultValue = 0.0;
   static const _repeatDefaultValue = 0.0;
-  final _pitchShowNotifier = ValueNotifier(false);
   final _pitchValueNotifier = ValueNotifier(_pitchDefaultValue);
-  final _volumeShowNotifier = ValueNotifier(false);
   final _volumeValueNotifier = ValueNotifier(_volumeDefaultValue);
-  final _speedShowNotifier = ValueNotifier(false);
   final _speedValueNotifier = ValueNotifier(_speedDefaultValue);
-  final _timerShowNotifier = ValueNotifier(false);
   final _timerValueNotifier = ValueNotifier(0.0);
   final _repeatValueNotifier = ValueNotifier(_repeatDefaultValue);
-  final _waveformOnNotifier = ValueNotifier(false);
-  late final _optionPanelShowNotifiers = {
-    _OptionPanelType.pitch: _pitchShowNotifier,
-    _OptionPanelType.volume: _volumeShowNotifier,
-    _OptionPanelType.speed: _speedShowNotifier,
-    _OptionPanelType.timer: _timerShowNotifier,
-  };
   final _showWaveformNotifier = ForcibleValueNotifier(false);
   double? _panelBodyHeight;
-  double? _panelHeaderHeight;
-  final _panelBodyKey = GlobalKey();
   final _pitchButtonKey = GlobalKey();
   final _volumeButtonKey = GlobalKey();
   final _speedButtonKey = GlobalKey();
@@ -138,14 +126,17 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
     if (seconds > _durationNotifier.value) return;
     _positionNotifier.value = seconds;
+    _waveformDelegate.setPosition(seconds, dispatchNotification: false);
   }
 
   void _playingListener(event, audio) async {
     if (event == AudioEventType.started) {
       _playingNotifier.value = true;
       currentAudio = audio;
-      currentAudio!.waveformData
-          .then((data) => _waveformDataNotifier.value = data ?? Float32List(0));
+      currentAudio!.waveformData.then((data) {
+        log.debug("audio($currentAudio)'s waveform length:${data?.length}");
+        _waveformDataNotifier.value = data ?? Float32List(0);
+      });
       final seconds = currentAudio!.durationMS / 1000.0;
       if (seconds < _positionNotifier.value) {
         _positionNotifier.value = seconds;
@@ -196,6 +187,32 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   //   // }
   // }
 
+  void _waveformPositionListener(AudioPositionInfo metrics) {
+    // log.debug("metrics updated: pos:${metrics.position.toStringAsFixed(2)}");
+    // waveformMetricsNotifier.value = metrics;
+    // if (_playing) {
+    //   agent.seekTo((metrics.position * 1000).toInt());
+    // }
+    _positionNotifier.value = metrics.position;
+  }
+
+  void _pauseForSeek() {
+    if (agent.state == AudioState.playing) {
+      log.debug("playing, pause it");
+      needResume = true;
+      agent.pausePlay();
+    }
+  }
+
+  void _seekWhilePlaying(int positionMs) {
+    agent.seekTo(positionMs);
+    if (needResume) {
+      log.debug("paused playing, resume it");
+      agent.resumePlay();
+      needResume = false;
+    }
+  }
+
   Widget _buildWaveform(BuildContext context) {
     return ValueListenableBuilder<bool>(
         valueListenable: _showWaveformNotifier,
@@ -232,7 +249,17 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                 child: ValueListenableBuilder<Float32List>(
                     valueListenable: _waveformDataNotifier,
                     builder: (context, data, _) {
-                      return Waveform(data.toList());
+                      return Waveform(
+                        data.toList(),
+                        positionListener: _waveformPositionListener,
+                        startSeek: (_) => _pauseForSeek(),
+                        endSeek: (positionInfo) {
+                          final positionMs =
+                              (positionInfo.position * 1000).toInt();
+                          _seekWhilePlaying(positionMs);
+                        },
+                        delegate: _waveformDelegate,
+                      );
                     }),
               ));
         });
@@ -494,24 +521,17 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                 maxNotifier: _durationNotifier,
                 onChanged: (val) {
                   _positionNotifier.value = val;
+                  _waveformDelegate.setPosition(val,
+                      dispatchNotification: false);
                 },
                 onChangeStart: (val) {
                   log.debug("start drag slider, state:${agent.state}");
-                  if (agent.state == AudioState.playing) {
-                    log.debug("playing, pause it");
-                    needResume = true;
-                    agent.pausePlay();
-                  }
+                  _pauseForSeek();
                 },
                 onChangeEnd: (val) {
                   log.debug("end drag slider, state:${agent.state}");
                   final targetPos = (val * 1000).toInt();
-                  agent.seekTo(targetPos);
-                  if (needResume) {
-                    log.debug("paused playing, resume it");
-                    agent.resumePlay();
-                    needResume = false;
-                  }
+                  _seekWhilePlaying(targetPos);
                 },
               ),
               const SizedBox(
@@ -573,11 +593,4 @@ class _PlaybackPanelState extends State<PlaybackPanel>
       ],
     );
   }
-}
-
-enum _OptionPanelType {
-  pitch,
-  volume,
-  speed,
-  timer,
 }

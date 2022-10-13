@@ -128,7 +128,7 @@ class _HomePageState extends State<HomePage>
           ),
         ),
         // Bottom Panels
-        Align(alignment: Alignment.bottomCenter, child: BottomPanel()),
+        const Align(alignment: Alignment.bottomCenter, child: BottomPanel()),
       ],
     );
   }

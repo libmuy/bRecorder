@@ -109,29 +109,26 @@ class _WaveformState extends State<Waveform> {
 
   ///Unit : Second
   AudioPositionInfo? get _metrics {
-    if (widget.positionListener != null) {
-      double pos;
-      if (_scrollController.hasClients) {
-        var percent = _scrollController.offset /
-            _scrollController.position.maxScrollExtent;
-        if (percent < 0) percent = 0;
-        if (percent > 1) percent = 1;
-        pos = _duration * percent;
-      } else {
-        pos = 0;
-      }
-      // log.debug("duration:$_duration, position:$pos");
-      return AudioPositionInfo(_duration, pos);
+    double pos;
+    if (_scrollController.hasClients) {
+      var percent =
+          _scrollController.offset / _scrollController.position.maxScrollExtent;
+      if (percent < 0) percent = 0;
+      if (percent > 1) percent = 1;
+      pos = _duration * percent;
+    } else {
+      pos = 0;
     }
-
-    return null;
+    // log.debug("duration:$_duration, position:$pos");
+    return AudioPositionInfo(_duration, pos);
   }
 
   void _setPosition(double seconds, bool dispatchNotification) {
     if (_pointers.isNotEmpty) return;
+    if (_duration <= 0) return;
 
     final percent = seconds / _duration;
-    // log.debug("set position to $seconds ms, $percent%");
+    log.debug("set position to $seconds ms, $percent%");
     _setPositionByPercent(percent, dispatchNotification);
   }
 
@@ -157,7 +154,7 @@ class _WaveformState extends State<Waveform> {
     if (_noDispatchNotification == true) {
       _noDispatchNotification = false;
     } else if (metrics != null && _notifiedMetrics != metrics) {
-      widget.positionListener!(metrics);
+      widget.positionListener?.call(metrics);
     }
     _notifiedMetrics = metrics;
   }
@@ -247,6 +244,7 @@ class _WaveformState extends State<Waveform> {
     Pointer Events:
   \*=======================================================================*/
   void _pointerDown(PointerEvent details) {
+    log.debug("pointer down");
     _pointers[details.pointer] = _PointerInfo(
         id: details.pointer,
         startX: details.position.dx,
@@ -280,6 +278,7 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerUp(PointerEvent details) {
+    log.debug("pointer up");
     // Ending Scale Mode
     if (_pointers.length == 2) {
       // log.debug("build waveform from pointer up");
@@ -300,6 +299,7 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerMove(PointerEvent details) {
+    log.debug("pointer move");
     final info = _pointers[details.pointer];
     info!.endX = details.position.dx;
 
@@ -375,6 +375,7 @@ class _WaveformState extends State<Waveform> {
                 onPointerDown: _pointerDown,
                 onPointerMove: _pointerMove,
                 onPointerUp: _pointerUp,
+                onPointerCancel: _pointerUp,
                 child: SizedBox(
                     height: height,
                     child: Stack(

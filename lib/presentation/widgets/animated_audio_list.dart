@@ -12,7 +12,7 @@ import '../ploc/browser_view_state.dart';
 import 'audio_list_item/audio_list_item.dart';
 import 'audio_list_item/audio_list_item_state.dart';
 
-final log = Logger('AudioList', level: LogLevel.debug);
+final log = Logger('AudioList');
 
 /*=======================================================================*\ 
   Widget
@@ -76,35 +76,35 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   /*===========================================================*\ 
     LIST UPDATE: DEBUG: dump range functions
   \*===========================================================*/
-  String _dumpRange(_Range r) {
-    final newItems = widget.listNotifier.value;
-    String val = "";
-    for (var i = r.start; i < r.start + r.len; i++) {
-      val += "${newItems[i]}, ";
-    }
-    String oldListVal = "";
-    if (r.type == _RangeType.existInList) {
-      oldListVal =
-          "In old list:(${r.startInOldList} - ${r.startInOldList + r.len - 1}): ";
-      for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
-        if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
-      }
-    }
-    final preserveStr = "preserve: ${r.preserve}";
-    return ("Range(${r.start} - ${r.start + r.len - 1}): "
-        "${preserveStr.padRight(20)}"
-        "${val.padRight(20)} $oldListVal");
-  }
+  // String _dumpRange(_Range r) {
+  //   final newItems = widget.listNotifier.value;
+  //   String val = "";
+  //   for (var i = r.start; i < r.start + r.len; i++) {
+  //     val += "${newItems[i]}, ";
+  //   }
+  //   String oldListVal = "";
+  //   if (r.type == _RangeType.existInList) {
+  //     oldListVal =
+  //         "In old list:(${r.startInOldList} - ${r.startInOldList + r.len - 1}): ";
+  //     for (var i = r.startInOldList; i < r.startInOldList + r.len; i++) {
+  //       if (i < _list.items.length) oldListVal += "${_list.items[i]}, ";
+  //     }
+  //   }
+  //   final preserveStr = "preserve: ${r.preserve}";
+  //   return ("Range(${r.start} - ${r.start + r.len - 1}): "
+  //       "${preserveStr.padRight(20)}"
+  //       "${val.padRight(20)} $oldListVal");
+  // }
 
-  void _dumpRanges(List<_Range> ranges) {
-    final newItems = widget.listNotifier.value;
-    log.debug("Old List:${_list.items}");
-    log.debug("New List:$newItems");
-    log.debug("Dump Ranges:-----------------");
-    for (final r in ranges) {
-      log.debug(_dumpRange(r));
-    }
-  }
+  // void _dumpRanges(List<_Range> ranges) {
+  //   final newItems = widget.listNotifier.value;
+  //   log.debug("Old List:${_list.items}");
+  //   log.debug("New List:$newItems");
+  //   log.debug("Dump Ranges:-----------------");
+  //   for (final r in ranges) {
+  //     log.debug(_dumpRange(r));
+  //   }
+  // }
 
   String _dumpNewRange(_Range r) {
     final newItems = widget.listNotifier.value;
@@ -519,8 +519,8 @@ class _ListModel {
       final boxChild2 =
           secondItem.key.currentContext?.findRenderObject() as RenderBox?;
       // log.debug("parent Offset:${boxParent}");
-      log.debug("first  List Item Offset:${boxChild1}");
-      log.debug("second List Item Offset:${boxChild2}");
+      log.debug("first  List Item Offset:$boxChild1");
+      log.debug("second List Item Offset:$boxChild2");
       _showChildOffset = false;
     }
   }

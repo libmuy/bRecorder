@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
@@ -370,8 +372,17 @@ class _BrowserViewState extends State<BrowserView>
         ),
         Center(
           child: MaterialButton(
-            onPressed: () {
-              sl.pref.clear();
+            onPressed: () async {
+              sl.pref.clear().then((result) {
+                if (result) {
+                  log.debug("shared preference cleared");
+                } else {
+                  log.debug("shared preference clear failed");
+                }
+              });
+              final docDir = await getApplicationDocumentsDirectory();
+              var dir = join(docDir.path, "brecorder/waveform");
+              Directory(dir).delete(recursive: true);
             },
             child: Container(
               color: Colors.blue,
