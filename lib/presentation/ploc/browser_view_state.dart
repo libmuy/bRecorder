@@ -284,7 +284,7 @@ abstract class BrowserViewState {
   void _sortAllAudioItems() {
     groupNotifier.value.forEach(
       (key, group) {
-        group._sortItems(_sortType, _sortReverse);
+        group.sortItems(_sortType, _sortReverse);
       },
     );
     groupNotifier.update(forceNotify: true);
@@ -299,6 +299,7 @@ abstract class BrowserViewState {
         .then((result) async {
       final FolderInfo folderInfo = result.value;
       if (result.succeed) {
+        Map<String, AudioItemGroupModel> groups;
         log.debug("folder changed to:${_repo.name}$path");
 
         if (widget.groupByDate) {
@@ -307,23 +308,23 @@ abstract class BrowserViewState {
           if (allAudios == null) return;
 
           // final groups = allAudios?.
-          groupNotifier.value = groupBy(allAudios,
+          groups = groupBy(allAudios,
                   (AudioObject audio) => dateFormat.format(audio.timestamp))
               .map((key, value) =>
                   MapEntry(key, AudioItemGroupModel(audios: value)));
         } else {
-          groupNotifier.value = {
+          groups = {
             "/": AudioItemGroupModel(
                 folders: folderInfo.subfolders, audios: folderInfo.audios)
           };
         }
-
-        for (final group in groupNotifier.value.values) {
-          for (final item in group.objects) {
-            resetAudioItemDisplayData(item);
-          }
+        for (var group in groups.values) {
+          group.sortItems(_sortType, _sortReverse);
+          group.audios?.forEach((audio) => resetAudioItemDisplayData(audio));
+          group.folders?.forEach((audio) => resetAudioItemDisplayData(audio));
         }
-        _sortAllAudioItems();
+
+        groupNotifier.value = groups;
 
         // folderInfo.dump();
         _resetSelectedItem();
@@ -543,7 +544,7 @@ class AudioItemGroupModel {
       // ignore: unnecessary_cast
       folders?.map((e) => e as AudioObject).toList();
 
-  void _sortItems(AudioItemSortType sortType, bool reverseOrder) {
+  void sortItems(AudioItemSortType sortType, bool reverseOrder) {
     int Function(AudioObject, AudioObject)? compare;
     switch (sortType) {
       case AudioItemSortType.dateTime:
