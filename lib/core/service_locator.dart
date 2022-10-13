@@ -102,4 +102,8 @@ class ServiceLocator {
 
   GlobalKey<ScaffoldMessengerState> get messageState =>
       get<GlobalKey<ScaffoldMessengerState>>();
+
+  static final _showWaveformNotifier = ForcibleValueNotifier(false);
+  ForcibleValueNotifier<bool> get playbackPanelExpandNotifier =>
+      _showWaveformNotifier;
 }

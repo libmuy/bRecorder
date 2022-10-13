@@ -197,12 +197,10 @@ abstract class BrowserViewState {
     final state = audio.displayData as AudioListItemState;
     switch (mode) {
       case GlobalMode.normal:
-        if (iconOnTapped) {
-          _playNewAudio(audio);
-        } else {
-          //TODO: implement
-          // playbackAudioInNewPage(itemState);
+        if (!iconOnTapped) {
+          sl.playbackPanelExpandNotifier.value = true;
         }
+        _playNewAudio(audio);
         break;
 
       case GlobalMode.edit:
@@ -215,17 +213,14 @@ abstract class BrowserViewState {
         break;
 
       case GlobalMode.playback:
-        if (iconOnTapped) {
-          if (_currentAudio != audio) {
-            await _agent.stopPlay();
-            _playNewAudio(audio);
-          } else {
-            _agent.togglePlay(audio);
-          }
+        if (_currentAudio != audio) {
+          await _agent.stopPlay();
+          _playNewAudio(audio);
         } else {
-          // agent.stopPlay();
-          //TODO: implement
-          // playbackAudioInNewPage(itemState);
+          _agent.togglePlay(audio);
+        }
+        if (!iconOnTapped) {
+          sl.playbackPanelExpandNotifier.value = true;
         }
         break;
     }
@@ -263,8 +258,9 @@ abstract class BrowserViewState {
   \*=======================================================================*/
   void resetAudioItemDisplayData(AudioObject obj) {
     var itemState = AudioListItemMode.normal;
-    if (widget.editable && _isEditMode)
+    if (widget.editable && _isEditMode) {
       itemState = AudioListItemMode.notSelected;
+    }
     if (obj.displayData == null) {
       obj.displayData = AudioListItemState(obj, mode: itemState);
     } else {

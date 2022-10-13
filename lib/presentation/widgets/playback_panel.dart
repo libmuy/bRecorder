@@ -8,7 +8,6 @@ import '../../core/audio_agent.dart';
 import '../../core/global_info.dart';
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
-import '../../core/utils/notifiers.dart';
 import '../../core/utils/utils.dart';
 import '../../domain/entities.dart';
 import 'animated_sized_panel.dart';
@@ -63,7 +62,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   final _speedValueNotifier = ValueNotifier(_speedDefaultValue);
   final _timerValueNotifier = ValueNotifier(0.0);
   final _repeatValueNotifier = ValueNotifier(_repeatDefaultValue);
-  final _showWaveformNotifier = ForcibleValueNotifier(false);
+  late final _expandNotifier = sl.playbackPanelExpandNotifier;
   double? _panelBodyHeight;
   final _pitchButtonKey = GlobalKey();
   final _volumeButtonKey = GlobalKey();
@@ -215,7 +214,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   Widget _buildWaveform(BuildContext context) {
     return ValueListenableBuilder<bool>(
-        valueListenable: _showWaveformNotifier,
+        valueListenable: _expandNotifier,
         builder: (context, show, _) {
           log.debug("build waveform");
           if (_panelBodyHeight == null) {
@@ -237,11 +236,9 @@ class _PlaybackPanelState extends State<PlaybackPanel>
               show: show,
               onAnimationStatusChanged: (from, to) {
                 if (to == AnimationStatus.completed) {
-                  _showWaveformNotifier.update(
-                      newValue: true, forceNotNotify: true);
+                  _expandNotifier.update(newValue: true, forceNotNotify: true);
                 } else if (to == AnimationStatus.dismissed) {
-                  _showWaveformNotifier.update(
-                      newValue: false, forceNotNotify: true);
+                  _expandNotifier.update(newValue: false, forceNotNotify: true);
                 }
               },
               child: SizedBox(
@@ -281,7 +278,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         log.debug("playback panel post frame callback, size:${context.size}");
         if (context.size != null) {
           _panelBodyHeight = context.size!.height;
-          _showWaveformNotifier.update(forceNotify: true);
+          _expandNotifier.update(forceNotify: true);
         }
       });
     }
@@ -299,7 +296,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
           onVerticalDragUpdate: (details) => sl.playbackPanelDragNotifier
               .value = AnimatedSizedPanelDragEvent.fromDragUpdateEvent(details),
           onTap: () {
-            _showWaveformNotifier.value = !_showWaveformNotifier.value;
+            _expandNotifier.value = !_expandNotifier.value;
           },
           child: Container(
             color: Colors.transparent,
