@@ -157,6 +157,9 @@ class _BottomPanelState extends State<BottomPanel> {
     return ValueListenableBuilder<GlobalMode>(
         valueListenable: sl.get<GlobalModeNotifier>(),
         builder: (context, mode, _) {
+          if (mode != GlobalMode.playback) {
+            sl.playbackPanelExpandNotifier.value = false;
+          }
           final panel = _buildBottomPanel(context, mode);
           return panel;
         });

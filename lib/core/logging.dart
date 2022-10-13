@@ -36,14 +36,14 @@ class Logger {
 
   Logger(this.name, {this.level = LogLevel.defaultLevel});
 
-  String _timestampStr(DateTime time) {
-    final h = time.hour.toString().padLeft(2, "0");
-    final m = time.minute.toString().padLeft(2, "0");
-    final s = time.second.toString().padLeft(2, "0");
-    final ms = time.millisecond.toString().padLeft(3, "0");
+  // String _timestampStr(DateTime time) {
+  //   final h = time.hour.toString().padLeft(2, "0");
+  //   final m = time.minute.toString().padLeft(2, "0");
+  //   final s = time.second.toString().padLeft(2, "0");
+  //   final ms = time.millisecond.toString().padLeft(3, "0");
 
-    return "$h:$m:$s.$ms";
-  }
+  //   return "$h:$m:$s.$ms";
+  // }
 
   _FileInfo _fileinfo() {
     final tracstr = StackTrace.current.toString();
