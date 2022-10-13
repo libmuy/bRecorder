@@ -63,11 +63,13 @@ class Logger {
     if (forceLevel.level != LogLevel.noForce.level) filterLv = forceLevel.level;
     if (filterLv < outputLv.level) return;
 
-    final timestampStr = _timestampStr(DateTime.now());
     final fileInfo = _fileinfo();
     final fileInfoStr = "${fileInfo.name}:${fileInfo.lineno}";
     final prefix =
-        "[$timestampStr][${fileInfoStr.padRight(35)}][${name.padRight(10)}][${outputLv.name}]";
+        // "[${_timestampStr(DateTime.now())}]"
+        "[${fileInfoStr.padRight(35)}]"
+        "[${name.padRight(15)}]"
+        "[${outputLv.name}]";
 
     debugPrint("$prefix $msg");
   }

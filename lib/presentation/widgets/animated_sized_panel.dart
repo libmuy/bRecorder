@@ -105,7 +105,7 @@ class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
       case AnimatedSizedPanelDragEventType.init:
         return false;
       case AnimatedSizedPanelDragEventType.start:
-        log.debug("Drag Start:$height");
+        log.debug("Drag Start:${height?.toStringAsFixed(2)}");
         _startDragPos = height!;
         _currentSizeRate = _animationController.value;
         _quickScroll = 0;
@@ -113,8 +113,9 @@ class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
         _dragEventCanceled = false;
         break;
       case AnimatedSizedPanelDragEventType.end:
-        log.debug("Drag End: canceled:$_dragEventCanceled height:$height");
-        if (_dragEventCanceled) return true;
+        log.debug("Drag End  :height:${height?.toStringAsFixed(2)}"
+            ", canceled:$_dragEventCanceled");
+        if (_dragEventCanceled) _quickScroll = 0;
         if (_quickScroll > 0) {
           _animationController.reverse();
         } else if (_quickScroll < 0) {
@@ -138,15 +139,15 @@ class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
         if (event.delta! > 5) _quickScroll = 1;
         if (event.delta! < -5) _quickScroll = -1;
         _endDragPos = height!;
-        final off = _endDragPos - _startDragPos;
+        final offset = _endDragPos - _startDragPos;
 
-        log.debug(
-            "Drag Update: canceled:$_dragEventCanceled off:$off, value:${_animationController.value}");
+        // log.debug(
+        //     "Drag Update: canceled:$_dragEventCanceled off:$off, value:${_animationController.value}");
         //relay notification when draw down and the size is zero
-        if (off > 0 && _animationController.value == 0) break;
-        if (off < 0 && _animationController.value == 1) break;
+        if (offset > 0 && _animationController.value == 0) break;
+        if (offset < 0 && _animationController.value == 1) break;
 
-        final rate = off / _panelHeight;
+        final rate = offset / _panelHeight;
         _animationController.value = _currentSizeRate - rate;
 
         if (!_canceledNext && widget.relayNotification) {
@@ -186,7 +187,7 @@ class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
     return NotificationListener(
       onNotification: ((notification) {
         final height = _calculatePanelHeight(_panelKey);
-        log.debug("panel size changed:$height");
+        log.verbose("panel size changed:$height");
         widget.onHeightChanged?.call(height);
         return true;
       }),
@@ -199,7 +200,7 @@ class _AnimatedSizedPanelState extends State<AnimatedSizedPanel>
             onNotification: ((notification) {
               Timer.run(() {
                 final height = _calculatePanelHeight(_originalPanelKey);
-                log.debug("original panel size changed:$height");
+                log.verbose("original panel size changed:$height");
                 _panelHeight = height;
               });
               return true;
