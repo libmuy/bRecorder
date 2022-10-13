@@ -158,7 +158,9 @@ class _BrowserViewState extends State<BrowserView>
       if (_searchBoxHeightNotifier.value >= _kSearchBoxMaxHeight) return;
       if (offset >= _lastScrollPosition) return;
       final heightOffset = _lastScrollPosition - offset;
-      _searchBoxHeightNotifier.value += heightOffset;
+      var newHeight = _searchBoxHeightNotifier.value + heightOffset;
+      if (newHeight > _kSearchBoxMaxHeight) newHeight = _kSearchBoxMaxHeight;
+      _searchBoxHeightNotifier.value = newHeight;
     }
 
     final offset = _scrollController.offset;
@@ -370,28 +372,28 @@ class _BrowserViewState extends State<BrowserView>
           slivers: slivers,
           // sl: _listItemWidgets(folderInfo),
         ),
-        Center(
-          child: MaterialButton(
-            onPressed: () async {
-              sl.pref.clear().then((result) {
-                if (result) {
-                  log.debug("shared preference cleared");
-                } else {
-                  log.debug("shared preference clear failed");
-                }
-              });
-              final docDir = await getApplicationDocumentsDirectory();
-              var dir = join(docDir.path, "brecorder/waveform");
-              Directory(dir).delete(recursive: true);
-            },
-            child: Container(
-              color: Colors.blue,
-              width: 100,
-              height: 50,
-              child: const Text("Test"),
-            ),
-          ),
-        ),
+        // Center(
+        //   child: MaterialButton(
+        //     onPressed: () async {
+        //       sl.pref.clear().then((result) {
+        //         if (result) {
+        //           log.debug("shared preference cleared");
+        //         } else {
+        //           log.debug("shared preference clear failed");
+        //         }
+        //       });
+        //       final docDir = await getApplicationDocumentsDirectory();
+        //       var dir = join(docDir.path, "brecorder/waveform");
+        //       Directory(dir).delete(recursive: true);
+        //     },
+        //     child: Container(
+        //       color: Colors.blue,
+        //       width: 100,
+        //       height: 50,
+        //       child: const Text("Test"),
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }
