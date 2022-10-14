@@ -44,7 +44,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   final modeNotifier = sl.get<GlobalModeNotifier>();
   final TaskQueue _taskQueue = TaskQueue();
   late _ListModel _list;
-  final _listItemAnimationDurationMS = 300.0;
+  final _listItemAnimationDurationMS = 500.0;
   bool _cancelUpdateList = false;
 
   @override
@@ -140,6 +140,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   }
 
   Future<void> _updateList(List<AudioObject> newItems) async {
+    final oldItems = List.of(_list.items);
     if (_cancelUpdateList) _cancelUpdateList = false;
     log.debug("Update list Start");
     // Divide new list into ranges
@@ -271,11 +272,11 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       Remove items not exists in new folder
     \*===========================================================*/
     final itemsForRemove = [];
-    for (var item in _list.items) {
+    for (var item in oldItems) {
       if (!newItems.contains(item)) itemsForRemove.add(item);
     }
     for (var item in itemsForRemove.reversed) {
-      await _list.removeAt(_list.indexOf(item));
+      oldItems.remove(item);
       if (_cancelUpdateList) {
         _cancelUpdateList = false;
         log.debug("Update list End: canceled");
@@ -289,7 +290,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     for (var i = 0; i < newItems.length; i++) {
       final indexInRange = i - rangeStart;
       final newItem = newItems[i];
-      final indexInOldList = _list.items.indexOf(newItem);
+      final indexInOldList = oldItems.indexOf(newItem);
       var newType = indexInOldList >= 0
           ? _RangeType.existInList
           : _RangeType.notExistInList;
@@ -330,6 +331,48 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     // _dumpRanges(ranges);
 
     /*===========================================================*\ 
+      Decide algorithm to update list
+      -------------------------------
+      preserve item count < others : Update list with Ranges
+      preserve item count >= others: Remove all items and add new ones
+    \*===========================================================*/
+    final removeCount = itemsForRemove.length;
+    var insertCount = 0;
+    ranges
+        .where((r) => r.type == _RangeType.notExistInList || !r.preserve)
+        .forEach((r) => insertCount += r.len);
+    var preserveCount = 0;
+    ranges
+        .where((r) => r.type == _RangeType.existInList && r.preserve)
+        .forEach((r) => preserveCount += r.len);
+
+    /*===========================================================*\ 
+      Remove all items and add new ones
+    \*===========================================================*/
+    if (removeCount + insertCount > preserveCount) {
+      await _list.clear();
+      await Future.delayed(
+          Duration(milliseconds: _listItemAnimationDurationMS.toInt()));
+
+      for (var item in newItems) {
+        await _list.add(item);
+      }
+      return;
+    }
+
+    /*===========================================================*\ 
+      Remove items not exists in new folder
+    \*===========================================================*/
+    for (var item in itemsForRemove.reversed) {
+      await _list.removeItem(item);
+
+      if (_cancelUpdateList) {
+        _cancelUpdateList = false;
+        log.debug("Update list End: canceled");
+        return;
+      }
+    }
+    /*===========================================================*\ 
       Remove ranges its order is inconsistent with preserved one
     \*===========================================================*/
     final rangesForRemove = ranges
@@ -343,6 +386,9 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
         return;
       }
     }
+
+    await Future.delayed(
+        Duration(milliseconds: _listItemAnimationDurationMS.toInt()));
     // log.debug("=================== "
     //     "Removed Ranges in Old list"
     //     " ================= ");
@@ -483,16 +529,16 @@ class _ListModel {
   final _removedItems = <int, AudioObject?>{};
   final int durationMS;
   FolderInfo? currentFolder;
-  bool _showChildOffset = true;
+  // bool _showChildOffset = true;
 
   SliverAnimatedListState get _animatedList => listKey.currentState!;
 
-  Future<void> _waitListItemAnimation() async {
-    // await Future.delayed(Duration(
-    //     microseconds: (_listItemAnimationDurationMS.toDouble() * 0.7).toInt()));
-    final ms = durationMS ~/ 10;
-    await Future.delayed(Duration(milliseconds: ms));
-  }
+  // Future<void> _waitListItemAnimation() async {
+  //   // await Future.delayed(Duration(
+  //   //     microseconds: (_listItemAnimationDurationMS.toDouble() * 0.7).toInt()));
+  //   final ms = durationMS ~/ 10;
+  //   await Future.delayed(Duration(milliseconds: ms));
+  // }
 
   bool _isVisible(AudioObject obj) {
     final itemState = obj.displayData as AudioListItemState;
@@ -504,25 +550,25 @@ class _ListModel {
     _items.insert(index, item);
     _animatedList.insertItem(index,
         duration: Duration(milliseconds: durationMS));
-    bool isVisible = _isVisible(_items[index]);
-    if (!isVisible && index > 0) isVisible = _isVisible(_items[index - 1]);
+    // bool isVisible = _isVisible(_items[index]);
+    // if (!isVisible && index > 0) isVisible = _isVisible(_items[index - 1]);
 
-    if (isVisible) await _waitListItemAnimation();
+    // if (isVisible) await _waitListItemAnimation();
 
-    if (_items.length > 5 && _showChildOffset) {
-      final firstItem = items[0].displayData as AudioListItemState;
-      final secondItem = items[1].displayData as AudioListItemState;
+    // if (_items.length > 5 && _showChildOffset) {
+    //   final firstItem = items[0].displayData as AudioListItemState;
+    //   final secondItem = items[1].displayData as AudioListItemState;
 
-      // final boxParent = context.findRenderObject() as RenderBox?;
-      final boxChild1 =
-          firstItem.key.currentContext?.findRenderObject() as RenderBox?;
-      final boxChild2 =
-          secondItem.key.currentContext?.findRenderObject() as RenderBox?;
-      // log.debug("parent Offset:${boxParent}");
-      log.debug("first  List Item Offset:$boxChild1");
-      log.debug("second List Item Offset:$boxChild2");
-      _showChildOffset = false;
-    }
+    //   // final boxParent = context.findRenderObject() as RenderBox?;
+    //   final boxChild1 =
+    //       firstItem.key.currentContext?.findRenderObject() as RenderBox?;
+    //   final boxChild2 =
+    //       secondItem.key.currentContext?.findRenderObject() as RenderBox?;
+    //   // log.debug("parent Offset:${boxParent}");
+    //   log.debug("first  List Item Offset:$boxChild1");
+    //   log.debug("second List Item Offset:$boxChild2");
+    //   _showChildOffset = false;
+    // }
   }
 
   Future<AudioObject> removeAt(int index) async {
@@ -539,7 +585,7 @@ class _ListModel {
         return ret;
       },
     );
-    if (_isVisible(removedItem)) await _waitListItemAnimation();
+    // if (_isVisible(removedItem)) await _waitListItemAnimation();
 
     return removedItem;
   }
@@ -548,8 +594,23 @@ class _ListModel {
     return removeAt(length - 1);
   }
 
-  void add(AudioObject item) {
-    insert(length, item);
+  Future<AudioObject> removeItem(AudioObject item) {
+    final index = indexOf(item);
+    assert(index >= 0);
+    return removeAt(index);
+  }
+
+  Future<void> clear() async {
+    for (var i = items.length - 1; i >= 0; i--) {
+      if (!_isVisible(items[i])) await removeAt(i);
+    }
+    for (var i = items.length - 1; i >= 0; i--) {
+      await removeAt(i);
+    }
+  }
+
+  Future<void> add(AudioObject item) async {
+    await insert(length, item);
   }
 
   AudioObject? removedItem(int index) => _removedItems[index];
