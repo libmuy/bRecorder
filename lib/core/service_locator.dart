@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/drive/v3.dart' as gdrive;
 
 import '../data/all_storage_repository.dart';
 import '../data/filesystem_repository.dart';
@@ -49,6 +51,8 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => GlobalKey<ScaffoldMessengerState>());
 
     getIt.registerFactory(() => RecordPageState());
+    getIt.registerFactory(
+        () => GoogleSignIn.standard(scopes: [gdrive.DriveApi.driveScope]));
 
     // sl.registerLazySingleton(() => AudioPlayer());
     // sl.registerLazySingleton(() {

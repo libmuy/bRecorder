@@ -278,7 +278,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         log.debug("playback panel post frame callback, size:${context.size}");
         if (context.size != null) {
           _panelBodyHeight = context.size!.height;
-          _expandNotifier.update(forceNotify: true);
+          _expandNotifier.notify();
         }
       });
     }

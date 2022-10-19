@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
@@ -27,9 +26,6 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations(
-        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     state.init(this);
   }
 

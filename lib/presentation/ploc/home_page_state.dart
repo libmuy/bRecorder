@@ -1,3 +1,4 @@
+import 'package:brecorder/presentation/pages/settings/setting_page.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/logging.dart';
@@ -80,14 +81,22 @@ class HomePageState {
   void titleBarLeadingOnPressed(BuildContext context) {
     if (isRoot) {
       log.debug("setting page");
-      showBubbleDialog(
-        context,
-        position: const Offset(50, 300),
-        dialog: SizedBox(
-            child: Container(
-          color: Colors.red,
-          child: const Text("sample"),
-        )),
+      // showBubbleDialog(
+      //   context,
+      //   position: const Offset(50, 300),
+      //   dialog: SizedBox(
+      //       child: Container(
+      //     color: Colors.red,
+      //     child: const Text("sample"),
+      //   )),
+      // );
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) {
+            return const SettingPage();
+          },
+        ),
       );
     } else {
       currentBrowserState.cdParent();

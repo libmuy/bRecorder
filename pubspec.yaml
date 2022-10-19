@@ -47,11 +47,13 @@ dependencies:
   # stack_trace: ^1.10.0
   # audioplayers: ^1.0.1
   intl: ^0.17.0
-  collection: ^1.16.0
+  # collection: ^1.17.0
   flutter_slidable: ^2.0.0
-  dependencies:
   share_plus: ^6.0.0
   cross_file: ^0.3.3+2
+  firebase_core: ^2.0.0
+  googleapis: ^9.2.0
+  google_sign_in: ^5.4.2
 
 
 dev_dependencies:
