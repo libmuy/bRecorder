@@ -448,7 +448,7 @@ class _AudioItemGroup {
 
   List<AudioObject> get items => _itemsNotifier.value;
   void forceRebuild() {
-    _itemsNotifier.update(forceNotify: true);
+    _itemsNotifier.notify();
   }
 
   Widget buildHeaderWidget(BuildContext context) =>

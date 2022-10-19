@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'core/logging.dart';
 import 'core/service_locator.dart';
@@ -7,12 +8,15 @@ import 'presentation/pages/home_page.dart';
 final log = Logger('Main');
 
 void main() {
-  // Logger.forceLevel = LogLevel.all;
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+  runApp(const BRecorderApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class BRecorderApp extends StatelessWidget {
+  const BRecorderApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -283,7 +283,7 @@ abstract class BrowserViewState {
         group.sortItems(_sortType, _sortReverse);
       },
     );
-    groupNotifier.update(forceNotify: true);
+    groupNotifier.notify();
   }
 
   void cd(String path, {bool force = false}) async {

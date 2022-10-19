@@ -49,17 +49,22 @@ class ForcibleValueNotifier<T> extends ChangeNotifier
   String toString() => '${describeIdentity(this)}($value)';
 
   void update(
-      {T? newValue, bool forceNotify = false, bool forceNotNotify = false}) {
+      {required T newValue,
+      bool forceNotify = false,
+      bool forceNotNotify = false}) {
     assert(!(forceNotNotify && forceNotify));
+
     if (forceNotify) {
-      if (newValue != null) _value = newValue;
+      _value = newValue;
       notifyListeners();
     } else if (forceNotNotify) {
-      if (newValue != null) _value = newValue;
+      _value = newValue;
     } else {
       if (newValue != null) value = newValue;
     }
   }
+
+  void notify() => notifyListeners();
 }
 
 /// return [shouldCallNext]
