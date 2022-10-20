@@ -8,7 +8,6 @@ import '../core/result.dart';
 import '../core/service_locator.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
-import 'repository_type.dart';
 
 final log = Logger('FolderSelector');
 
@@ -26,7 +25,10 @@ class AllStorageRepository extends Repository {
   final Icon icon = const Icon(Icons.storage);
 
   @override
-  final realStorage = false;
+  final browsable = false;
+
+  @override
+  final isTab = false;
 
   List<Repository> get repoList {
     if (_repoList != null) {
@@ -36,7 +38,7 @@ class AllStorageRepository extends Repository {
     _repoList = RepoType.values
         .map((e) => sl.getRepository(e))
         .toList()
-        .where((e) => e.realStorage)
+        .where((e) => e.browsable)
         .toList();
 
     return _repoList!;

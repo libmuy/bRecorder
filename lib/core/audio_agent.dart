@@ -7,7 +7,7 @@ import 'global_info.dart';
 import 'logging.dart';
 import 'result.dart';
 
-final log = Logger('Audio-Agent', level: LogLevel.debug);
+final log = Logger('Audio-Agent');
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 

@@ -1,4 +1,3 @@
-import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -21,11 +20,7 @@ class ICloudRepository extends Repository {
   final type = RepoType.iCloud;
 
   @override
-  final String name = "iCloud";
-  @override
-  final Icon icon = const Icon(Icons.cloud_outlined);
-  @override
-  final realStorage = true;
+  final isCloud = true;
 
   @override
   Future<Result> moveObjectsRealOperation(

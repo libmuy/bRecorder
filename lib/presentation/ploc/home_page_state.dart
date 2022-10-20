@@ -5,18 +5,17 @@ import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils/notifiers.dart';
 import '../../core/utils/utils.dart';
-import '../../data/repository_type.dart';
+import '../../data/repository.dart';
 import '../../domain/entities.dart';
-import '../widgets/bubble_dialog.dart';
 import 'browser_view_state.dart';
 
 final log = Logger('HomeState');
 
 class HomePageState {
-  late final TabController tabController;
+  TabController? tabController;
   final titleNotifier = ValueNotifier("/");
   final _modeNotifier = sl.get<GlobalModeNotifier>();
-  final List<TabInfo> tabsInfo = [
+  List<TabInfo> tabsInfo = [
     TabInfo(repoType: RepoType.filesystem),
     TabInfo(repoType: RepoType.iCloud),
     TabInfo(repoType: RepoType.trash),
@@ -47,18 +46,26 @@ class HomePageState {
     return sl.getBrowserViewState(currentTab.repoType);
   }
 
-  void init(SingleTickerProviderStateMixin vsync) {
-    tabController = TabController(length: 3, vsync: vsync);
-
-    tabController.addListener(() {
+  void _tabControllerListener() {
+    //indexIsChanging: tab is animating, this is the first call when changing TAB
+    if (!tabController!.indexIsChanging) {
       _setEditMode(false);
-      currentTabIndex = tabController.index;
+      currentTabIndex = tabController!.index;
       currentBrowserState.refresh();
-    });
+      log.info("Tab switched, index:$currentTabIndex");
+    }
   }
 
-  void dispose() {
-    tabController.dispose();
+  void initTabController(TickerProviderStateMixin vsync, List<TabInfo> tabs) {
+    if (tabController != null) {
+      tabController!.removeListener(_tabControllerListener);
+      tabController!.dispose();
+    }
+    tabController = TabController(length: tabs.length, vsync: vsync);
+    tabsInfo = tabs;
+    currentTabIndex = 0;
+
+    tabController!.addListener(_tabControllerListener);
   }
 
   void _setEditMode(bool edit) {
@@ -135,14 +142,4 @@ class HomePageState {
 
     return true;
   }
-}
-
-class TabInfo {
-  String currentPath;
-  RepoType repoType;
-
-  TabInfo({
-    this.currentPath = "/",
-    required this.repoType,
-  });
 }

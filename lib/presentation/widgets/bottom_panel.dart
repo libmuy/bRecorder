@@ -13,7 +13,7 @@ import 'animated_sized_panel.dart';
 import 'dialogs.dart';
 import 'playback_panel.dart';
 
-final log = Logger('BottomPanel', level: LogLevel.debug);
+final log = Logger('BottomPanel');
 const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
 class BottomPanel extends StatefulWidget {

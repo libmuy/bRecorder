@@ -1,21 +1,39 @@
-import 'package:brecorder/data/repository_type.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
 import '../core/logging.dart';
 import '../core/result.dart';
 import '../domain/entities.dart';
-import '../presentation/ploc/browser_view_state.dart';
-
-final la = fs;
 
 abstract class Repository {
-  abstract final String name;
-  abstract final Icon icon;
-  abstract final bool realStorage;
   abstract final RepoType type;
+  String get name => type.name;
+  Icon get icon => type.icon;
   FolderInfo? cache;
-  final log = Logger('Repo');
+
+  //Could browse when selecting move to folder
+  bool get browsable => true;
+
+  //Could be in Tab
+  bool get isTab => true;
+
+  //iCloud Drive / Google Drive etc.
+  CloudState get cloudState => CloudState.isNotCloud;
+  bool get isCloud => cloudState != CloudState.isNotCloud;
+  String get cloudErrMessage => "";
+  Future<bool> prepareCloud() async {
+    return true;
+  }
+
+  // //Show in Tab or not
+  // //also used for checking that If Could Signed in or not
+  // bool get enabled => _enabled;
+  // Future<bool> setEnabled(bool value) async {
+  //   _enabled = value;
+  //   return _enabled;
+  // }
+
+  final _log = Logger('Repo');
 
   void destoryCache() {
     if (cache == null) return;
@@ -51,19 +69,19 @@ abstract class Repository {
   Future<Result> getFolderInfo(String path,
       {bool folderOnly = false, bool forcely = false}) async {
     if (cache == null || forcely) {
-      log.info("not cached, get data from real repository");
+      _log.info("not cached, get data from real repository");
       final ret = await getFolderInfoRealOperation("/", folderOnly: folderOnly);
       if (ret.succeed) {
         cache = ret.value;
       } else {
-        log.error("get data from real repository failed!");
+        _log.error("get data from real repository failed!");
         return ret;
       }
     }
 
     final folder = _findObjectFromCache(path, folderOnly: true);
     if (folder == null) {
-      log.error("get folder($path) info failed!");
+      _log.error("get folder($path) info failed!");
       return Fail(ErrMsg("Cannot find the folder in the cache!"));
     }
 
@@ -76,7 +94,7 @@ abstract class Repository {
   }
 
   void _destoryAudioObject(AudioObject obj) {
-    log.debug("destroy repo:$name, obj:${obj.path}");
+    _log.debug("destroy repo:$name, obj:${obj.path}");
     // if (obj.displayData != null) obj.displayData = null;
     if (obj.copyFrom != null) obj.copyFrom = null;
 
@@ -87,7 +105,7 @@ abstract class Repository {
         obj.parent?.audiosMap?.remove(obj.mapKey);
       }
     } catch (e) {
-      log.warning("not exist in parent's subobject?, error:$e");
+      _log.warning("not exist in parent's subobject?, error:$e");
     }
 
     obj.parent = null;
@@ -144,7 +162,7 @@ abstract class Repository {
         as FolderInfo?;
 
     if (parent == null) {
-      log.error("Can not find parent for ${obj.path}");
+      _log.error("Can not find parent for ${obj.path}");
       return false;
     }
 
@@ -181,7 +199,7 @@ abstract class Repository {
       if (ret.succeed) {
         _moveObjectForCache(src, folder);
       } else {
-        log.error("Move Object failed, src:$src, dst:$folder");
+        _log.error("Move Object failed, src:$src, dst:$folder");
         return ret;
       }
     }
@@ -191,7 +209,7 @@ abstract class Repository {
   Future<Result> newFolder(String path) async {
     final ret = await newFolderRealOperation(path);
     if (ret.failed) {
-      log.error("New Folder($path) failed");
+      _log.error("New Folder($path) failed");
       return ret;
     }
 
@@ -221,7 +239,7 @@ abstract class Repository {
     if (ret.succeed) {
       _removeObjectFromCache(obj, destory: true);
     } else {
-      log.error("Remove object(${obj.path}) failed");
+      _log.error("Remove object(${obj.path}) failed");
       return ret;
     }
     return Succeed();
@@ -247,4 +265,32 @@ abstract class Repository {
 
     return join(root, relative);
   }
+}
+
+enum RepoType {
+  filesystem("Local Stroage", Icon(Icons.phone_android)),
+  playlist("Playlist", Icon(Icons.playlist_play_outlined)),
+  trash("Trash", Icon(Icons.delete_outline)),
+  iCloud("iCloud", Icon(Icons.cloud_outlined)),
+  googleDrive("Google Drive", Icon(Icons.cloud_outlined)),
+  allStoreage("All Storages", Icon(Icons.storage));
+
+  final String name;
+  final Icon icon;
+  const RepoType(this.name, this.icon);
+
+  @override
+  String toString() => name;
+
+  factory RepoType.fromString(String string) {
+    return RepoType.values.where((element) => element.name == string).first;
+  }
+}
+
+enum CloudState {
+  isNotCloud,
+  init,
+  connecting,
+  connected,
+  error,
 }
