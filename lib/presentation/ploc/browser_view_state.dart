@@ -12,15 +12,11 @@ import '../../core/service_locator.dart';
 import '../../core/utils/notifiers.dart';
 import '../../core/utils/utils.dart';
 import '../../data/repository.dart';
-import '../../data/repository_type.dart';
 import '../../domain/entities.dart';
 import '../pages/browser_view.dart';
 import '../widgets/audio_list_item/audio_list_item_state.dart';
 
-final log = Logger('BrowserState', level: LogLevel.debug);
-
-final fs = sl.getRepository(RepoType.filesystem);
-final all = sl.getRepository(RepoType.allStoreage);
+final log = Logger('BrowserState');
 
 abstract class BrowserViewState {
   /*=======================================================================*\ 
@@ -36,7 +32,7 @@ abstract class BrowserViewState {
 
   // About Display
   final _modeNotifier = sl.get<GlobalModeNotifier>();
-  late final BrowserView widget;
+  late BrowserView widget;
   ValueNotifier<AudioListItemSelectedState> selectStateNotifier =
       ValueNotifier(AudioListItemSelectedState.noSelected);
   List<FolderInfo> _selectedFolders = [];
@@ -296,7 +292,8 @@ abstract class BrowserViewState {
       final FolderInfo folderInfo = result.value;
       if (result.succeed) {
         Map<String, AudioItemGroupModel> groups;
-        log.debug("folder changed to:${_repo.name}$path");
+        log.info("folder changed to:${_repo.name}$path, "
+            "count:${folderInfo.subObjects.length}");
 
         if (widget.groupByDate) {
           DateFormat dateFormat = DateFormat('yyyy-MM-dd');
@@ -488,6 +485,10 @@ class FilesystemBrowserViewState extends BrowserViewState {
 
 class ICloudBrowserViewState extends BrowserViewState {
   ICloudBrowserViewState() : super(RepoType.iCloud);
+}
+
+class GoogleDriveBrowserViewState extends BrowserViewState {
+  GoogleDriveBrowserViewState() : super(RepoType.googleDrive);
 }
 
 class PlaylistBrowserViewState extends BrowserViewState {

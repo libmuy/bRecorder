@@ -2,7 +2,6 @@
 
 import 'dart:io';
 
-import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -22,15 +21,6 @@ class FilesystemRepository extends Repository {
 
   @override
   final type = RepoType.filesystem;
-
-  @override
-  final String name = "Local Stroage";
-
-  @override
-  final Icon icon = const Icon(Icons.phone_android);
-
-  @override
-  final realStorage = true;
 
   @override
   Future<String> get rootPath async {

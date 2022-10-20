@@ -1,4 +1,3 @@
-import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -21,11 +20,7 @@ class PlaylistRepository extends Repository {
   final type = RepoType.playlist;
 
   @override
-  final Icon icon = const Icon(Icons.playlist_play_outlined);
-  @override
-  final String name = "Playlist";
-  @override
-  final realStorage = false;
+  final browsable = false;
 
   @override
   Future<Result> moveObjectsRealOperation(

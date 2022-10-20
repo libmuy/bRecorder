@@ -1,21 +1,25 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils/notifiers.dart';
-import '../../data/repository_type.dart';
+import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
 import '../widgets/animated_audio_list.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/search_box.dart';
 
-final log = Logger('BrowserView', level: LogLevel.debug);
+final log = Logger(
+  'BrowserView',
+);
 
 /*=======================================================================*\ 
   Widget
@@ -77,20 +81,20 @@ class _BrowserViewState extends State<BrowserView>
   \*=======================================================================*/
   @override
   void initState() {
-    // log.debug("initState");
+    log.info("initState");
     super.initState();
     state = sl.getBrowserViewState(widget.repoType);
     _scrollController = ScrollController();
     _scrollController.addListener(_scrollListener);
     state.init(widget: widget, scrollTo: _scrollToIndex);
-    state.groupNotifier.addListener(_folderListener);
+    state.groupNotifier.addListener(_groupListener);
   }
 
   @override
   void dispose() {
-    log.debug("dispose");
+    log.info("dispose");
     if (widget.destoryRepoCache) state.destoryRepositoryCache();
-    state.groupNotifier.removeListener(_folderListener);
+    state.groupNotifier.removeListener(_groupListener);
     state.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -101,7 +105,7 @@ class _BrowserViewState extends State<BrowserView>
     -----------------------
     Group/Sort the items
   \*=======================================================================*/
-  Future<void> _folderListener() async {
+  Future<void> _groupListener() async {
     bool needRebuild = false;
     final groupMap = state.groupNotifier.value;
     // Cancel when folder changed
@@ -370,28 +374,37 @@ class _BrowserViewState extends State<BrowserView>
           slivers: slivers,
           // sl: _listItemWidgets(folderInfo),
         ),
-        // Center(
-        //   child: MaterialButton(
-        //     onPressed: () async {
-        //       sl.pref.clear().then((result) {
-        //         if (result) {
-        //           log.debug("shared preference cleared");
-        //         } else {
-        //           log.debug("shared preference clear failed");
-        //         }
-        //       });
-        //       final docDir = await getApplicationDocumentsDirectory();
-        //       var dir = join(docDir.path, "brecorder/waveform");
-        //       Directory(dir).delete(recursive: true);
-        //     },
-        //     child: Container(
-        //       color: Colors.blue,
-        //       width: 100,
-        //       height: 50,
-        //       child: const Text("Test"),
-        //     ),
-        //   ),
-        // ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  sl.pref.clear().then((result) {
+                    if (result) {
+                      log.debug("shared preference cleared");
+                    } else {
+                      log.debug("shared preference clear failed");
+                    }
+                  });
+                  final docDir = await getApplicationDocumentsDirectory();
+                  var dir = join(docDir.path, "brecorder/waveform");
+                  Directory(dir).delete(recursive: true);
+                },
+                child: const Text("======== Clear Settings ======="),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final group = _groups!.values.first;
+                  log.info("Current BrowserView Info:");
+                  log.info("    repo:${widget.repoType}");
+                  log.info("    item count:${group.items.length}");
+                },
+                child: const Text("======== Show BrowserView ======="),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

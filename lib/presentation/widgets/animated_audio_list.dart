@@ -6,7 +6,7 @@ import '../../core/service_locator.dart';
 import '../../core/utils/notifiers.dart';
 import '../../core/utils/task_queue.dart';
 import '../../core/utils/utils.dart';
-import '../../data/repository_type.dart';
+import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
 import 'audio_list_item/audio_list_item.dart';

@@ -1,4 +1,3 @@
-import 'package:brecorder/data/repository_type.dart';
 import 'package:flutter/material.dart';
 
 import '../core/result.dart';
@@ -21,12 +20,7 @@ class TrashRepository extends Repository {
   }
 
   @override
-  Icon icon = const Icon(Icons.delete_outline);
-
-  @override
-  String name = "Trash";
-  @override
-  final realStorage = false;
+  final browsable = false;
 
   @override
   Future<Result> moveObjectsRealOperation(

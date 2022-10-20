@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../data/all_storage_repository.dart';
-import '../../data/repository_type.dart';
+import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import '../pages/browser_view.dart';
 import '../ploc/browser_view_state.dart';

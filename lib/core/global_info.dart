@@ -1,5 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, constant_identifier_names
 
+import 'package:flutter/cupertino.dart';
+
 class GlobalInfo {
   static const int WAVEFORM_SAMPLES_PER_SECOND = 40;
   static const int WAVEFORM_SEND_PER_SECOND = 10;
@@ -21,4 +23,5 @@ class GlobalInfo {
     UI parameters
   \*=======================================================================*/
   static const kDialogBorderRadius = 15.0;
+  static const kSettingPagePadding = EdgeInsets.fromLTRB(10, 10, 10, 10);
 }

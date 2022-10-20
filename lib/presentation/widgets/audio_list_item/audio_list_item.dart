@@ -10,7 +10,7 @@ import '../../../core/logging.dart';
 import '../../../domain/entities.dart';
 import 'audio_list_item_state.dart';
 
-final log = Logger('AudioListItem', level: LogLevel.debug);
+final log = Logger('AudioListItem');
 
 class AudioListItem extends StatefulWidget {
   final AudioObject audioItem;

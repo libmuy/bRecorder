@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/repository.dart';
+
 enum RecordState {
   stopped,
   recording,
@@ -44,4 +46,29 @@ class AudioPositionInfo extends Equatable {
   List<Object> get props => [duration, position];
 
   const AudioPositionInfo(this.duration, this.position);
+}
+
+class TabInfo {
+  String currentPath;
+  RepoType repoType;
+  bool enabled;
+
+  TabInfo({
+    this.currentPath = "/",
+    this.enabled = true,
+    required this.repoType,
+  });
+
+  factory TabInfo.fromJson(Map<String, String> json) {
+    return TabInfo(
+      currentPath: json['currentPath']!,
+      repoType: RepoType.fromString(json['repoType']!),
+      enabled: json['enabled']!.toLowerCase() == "true",
+    );
+  }
+  Map<String, dynamic> toJson() => {
+        'currentPath': currentPath,
+        'repoType': repoType,
+        'enabled': enabled,
+      };
 }
