@@ -32,7 +32,7 @@ class Logger {
   static var forceLevel = LogLevel.noForce;
   String name;
 
-  final LogLevel level;
+  LogLevel level;
 
   Logger(this.name, {this.level = LogLevel.defaultLevel});
 

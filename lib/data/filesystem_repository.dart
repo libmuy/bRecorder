@@ -1,23 +1,30 @@
 // ignore_for_file: unused_element
 
+import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../core/audio_agent.dart';
-import '../core/logging.dart';
 import '../core/result.dart';
 import '../core/service_locator.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 
-final log = Logger('FsRepo');
-
 class FilesystemRepository extends Repository {
   String? _rootPath;
+  Future<String>? _rootPathFuture;
   final audioAgent = sl.get<AudioServiceAgent>();
+
+  FilesystemRepository(Future<String> rootPathFuture)
+      : _rootPathFuture = rootPathFuture {
+    log.name = "RepoFs";
+    rootPathFuture.then((value) {
+      _rootPath = value;
+      _rootPathFuture = null;
+    });
+  }
 
   @override
   final type = RepoType.filesystem;
@@ -27,9 +34,10 @@ class FilesystemRepository extends Repository {
     if (_rootPath != null) {
       return _rootPath!;
     } else {
-      final docDir = await getApplicationDocumentsDirectory();
-      _rootPath = join(docDir.path, "brecorder/data");
+      _rootPath = await _rootPathFuture;
+      assert(_rootPath != null);
       Directory(_rootPath!).create(recursive: true);
+      _rootPathFuture = null;
       return _rootPath!;
     }
   }
@@ -47,102 +55,193 @@ class FilesystemRepository extends Repository {
     return ret;
   }
 
-  Future<AudioInfo> _audioInfoFromFilesystem(String path) async {
-    final relativePath = await _trimRoot(path);
+  Future<bool> getAudioInfoFromRepo(AudioInfo request,
+      {bool prefetch = false}) async {
+    final relativePath = request.path;
+    final path = await absolutePath(relativePath);
     int bytes = 0;
     DateTime timestamp = DateTime(1970);
     try {
       final file = File(path);
-      timestamp = await file.lastModified();
-      bytes = await file.length();
+      final stat = await file.stat();
+      await waitUiReqWhilePrefetch(prefetch);
+      if (!doingRrefetch && prefetch) return false;
+      timestamp = stat.modified;
+      bytes = stat.size;
       final ret = await audioAgent.getDuration(path);
+      await waitUiReqWhilePrefetch(prefetch);
+      if (!doingRrefetch && prefetch) return false;
       if (ret.succeed) {
-        log.debug("duration:${ret.value}");
+        log.verbose("duration:${ret.value}");
       } else {
         log.error("failed to get audio($relativePath)'s duration, set to 0");
       }
-      return AudioInfo(ret.value ?? 0, relativePath, bytes, timestamp,
-          repo: this);
+      request.durationMS = ret.value ?? 0;
+      request.bytes = bytes;
+      request.timestamp = timestamp;
+      request.repo = this;
     } catch (e) {
       log.critical("got a file IO exception: $e");
-      return AudioInfo.brokenAudio(
-          path: relativePath, bytes: bytes, timestamp: timestamp, repo: this);
+      return false;
     }
+
+    return true;
   }
 
-  Future<FolderInfo?> _getFolderInfoHelper(String path, bool folderOnly) async {
-    Directory dir = Directory(path);
+  Future<bool> preFetchInternalDirStructure() async {
+    final queue = Queue<FolderInfo>();
+    queue.add(cache == null ? FolderInfo("/") : cache!);
+
+    await waitUiReqWhilePrefetch();
+    if (!doingRrefetch) return true;
+    while (queue.isNotEmpty && doingRrefetch) {
+      final folder = queue.removeFirst();
+      final itr = orphans.where((f) => f.path == folder.path);
+      if (itr.isNotEmpty) {
+        // Get Folder Info from orphans list(UI requested folder info catch)
+        log.debug("get folder from orphan cache: ${folder.path}");
+        final orphanFolder = itr.first;
+        orphans.remove(orphanFolder);
+        folder.subfoldersMap = orphanFolder.subfoldersMap;
+        folder.audiosMap = orphanFolder.audiosMap;
+        folder.displayData ??= orphanFolder.displayData;
+      } else {
+        // Get Folder Info from Repo
+        log.debug("get folder from repo: ${folder.path}");
+        prefetchingFolderPath = folder.path;
+        final result = await _getFolderInfoInternal(folder, prefetch: true);
+        await waitUiReqWhilePrefetch();
+        if (!doingRrefetch) break;
+
+        if (!result) {
+          log.error("Get Folder Info Failed!(${folder.path})");
+          prefetchingFolderPath = null;
+          return false;
+        }
+        if (folder.parent == null && cache == null) cache = folder;
+        prefetchingFolderPath = null;
+        if (uiRequestNotifier != null) uiRequestNotifier!.complete();
+      }
+
+      // Add Sub folders into stack
+      if (folder.subfolders != null) queue.addAll(folder.subfolders!);
+    }
+
+    return true;
+  }
+
+  Future<bool> preFetchInternalStaticsInfo(FolderInfo folder) async {
+    int audioCount = 0;
+    int bytes = 0;
+    DateTime timestamp = DateTime(1970);
+
+    log.debug("Get statics: ${folder.path}");
+    for (final sub in folder.subObjects) {
+      if (sub is FolderInfo) {
+        await preFetchInternalStaticsInfo(sub);
+        audioCount += sub.allAudioCount!;
+      } else if (sub is AudioInfo) {
+        //UI requested audios have no detail info, gather info here
+        if (sub.bytes == null) {
+          final result = await getAudioInfoFromRepo(sub, prefetch: true);
+          if (!result) {
+            log.error("Get AudioInfo from repo failed: ${sub.path}");
+            return false;
+          }
+          sub.updateUI();
+        }
+        audioCount++;
+      }
+      bytes += sub.bytes!;
+      if (sub.timestamp!.compareTo(timestamp) > 1) timestamp = sub.timestamp!;
+    }
+    folder.allAudioCount = audioCount;
+    folder.bytes = bytes;
+    folder.updateUI();
+    folder.timestamp = timestamp;
+    return true;
+  }
+
+  @override
+  Future<bool> preFetchInternal() async {
+    log.debug("============== Prefetch: Dir structure Start ");
+    var ret = await preFetchInternalDirStructure();
+    log.debug("============== Prefetch: Dir structure End ");
+    if (!ret) return false;
+
+    log.debug("============== Prefetch: Update statics info Start ");
+    ret = await preFetchInternalStaticsInfo(cache!);
+    log.debug("============== Prefetch: Update statics info End ");
+
+    return ret;
+  }
+
+  Future<bool> _getFolderInfoInternal(FolderInfo request,
+      {bool folderOnly = false, bool prefetch = false}) async {
+    final relativePath = request.path;
+    final absolautePath = await absolutePath(relativePath);
+    Directory dir = Directory(absolautePath);
     var subfoldersMap = <String, FolderInfo>{};
     var audiosMap = <String, AudioInfo>{};
-    var folderTimestamp = DateTime(1970);
-    var audioCount = 0;
-    var folderBytes = 0;
-    var ret = FolderInfo.empty;
 
     if (!await dir.exists()) {
       log.error("dirctory(${dir.path}) not exists");
-      return null;
+      return false;
     }
+    await waitUiReqWhilePrefetch(prefetch);
+    if (!doingRrefetch && prefetch) return false;
 
-    for (final e in dir.listSync()) {
-      if (e is Directory) {
-        log.debug("got directory:${e.path}");
-        final folder = await _getFolderInfoHelper(e.path, false);
-        if (folder == null) return null;
-        folder.parent = ret;
-        subfoldersMap[basename(e.path)] = folder;
-        if (folder.timestamp.compareTo(folderTimestamp) > 0) {
-          folderTimestamp = folder.timestamp;
+    await for (final file in dir.list()) {
+      await waitUiReqWhilePrefetch(prefetch);
+      if (!doingRrefetch && prefetch) return false;
+      final name = basename(file.path);
+      final path = join(relativePath, name);
+      late AudioObject obj;
+      if (file is Directory) {
+        log.verbose("got directory:${file.path}");
+        obj = FolderInfo(path, repo: this);
+        subfoldersMap[name] = obj as FolderInfo;
+      } else if (file is File) {
+        if (folderOnly) continue;
+        log.verbose("got file:${file.path}");
+        if (prefetch) {
+          obj = AudioInfo(path);
+          final result =
+              await getAudioInfoFromRepo(obj as AudioInfo, prefetch: prefetch);
+          if (!doingRrefetch && prefetch) return false;
+          if (result == false) obj = AudioInfo.brokenAudio(path: path);
+        } else {
+          obj = AudioInfo(path, repo: this);
         }
-        audioCount += folder.allAudioCount;
-        folderBytes += folder.bytes;
-      } else if (e is File) {
-        log.debug("got file:${e.path}");
-        final audio = await _audioInfoFromFilesystem(e.path);
-        audio.parent = ret;
-        audiosMap[basename(e.path)] = audio;
-        folderBytes += audio.bytes;
-        if (audio.timestamp.compareTo(folderTimestamp) > 0) {
-          folderTimestamp = audio.timestamp;
-        }
-        audioCount += 1;
+        audiosMap[name] = obj as AudioInfo;
       }
+      obj.parent = request;
     }
+    request.subfoldersMap = subfoldersMap.isEmpty ? null : subfoldersMap;
+    request.audiosMap = audiosMap.isEmpty ? null : audiosMap;
+    request.repo = this;
 
-    if (folderTimestamp.compareTo(DateTime(1970)) == 0) {
-      final stat = await dir.stat();
-      folderTimestamp = stat.modified;
-    }
-// FolderInfo(path, folderBytes, folderTimestamp, audioCount,
-//         subfolders: subfolders, audios: audios, repo: this)
-    ret.path = await _trimRoot(path);
-    ret.bytes = folderBytes;
-    ret.timestamp = folderTimestamp;
-    ret.allAudioCount = audioCount;
-    ret.subfoldersMap = subfoldersMap.isEmpty ? null : subfoldersMap;
-    ret.audiosMap = audiosMap.isEmpty ? null : audiosMap;
-    ret.repo = this;
-    return ret;
+    return true;
   }
 
   @override
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly = false}) async {
-    final path = await absolutePath(relativePath);
-    final folder = await _getFolderInfoHelper(path, folderOnly);
+    final folder = FolderInfo(relativePath);
+    final result = await _getFolderInfoInternal(folder, folderOnly: folderOnly);
 
-    if (folder == null) {
+    if (!result) {
+      log.error("get folder($relativePath) not exists");
       return Fail(IOFailure());
     }
-
     return Succeed(folder);
   }
 
   @override
   Future<Result> moveObjectsRealOperation(
-      String srcRelativePath, String dstRelativePath) async {
-    final dstPath = await absolutePath(dstRelativePath);
-    final srcPath = await absolutePath(srcRelativePath);
+      AudioObject src, FolderInfo dstFolder) async {
+    final dstPath = await absolutePath(src.path);
+    final srcPath = await absolutePath(dstFolder.path);
 
     try {
       FileSystemEntity src =
@@ -171,18 +270,26 @@ class FilesystemRepository extends Repository {
       return Fail(IOFailure());
     }
 
-    return Succeed();
+    var newFolder = FolderInfo(relativePath, repo: this);
+    final addRet = addObjectIntoCache(newFolder, onlyStruct: true);
+    if (addRet == false) {
+      return Fail(ErrMsg("Add folder info into cache failed!"));
+    }
+
+    return Succeed(newFolder);
   }
 
   @override
   Future<Result> getAudioInfoRealOperation(String relativePath) async {
-    final path = await absolutePath(relativePath);
-    final audio = await _audioInfoFromFilesystem(path);
-    return Succeed(audio);
+    final request = AudioInfo(relativePath);
+    final result = await getAudioInfoFromRepo(request);
+    if (result == false) Fail(ErrMsg("Get AudioInfo from Repo failed"));
+    return Succeed(request);
   }
 
   @override
-  Future<Result> removeObjectRealOperation(String relativePath) async {
+  Future<Result> removeObjectRealOperation(AudioObject obj) async {
+    final relativePath = obj.path;
     final path = await absolutePath(relativePath);
     FileSystemEntity entity;
     if (await _isFile(path)) {

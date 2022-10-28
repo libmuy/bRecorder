@@ -138,8 +138,7 @@ class _MyTestPageState extends State<MyTestPage> {
     agent.addAudioEventListener(
         AudioEventType.positionUpdate, onPositionUpdate);
 
-    agent.startPlay(AudioInfo(0, audioPath, 0, DateTime.now()),
-        positionNotifyIntervalMs: 10);
+    agent.startPlay(AudioInfo(audioPath), positionNotifyIntervalMs: 10);
     return true;
   }
 

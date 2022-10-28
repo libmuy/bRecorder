@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 
 import 'core/logging.dart';
 import 'core/service_locator.dart';
+import 'core/setting.dart';
 import 'presentation/pages/home_page.dart';
 
 final log = Logger('Main');
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await sl.get<Settings>().load();
   SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
@@ -21,15 +23,15 @@ class BRecorderApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     /*=======================================================================*\ 
-    Theme Common Part
-  \*=======================================================================*/
+      Theme Common Part
+    \*=======================================================================*/
     const labelSmall = TextStyle(
       fontSize: 8,
     );
 
     /*=======================================================================*\ 
-    Theme Dark
-  \*=======================================================================*/
+      Theme Dark
+    \*=======================================================================*/
     final themeDark = ThemeData.dark().copyWith(
       // useMaterial3: true,
       dialogBackgroundColor: Colors.black,
@@ -39,8 +41,8 @@ class BRecorderApp extends StatelessWidget {
     );
 
     /*=======================================================================*\ 
-    Theme Light
-  \*=======================================================================*/
+      Theme Light
+    \*=======================================================================*/
     final themeLight = ThemeData.light().copyWith(
       // useMaterial3: true,
       textTheme: ThemeData.light().textTheme.copyWith(

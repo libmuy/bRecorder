@@ -136,7 +136,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         log.debug("audio($currentAudio)'s waveform length:${data?.length}");
         _waveformDataNotifier.value = data ?? Float32List(0);
       });
-      final seconds = currentAudio!.durationMS / 1000.0;
+      final seconds = currentAudio!.durationMS! / 1000.0;
       if (seconds < _positionNotifier.value) {
         _positionNotifier.value = seconds;
       }

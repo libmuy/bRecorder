@@ -5,16 +5,18 @@ import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../core/global_info.dart';
 import '../core/logging.dart';
 import '../core/service_locator.dart';
+import '../core/utils/utils.dart';
+import '../data/google_drive_repository.dart';
 import '../data/repository.dart';
+import '../presentation/widgets/audio_list_item/audio_widget_state.dart';
 
 const _prefKeyNextAudioId = "nextAudioId";
 
-final log = Logger('Entity');
+final _log = Logger('Entity');
 
 /*=======================================================================*\ 
   Audio Object Equatable (copy from equatable)
@@ -93,11 +95,19 @@ abstract class AudioEqual {
 class AudioObject extends AudioEqual {
   Repository? repo;
   String path;
-  int bytes;
-  DateTime timestamp;
+  int? bytes;
+  DateTime? timestamp;
   FolderInfo? parent;
-  dynamic displayData;
+  AudioWidgetState? displayData;
+  CloudFileData? cloudData;
   AudioObject? copyFrom;
+
+  void updateUI() => displayData?.updateWidget?.call();
+
+  String get name => basename(path);
+
+  bool get isFolder => this is FolderInfo;
+
   Future<String> get realPath async {
     if (repo == null) {
       return path;
@@ -108,11 +118,11 @@ class AudioObject extends AudioEqual {
   void destory() {}
 
   String get mapKey => basename(path);
-  AudioObject(this.path, this.bytes, this.timestamp,
-      {this.repo, this.parent, this.displayData});
+  AudioObject(this.path,
+      {this.bytes, this.timestamp, this.repo, this.parent, this.displayData});
 
   @override
-  List<Object> get props => [path, bytes, timestamp];
+  List<Object?> get props => [path, bytes, timestamp];
 
   void _dumpAudioObject(int lv, AudioObject obj) {
     var indent = " " * (lv * 4);
@@ -135,44 +145,50 @@ class AudioObject extends AudioEqual {
   Audio Information
 \*=======================================================================*/
 class AudioInfo extends AudioObject {
-  int? _id;
-  final int durationMS;
+  int? _prefId;
+  int? durationMS;
   int currentPosition;
   bool broken;
-  String _path;
   AudioPref? _pref;
-  Float32List? _waveformData;
-  void Function()? onPlayStopped;
-  void Function()? onPlayPaused;
-  void Function()? onPlayStarted;
+  Float32List? get _waveformData => displayData?.waveformData;
+  set _waveformData(Float32List? newValue) =>
+      displayData?.waveformData = newValue;
+  void Function()? get onPlayStopped => displayData?.onPlayStopped;
+  void Function()? get onPlayPaused => displayData?.onPlayPaused;
+  void Function()? get onPlayStarted => displayData?.onPlayStarted;
 
-  AudioInfo(this.durationMS, String path, int bytes, DateTime timestamp,
-      {this.currentPosition = 0,
+  AudioInfo(String path,
+      {this.durationMS,
+      int? bytes,
+      DateTime? timestamp,
+      this.currentPosition = 0,
       this.broken = false,
       Repository? repo,
       FolderInfo? parent,
       displayData})
-      : _path = path,
-        super(path, bytes, timestamp,
-            repo: repo, parent: parent, displayData: displayData);
+      : super(path,
+            bytes: bytes,
+            timestamp: timestamp,
+            repo: repo,
+            parent: parent,
+            displayData: displayData);
 
   @override
-  List<Object> get props => [durationMS, path, bytes, timestamp];
+  List<Object?> get props => [durationMS, path, bytes, timestamp];
 
-  @override
-  String get path => _path;
+  Future<File> get file async => File(await realPath);
 
   @override
   set path(String newPath) => _setPath(newPath);
 
   void _setPath(String newPath) async {
     if (!await hasPerf) {
-      _path = newPath;
+      super.path = newPath;
       return;
     } else {
       final sharedPref = await sl.asyncPref;
       final oldIdKey = _prefIdKey;
-      _path = newPath;
+      super.path = newPath;
       final newIdKey = _prefIdKey;
       sharedPref.setInt(newIdKey, await id);
       sharedPref.remove(oldIdKey);
@@ -194,24 +210,24 @@ class AudioInfo extends AudioObject {
   Future<int> get id async {
     if (!await hasPerf) {
       final sharedPref = await sl.asyncPref;
-      _id = sharedPref.getInt(_prefKeyNextAudioId) ?? 0;
+      _prefId = sharedPref.getInt(_prefKeyNextAudioId) ?? 0;
 
-      sl.pref.setInt(_prefKeyNextAudioId, _id! + 1);
-      sl.pref.setInt(_prefIdKey, _id!);
-      log.debug("create audio($this)'s id:$_id");
+      sl.pref.setInt(_prefKeyNextAudioId, _prefId! + 1);
+      sl.pref.setInt(_prefIdKey, _prefId!);
+      _log.debug("create audio($this)'s id:$_prefId");
     } else {
-      log.debug("get    audio($this)'s id:$_id");
+      _log.debug("get    audio($this)'s id:$_prefId");
     }
-    return _id!;
+    return _prefId!;
   }
 
   Future<bool> get hasPerf async {
-    if (_id == null) {
+    if (_prefId == null) {
       final sharedPref = await sl.asyncPref;
-      _id = sharedPref.getInt(_prefIdKey);
+      _prefId = sharedPref.getInt(_prefIdKey);
     }
 
-    return _id != null;
+    return _prefId != null;
   }
 
   Future<String> get _prefKey async {
@@ -219,9 +235,7 @@ class AudioInfo extends AudioObject {
   }
 
   Future<String> get _waveformPath async {
-    final docDir = await getApplicationDocumentsDirectory();
-    var dir = join(docDir.path, "brecorder/waveform");
-    await Directory(dir).create(recursive: true);
+    final dir = await PathProvider.waveformPath;
 
     return join(dir, "${await _prefKey}.waveform");
   }
@@ -245,8 +259,8 @@ class AudioInfo extends AudioObject {
 
   void savePref() async {
     final sharedPref = await sl.asyncPref;
-    log.debug("save perf key: ${await _prefKey}");
-    log.debug("    json: ${jsonEncode(await pref)}");
+    _log.debug("save perf key: ${await _prefKey}");
+    _log.debug("    json: ${jsonEncode(await pref)}");
     sharedPref.setString(await _prefKey, jsonEncode(await pref));
   }
 
@@ -255,10 +269,10 @@ class AudioInfo extends AudioObject {
     if (_pref != null) return _pref!;
     final prefStr = sharedPref.getString(await _prefKey);
     if (prefStr != null) {
-      log.debug("Perf: restored");
+      _log.debug("Perf: restored");
       _pref = AudioPref.fromJson(jsonDecode(prefStr));
     } else {
-      log.debug("Perf: create new");
+      _log.debug("Perf: create new");
       _pref = AudioPref();
       savePref();
     }
@@ -275,10 +289,10 @@ class AudioInfo extends AudioObject {
       FolderInfo? parent,
       displayData}) {
     var audio = AudioInfo(
-      durationMS ?? this.durationMS,
+      durationMS: durationMS ?? this.durationMS,
       path ?? this.path,
-      bytes ?? this.bytes,
-      timestamp ?? this.timestamp,
+      bytes: bytes ?? this.bytes,
+      timestamp: timestamp ?? this.timestamp,
       repo: repo ?? this.repo,
       currentPosition: currentPosition ?? this.currentPosition,
       parent: parent ?? this.parent,
@@ -294,8 +308,12 @@ class AudioInfo extends AudioObject {
       int bytes = 0,
       DateTime? timestamp,
       Repository? repo}) {
-    return AudioInfo(durationMS, path, bytes, timestamp ?? DateTime(1970),
-        broken: true, repo: repo);
+    return AudioInfo(path,
+        durationMS: durationMS,
+        bytes: bytes,
+        timestamp: timestamp ?? DateTime(1970),
+        broken: true,
+        repo: repo);
   }
 
   @override
@@ -308,7 +326,7 @@ class AudioInfo extends AudioObject {
 class FolderInfo extends AudioObject {
   Map<String, FolderInfo>? subfoldersMap;
   Map<String, AudioInfo>? audiosMap;
-  int allAudioCount;
+  int? allAudioCount;
 
   List<AudioObject> get subObjects {
     List<AudioObject> ret;
@@ -362,14 +380,21 @@ class FolderInfo extends AudioObject {
     return audiosMap!.length;
   }
 
-  FolderInfo(String path, int bytes, DateTime timestamp, this.allAudioCount,
-      {this.subfoldersMap,
+  FolderInfo(String path,
+      {int? bytes,
+      DateTime? timestamp,
+      this.allAudioCount,
+      this.subfoldersMap,
       this.audiosMap,
       Repository? repo,
       FolderInfo? parent,
       displayData})
-      : super(path, bytes, timestamp,
-            repo: repo, parent: parent, displayData: displayData);
+      : super(path,
+            bytes: bytes,
+            timestamp: timestamp,
+            repo: repo,
+            parent: parent,
+            displayData: displayData);
 
   FolderInfo copyWith({
     String? path,
@@ -383,9 +408,9 @@ class FolderInfo extends AudioObject {
   }) {
     var folder = FolderInfo(
       path ?? this.path,
-      bytes ?? this.bytes,
-      timestamp ?? this.timestamp,
-      allAudioCount ?? this.allAudioCount,
+      bytes: bytes ?? this.bytes,
+      timestamp: timestamp ?? this.timestamp,
+      allAudioCount: allAudioCount ?? this.allAudioCount,
       repo: repo ?? this.repo,
       parent: parent ?? this.parent,
     );
@@ -417,14 +442,11 @@ class FolderInfo extends AudioObject {
   static FolderInfo get empty {
     return FolderInfo(
       "/",
-      0,
-      DateTime(1907),
-      0,
     );
   }
 
   @override
-  List<Object> get props => [path, bytes, timestamp, allAudioCount];
+  List<Object?> get props => [path, bytes, timestamp, allAudioCount];
 
   @override
   String toString() => "${basename(path)}/";

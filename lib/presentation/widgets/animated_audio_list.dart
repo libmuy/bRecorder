@@ -9,8 +9,8 @@ import '../../core/utils/utils.dart';
 import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import '../ploc/browser_view_state.dart';
-import 'audio_list_item/audio_list_item.dart';
-import 'audio_list_item/audio_list_item_state.dart';
+import 'audio_list_item/audio_widget.dart';
+import 'audio_list_item/audio_widget_state.dart';
 
 final log = Logger('AudioList');
 
@@ -44,7 +44,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   final modeNotifier = sl.get<GlobalModeNotifier>();
   final TaskQueue _taskQueue = TaskQueue();
   late _ListModel _list;
-  final _listItemAnimationDurationMS = 500.0;
+  final _listItemAnimationDurationMS = 300.0;
   bool _cancelUpdateList = false;
 
   @override
@@ -421,10 +421,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   Widget _buildItem(
       BuildContext context, int index, Animation<double> animation) {
     final obj = _list[index];
-    final itemState = obj.displayData as AudioListItemState;
+    final itemState = obj.displayData as AudioWidgetState;
     return FadeTransition(
       opacity: animation,
-      child: AudioListItem(
+      child: AudioWidget(
         key: itemState.key,
         audioItem: obj,
         state: itemState,
@@ -455,10 +455,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       return const Text("Audio Object not exists");
     }
 
-    final itemState = obj.displayData as AudioListItemState;
+    final itemState = obj.displayData as AudioWidgetState;
     return FadeTransition(
       opacity: animation,
-      child: AudioListItem(
+      child: AudioWidget(
         audioItem: obj,
         state: itemState,
       ),
@@ -481,10 +481,10 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
 
     GlobalKey? key;
     if (ret.displayData != null) {
-      final newItemState = ret.displayData as AudioListItemState;
+      final newItemState = ret.displayData as AudioWidgetState;
       key = newItemState.key;
     }
-    ret.displayData = AudioListItemState(ret, mode: itemState, key: key);
+    ret.displayData = AudioWidgetState(ret, mode: itemState, key: key);
     return ret;
   }
 
@@ -541,7 +541,7 @@ class _ListModel {
   // }
 
   bool _isVisible(AudioObject obj) {
-    final itemState = obj.displayData as AudioListItemState;
+    final itemState = obj.displayData as AudioWidgetState;
     final box = itemState.key.currentContext?.findRenderObject() as RenderBox?;
     return box != null;
   }

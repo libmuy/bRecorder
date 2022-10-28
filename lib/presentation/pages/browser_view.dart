@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:brecorder/presentation/widgets/audio_list_item/audio_list_item_state.dart';
+import 'package:brecorder/data/google_drive_repository.dart';
+import 'package:brecorder/presentation/widgets/audio_list_item/audio_widget_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart';
@@ -310,7 +311,7 @@ class _BrowserViewState extends State<BrowserView>
     required Duration duration,
     required Curve curve,
   }) {
-    if (AudioListItemState.height == null) {
+    if (AudioWidgetState.height == null) {
       log.warning("AudioListeItem's height is unknow, can't scroll to it");
       return;
     }
@@ -327,7 +328,7 @@ class _BrowserViewState extends State<BrowserView>
     final offset = _searchBoxHeightNotifier.value +
         _ksearchBoxTopPadding +
         _AudioListHeader._kDefaultHeight +
-        (AudioListItemState.height! * index);
+        (AudioWidgetState.height! * index);
 
     _scrollController.animateTo(offset,
         duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
@@ -374,37 +375,46 @@ class _BrowserViewState extends State<BrowserView>
           slivers: slivers,
           // sl: _listItemWidgets(folderInfo),
         ),
-        Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  sl.pref.clear().then((result) {
-                    if (result) {
-                      log.debug("shared preference cleared");
-                    } else {
-                      log.debug("shared preference clear failed");
-                    }
-                  });
-                  final docDir = await getApplicationDocumentsDirectory();
-                  var dir = join(docDir.path, "brecorder/waveform");
-                  Directory(dir).delete(recursive: true);
-                },
-                child: const Text("======== Clear Settings ======="),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final group = _groups!.values.first;
-                  log.info("Current BrowserView Info:");
-                  log.info("    repo:${widget.repoType}");
-                  log.info("    item count:${group.items.length}");
-                },
-                child: const Text("======== Show BrowserView ======="),
-              ),
-            ],
-          ),
-        ),
+        // Center(
+        //   child: Column(
+        //     mainAxisSize: MainAxisSize.min,
+        //     children: [
+        //       ElevatedButton(
+        //         onPressed: () async {
+        //           sl.pref.clear().then((result) {
+        //             if (result) {
+        //               log.debug("shared preference cleared");
+        //             } else {
+        //               log.debug("shared preference clear failed");
+        //             }
+        //           });
+        //           final docDir = await getApplicationDocumentsDirectory();
+        //           var dir = join(docDir.path, "brecorder/waveform");
+        //           Directory(dir).delete(recursive: true);
+        //         },
+        //         child: const Text("======== Clear Settings ======="),
+        //       ),
+        //       ElevatedButton(
+        //         onPressed: () {
+        //           final group = _groups!.values.first;
+        //           log.info("Current BrowserView Info:");
+        //           log.info("    repo:${widget.repoType}");
+        //           log.info("    item count:${group.items.length}");
+        //         },
+        //         child: const Text("======== Show BrowserView ======="),
+        //       ),
+        //       ElevatedButton(
+        //         onPressed: () {
+        //           final repo = sl.getRepository(RepoType.googleDrive)
+        //               as GoogleDriveRepository;
+
+        //           repo.debugMyDriveId();
+        //         },
+        //         child: const Text("GDrive: My Drive"),
+        //       ),
+        //     ],
+        //   ),
+        // ),
       ],
     );
   }
@@ -509,25 +519,35 @@ class _AudioListHeader {
           as RenderSliverPersistentHeader?;
 
   Widget _buildHeaderWidget(List<AudioObject> items) {
+    String sizeStr = "";
     int bytes = 0;
     int count = 0;
-    for (var item in items) {
-      bytes += item.bytes;
-
-      if (item is FolderInfo) {
-        count += item.allAudioCount;
-      } else if (item is AudioInfo) {
-        count++;
-      }
-    }
-
-    final kB = bytes / 1000;
-    final mB = kB / 1000;
-    String sizeStr = "";
-    if (mB > 1) {
-      sizeStr = "${mB.toStringAsFixed(1)} MB";
+    var haveNull = false;
+    if (items
+        .where((item) =>
+            item.bytes == null ||
+            (item is FolderInfo && item.allAudioCount == null))
+        .isNotEmpty) haveNull = true;
+    if (haveNull) {
+      sizeStr = "? KB";
     } else {
-      sizeStr = "${kB.toStringAsFixed(1)} KB";
+      for (var item in items) {
+        bytes += item.bytes!;
+
+        if (item is FolderInfo) {
+          count += item.allAudioCount!;
+        } else if (item is AudioInfo) {
+          count++;
+        }
+      }
+
+      final kB = bytes / 1000;
+      final mB = kB / 1000;
+      if (mB > 1) {
+        sizeStr = "${mB.toStringAsFixed(1)} MB";
+      } else {
+        sizeStr = "${kB.toStringAsFixed(1)} KB";
+      }
     }
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

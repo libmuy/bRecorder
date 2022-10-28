@@ -21,7 +21,7 @@ import 'utils/utils.dart';
 
 final sl = ServiceLocator.instance;
 
-final log = Logger("SL");
+final _log = Logger("SL");
 
 class ServiceLocator {
   final getIt = GetIt.instance;
@@ -29,7 +29,7 @@ class ServiceLocator {
   static ServiceLocator get instance => _instance;
 
   ServiceLocator() {
-    log.info("initialize services");
+    _log.info("initialize services");
     getIt.registerLazySingleton(() => HomePageState());
     getIt.registerLazySingleton(() => FilesystemBrowserViewState());
     getIt.registerLazySingleton(() => ICloudBrowserViewState());
@@ -38,9 +38,12 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => TrashBrowserViewState());
     getIt.registerLazySingleton(() => AllStoreageBrowserViewState());
     getIt.registerLazySingleton(() => AudioServiceAgent());
-    getIt.registerLazySingleton(() => FilesystemRepository());
+    getIt.registerLazySingleton(() {
+      return FilesystemRepository(PathProvider.localStoragePath);
+    });
     getIt.registerLazySingleton(() => ICloudRepository());
-    getIt.registerLazySingleton(() => GoogleDriveRepository());
+    getIt.registerLazySingleton(
+        () => GoogleDriveRepository(PathProvider.googleDrivePath));
     getIt.registerLazySingleton(() => PlaylistRepository());
     getIt.registerLazySingleton(() => TrashRepository());
     getIt.registerLazySingleton(() => AllStorageRepository());
@@ -112,4 +115,6 @@ class ServiceLocator {
   static final _showWaveformNotifier = ForcibleValueNotifier(false);
   ForcibleValueNotifier<bool> get playbackPanelExpandNotifier =>
       _showWaveformNotifier;
+
+  List<void Function()> appCloseListeners = [];
 }

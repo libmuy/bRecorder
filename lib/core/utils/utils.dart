@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:brecorder/domain/entities.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../data/repository.dart';
 
@@ -59,7 +64,7 @@ class TabInfo {
     required this.repoType,
   });
 
-  factory TabInfo.fromJson(Map<String, String> json) {
+  factory TabInfo.fromJson(Map<String, dynamic> json) {
     return TabInfo(
       currentPath: json['currentPath']!,
       repoType: RepoType.fromString(json['repoType']!),
@@ -68,7 +73,37 @@ class TabInfo {
   }
   Map<String, dynamic> toJson() => {
         'currentPath': currentPath,
-        'repoType': repoType,
-        'enabled': enabled,
+        'repoType': repoType.toString(),
+        'enabled': enabled ? 'true' : 'false',
       };
+}
+
+class PathProvider {
+  static Future<String> _createAndReturnPath(
+      Future<Directory?> base, String sub) async {
+    final docDir = await base;
+    final dir = join(docDir!.path, sub);
+    await Directory(dir).create(recursive: true);
+    return dir;
+  }
+
+  static Future<Directory?> get _docDir => Platform.isIOS
+      ? getApplicationDocumentsDirectory()
+      : getExternalStorageDirectory();
+
+  static Future<Directory?> get _appDataDir => Platform.isIOS
+      ? getApplicationSupportDirectory()
+      : getApplicationDocumentsDirectory();
+
+  static Future<String> get localStoragePath =>
+      _createAndReturnPath(_docDir, "bRecorder");
+
+  static Future<String> get waveformPath =>
+      _createAndReturnPath(_appDataDir, "bRecorder/waveform");
+
+  static Future<String> get googleDrivePath =>
+      _createAndReturnPath(_appDataDir, "bRecorder/googleDrive");
+
+  static Future<String> get iCloudPath =>
+      _createAndReturnPath(_appDataDir, "bRecorder/iCloudDrive");
 }
