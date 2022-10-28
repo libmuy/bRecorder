@@ -1,14 +1,17 @@
-import 'package:flutter/material.dart';
-
 import '../core/result.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 
 class ICloudRepository extends Repository {
+  ICloudRepository() : super() {
+    log.name = "RepoICloud";
+  }
   @override
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly = false}) async {
-    return Succeed(FolderInfo(relativePath, 0, DateTime(1907), 0));
+    return Succeed(FolderInfo(
+      relativePath,
+    ));
   }
 
   @override
@@ -20,21 +23,18 @@ class ICloudRepository extends Repository {
   final type = RepoType.iCloud;
 
   @override
-  final isCloud = true;
+  Future<Result> moveObjectsRealOperation(
+      AudioObject src, FolderInfo dstFolder) async {
+    return Fail(IOFailure());
+  }
 
   @override
-  Future<Result> moveObjectsRealOperation(
-      String srcRelativePath, String dstRelativePath) async {
+  Future<Result> removeObjectRealOperation(AudioObject obj) async {
     return Fail(IOFailure());
   }
 
   @override
   Future<Result> newFolderRealOperation(String relativePath) async {
-    return Fail(IOFailure());
-  }
-
-  @override
-  Future<Result> removeObjectRealOperation(String relativePath) async {
     return Fail(IOFailure());
   }
 

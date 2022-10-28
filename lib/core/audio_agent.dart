@@ -7,7 +7,7 @@ import 'global_info.dart';
 import 'logging.dart';
 import 'result.dart';
 
-final log = Logger('Audio-Agent');
+final _log = Logger('Audio-Agent');
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 
@@ -92,7 +92,7 @@ class AudioServiceAgent {
   \*=======================================================================*/
   void _startListenEvent() {
     if (_eventStream != null) {
-      log.warning("Waveform sample already listening");
+      _log.warning("Waveform sample already listening");
       return;
     }
 
@@ -101,14 +101,14 @@ class AudioServiceAgent {
           _eventChannel.receiveBroadcastStream().listen((dynamic map) {
         _eventHandler(map);
       }, onError: (dynamic error) {
-        log.error("event channel error${error.message}");
+        _log.error("event channel error${error.message}");
       }, onDone: () async {
-        log.info("eventchannel done: retry");
+        _log.info("eventchannel done: retry");
         await _stopListenEvent();
         _startListenEvent();
       }, cancelOnError: false);
     } catch (e) {
-      log.error("register event channel failed");
+      _log.error("register event channel failed");
     }
   }
 
@@ -131,7 +131,7 @@ class AudioServiceAgent {
     }
 
     if (map.containsKey("testEvent")) {
-      log.debug("Got Test Event:${map['testEvent']}");
+      _log.debug("Got Test Event:${map['testEvent']}");
       // final floatArray = map['testEvent'] as Float64List;
       // log.debug("array len:" + floatArray.length.toString());
     }
@@ -154,7 +154,7 @@ class AudioServiceAgent {
         int? positionMs = data["position"];
         if (positionMs == null) {
           positionMs = 0;
-          log.error("position updated with null, ignore this");
+          _log.error("position updated with null, ignore this");
           return;
         }
         _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
@@ -165,7 +165,7 @@ class AudioServiceAgent {
   }
 
   void _parameterEventHandler(dynamic data) {
-    log.debug("Platofrm parameters notifier");
+    _log.debug("Platofrm parameters notifier");
     GlobalInfo.PLATFORM_PITCH_MAX_VALUE = data["PLATFORM_PITCH_MAX_VALUE"];
     GlobalInfo.PLATFORM_PITCH_MIN_VALUE = data["PLATFORM_PITCH_MIN_VALUE"];
     GlobalInfo.PLATFORM_PITCH_DEFAULT_VALUE =
@@ -194,7 +194,7 @@ class AudioServiceAgent {
     try {
       await _methodChannel.invokeMethod(method, args);
     } on PlatformException catch (e) {
-      log.critical("Platform Method:$method Got exception: $e, args:$args");
+      _log.critical("Platform Method:$method Got exception: $e, args:$args");
       return false;
     }
 
@@ -334,8 +334,8 @@ class AudioServiceAgent {
   Future<Result> _seekTo(int positionMs, bool sync) async {
     if (currentAudio != null &&
         (state == AudioState.playPaused || state == AudioState.playing)) {
-      if (positionMs > currentAudio!.durationMS) {
-        positionMs = currentAudio!.durationMS;
+      if (positionMs > currentAudio!.durationMS!) {
+        positionMs = currentAudio!.durationMS!;
       } else if (positionMs < 0) {
         positionMs = 0;
       }
@@ -403,7 +403,7 @@ class AudioServiceAgent {
     try {
       ret = await _methodChannel.invokeMethod('getDuration', {"path": path});
     } on PlatformException catch (e) {
-      log.critical("Got exception: $e");
+      _log.critical("Got exception: $e");
       ret = -1;
     }
 
@@ -421,7 +421,7 @@ class AudioServiceAgent {
       ret = await _methodChannel
           .invokeMethod('getDuration', {"path": currentAudio!.path});
     } on PlatformException catch (e) {
-      log.critical("Got exception: $e");
+      _log.critical("Got exception: $e");
       ret = -1;
     }
 
@@ -459,7 +459,7 @@ class AudioServiceAgent {
     try {
       await _methodChannel.invokeMethod('recordWav', path);
     } on PlatformException catch (e) {
-      log.critical("Got exception: ${e.message}");
+      _log.critical("Got exception: ${e.message}");
       ret = -1;
     }
 
@@ -473,7 +473,7 @@ class AudioServiceAgent {
     try {
       await _methodChannel.invokeMethod('stopRecordWav');
     } on PlatformException catch (e) {
-      log.critical("Got exception: ${e.message}");
+      _log.critical("Got exception: ${e.message}");
       ret = -1;
     }
 
@@ -487,7 +487,7 @@ class AudioServiceAgent {
     try {
       ret = await _methodChannel.invokeMethod('test', {"name": "Jhon"});
     } on PlatformException catch (e) {
-      log.critical("Got exception: ${e.message}");
+      _log.critical("Got exception: ${e.message}");
     }
 
     return Succeed(ret);

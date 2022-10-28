@@ -21,10 +21,29 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final state = sl.get<HomePageState>();
+  final settings = sl.get<Settings>();
   final _modeNotifier = sl.get<GlobalModeNotifier>();
   Map<RepoType, Widget> _browserViewCache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appState) {
+    state.onAppStateChanged(appState);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,17 +54,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             return state.onPop();
           },
           child: ValueListenableBuilder<List<TabInfo>?>(
-              valueListenable: sl.get<Settings>().tabsNotifier,
+              valueListenable: settings.tabsNotifier,
               builder: (context, allTabs, _) {
                 log.info("Tabs changed");
-                if (allTabs == null) {
-                  return Container(
-                    color: Colors.red,
-                  );
-                }
-                final tabs = allTabs.where((tab) => tab.enabled).toList();
-                state.initTabController(this, tabs);
-                state.currentBrowserState.refresh();
+                assert(allTabs != null);
+                final tabs = allTabs!.where((tab) => tab.enabled).toList();
+                state.initTabController(this, tabs, settings.tabIndex ?? 0);
+                state.currentBrowserState.setInitialPath(state.currentPath);
                 return Scaffold(
                   resizeToAvoidBottomInset: false,
                   appBar: TitleBar(

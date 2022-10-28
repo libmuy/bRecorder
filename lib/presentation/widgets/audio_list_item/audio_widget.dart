@@ -8,21 +8,21 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/logging.dart';
 import '../../../domain/entities.dart';
-import 'audio_list_item_state.dart';
+import 'audio_widget_state.dart';
 
 final log = Logger('AudioListItem');
 
-class AudioListItem extends StatefulWidget {
+class AudioWidget extends StatefulWidget {
   final AudioObject audioItem;
-  final AudioListItemState state;
+  final AudioWidgetState state;
   final double padding;
   final double titlePadding;
   final double iconPadding;
   final double detailPadding;
   final void Function(bool)? onTap;
-  final void Function(AudioListItemState state)? onLongPressed;
+  final void Function(AudioWidgetState state)? onLongPressed;
 
-  const AudioListItem(
+  const AudioWidget(
       {Key? key,
       required this.audioItem,
       required this.state,
@@ -35,10 +35,22 @@ class AudioListItem extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<AudioListItem> createState() => _AudioListItemState();
+  State<AudioWidget> createState() => _AudioWidgetState();
 }
 
-class _AudioListItemState extends State<AudioListItem> {
+class _AudioWidgetState extends State<AudioWidget> {
+  @override
+  void initState() {
+    super.initState();
+    widget.state.updateWidget = () => setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.state.updateWidget = null;
+    super.dispose();
+  }
+
   bool get _isFolder {
     return widget.audioItem is FolderInfo;
   }
@@ -48,12 +60,17 @@ class _AudioListItemState extends State<AudioListItem> {
   }
 
   String get _sizeInfo {
-    return "${(widget.audioItem.bytes / 1024).toStringAsFixed(0)} KB";
+    if (widget.audioItem.bytes == null) return "-- KB";
+    return "${(widget.audioItem.bytes! / 1024).toStringAsFixed(0)} KB";
   }
 
   String get _timestampInfo {
+    final timestamp = widget.audioItem.timestamp;
+    if (timestamp == null) {
+      return "----/--/--";
+    }
     DateFormat dateFormat = DateFormat('MM/dd HH:mm:ss');
-    final timeInfo = dateFormat.format(widget.audioItem.timestamp);
+    final timeInfo = dateFormat.format(timestamp);
 
     return timeInfo;
   }
@@ -65,7 +82,8 @@ class _AudioListItemState extends State<AudioListItem> {
 
   String get _durationInfo {
     final audio = widget.audioItem as AudioInfo;
-    int sec = audio.durationMS ~/ 1000;
+    if (audio.durationMS == null) return "--";
+    int sec = audio.durationMS! ~/ 1000;
     final min = sec ~/ 60;
     sec = sec % 60;
 
@@ -76,13 +94,13 @@ class _AudioListItemState extends State<AudioListItem> {
 
   @override
   Widget build(context) {
-    if (AudioListItemState.height == null) {
+    if (AudioWidgetState.height == null) {
       SchedulerBinding.instance.addPostFrameCallback(
         (_) {
-          if (AudioListItemState.height != null) return;
+          if (AudioWidgetState.height != null) return;
           final box = context.findRenderObject() as RenderBox?;
-          AudioListItemState.height = box?.size.height;
-          log.debug("Audio Item Height:${AudioListItemState.height}");
+          AudioWidgetState.height = box?.size.height;
+          log.debug("Audio Item Height:${AudioWidgetState.height}");
         },
       );
     }
@@ -104,7 +122,7 @@ class _AudioListItemState extends State<AudioListItem> {
           // A SlidableAction can have an icon and/or a label.
           SlidableAction(
             onPressed: doNothing,
-            backgroundColor: Color(0xFFFE4A49),
+            backgroundColor: const Color(0xFFFE4A49),
             foregroundColor: Colors.white,
             icon: Icons.delete,
             label: 'Delete',
@@ -124,7 +142,7 @@ class _AudioListItemState extends State<AudioListItem> {
 
       // The end action pane is the one at the right or the bottom side.
       endActionPane: ActionPane(
-        motion: ScrollMotion(),
+        motion: const ScrollMotion(),
         children: [
           SlidableAction(
             // An action can be bigger than the others.

@@ -1,16 +1,23 @@
+import 'dart:typed_data';
+
 import 'package:flutter/cupertino.dart';
 
 import '../../../core/logging.dart';
 import '../../../core/service_locator.dart';
 import '../../../domain/entities.dart';
 
-class AudioListItemState {
+class AudioWidgetState {
   static double? height;
   final AudioObject audioObject;
   var itemModeNotifier = ValueNotifier(AudioListItemMode.normal);
   var highlightNotifier = ValueNotifier(false);
   var playingNotifier = ValueNotifier(false);
   late GlobalKey key;
+  Float32List? waveformData;
+  void Function()? updateWidget;
+  void Function()? onPlayStopped;
+  void Function()? onPlayPaused;
+  void Function()? onPlayStarted;
 
   final log = Logger('AudioListItemState', level: LogLevel.debug);
 
@@ -30,23 +37,23 @@ class AudioListItemState {
     }
   }
 
-  AudioListItemState(this.audioObject,
+  AudioWidgetState(this.audioObject,
       {AudioListItemMode? mode, GlobalKey? key}) {
     this.key = key ?? GlobalKey();
     if (mode != null) itemModeNotifier.value = mode;
     if (audioObject is AudioInfo) {
       final audio = audioObject as AudioInfo;
-      audio.onPlayStarted = () {
+      onPlayStarted = () {
         log.debug("play started: ${audio.path}");
         highlight = true;
         playing = true;
         ensureVisible();
       };
-      audio.onPlayPaused = () {
+      onPlayPaused = () {
         log.debug("play paused: ${audio.path}");
         playing = false;
       };
-      audio.onPlayStopped = () {
+      onPlayStopped = () {
         log.debug("play stopped: ${audio.path}");
         playing = false;
         highlight = false;

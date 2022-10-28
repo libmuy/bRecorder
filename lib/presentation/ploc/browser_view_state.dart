@@ -14,9 +14,9 @@ import '../../core/utils/utils.dart';
 import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import '../pages/browser_view.dart';
-import '../widgets/audio_list_item/audio_list_item_state.dart';
+import '../widgets/audio_list_item/audio_widget_state.dart';
 
-final log = Logger('BrowserState');
+final _log = Logger('BrowserState', level: LogLevel.debug);
 
 abstract class BrowserViewState {
   /*=======================================================================*\ 
@@ -132,7 +132,7 @@ abstract class BrowserViewState {
 
   List<AudioObject> get selectedObjects {
     return _currentFolder.subObjects.where((item) {
-      final state = item.displayData as AudioListItemState;
+      final state = item.displayData as AudioWidgetState;
       return state.selected;
     }).toList();
   }
@@ -140,8 +140,8 @@ abstract class BrowserViewState {
   void _modeListener() {
     final itemMode =
         _isEditMode ? AudioListItemMode.notSelected : AudioListItemMode.normal;
-    final itemStates = _currentFolder.subObjects
-        .map((e) => e.displayData as AudioListItemState);
+    final itemStates =
+        _currentFolder.subObjects.map((e) => e.displayData as AudioWidgetState);
     for (final itemState in itemStates) {
       itemState.mode = itemMode;
       itemState.resetHighLight();
@@ -176,7 +176,7 @@ abstract class BrowserViewState {
   }
 
   void folderOnTap(FolderInfo folder) {
-    final state = folder.displayData as AudioListItemState;
+    final state = folder.displayData as AudioWidgetState;
     if (_isEditMode && widget.editable) {
       state.toggleSelected();
       if (state.selected) {
@@ -190,7 +190,7 @@ abstract class BrowserViewState {
   }
 
   void audioOnTap(AudioInfo audio, bool iconOnTapped) async {
-    final state = audio.displayData as AudioListItemState;
+    final state = audio.displayData as AudioWidgetState;
     switch (mode) {
       case GlobalMode.normal:
         if (!iconOnTapped) {
@@ -227,8 +227,8 @@ abstract class BrowserViewState {
     _agent.stopPlayIfPlaying();
   }
 
-  void onListItemLongPressed(AudioListItemState item) {
-    log.debug("item:${basename(item.audioObject.path)}long pressed");
+  void onListItemLongPressed(AudioWidgetState item) {
+    _log.debug("item:${basename(item.audioObject.path)}long pressed");
     switch (mode) {
       case GlobalMode.normal:
       case GlobalMode.playback:
@@ -252,15 +252,19 @@ abstract class BrowserViewState {
   /*=======================================================================*\ 
     Repository
   \*=======================================================================*/
+  void setInitialPath(String path) {
+    _folderNotifier.value = FolderInfo(path);
+  }
+
   void resetAudioItemDisplayData(AudioObject obj) {
     var itemState = AudioListItemMode.normal;
     if (widget.editable && _isEditMode) {
       itemState = AudioListItemMode.notSelected;
     }
     if (obj.displayData == null) {
-      obj.displayData = AudioListItemState(obj, mode: itemState);
+      obj.displayData = AudioWidgetState(obj, mode: itemState);
     } else {
-      final state = obj.displayData as AudioListItemState;
+      final state = obj.displayData as AudioWidgetState;
       state.mode = itemState;
       state.resetHighLight();
     }
@@ -283,6 +287,7 @@ abstract class BrowserViewState {
   }
 
   void cd(String path, {bool force = false}) async {
+    _log.debug("cd($path)");
     if (!_initialized) return;
     if (equals(path, _rootPath) && !force) return;
     _currentAudioIndex = null;
@@ -292,7 +297,7 @@ abstract class BrowserViewState {
       final FolderInfo folderInfo = result.value;
       if (result.succeed) {
         Map<String, AudioItemGroupModel> groups;
-        log.info("folder changed to:${_repo.name}$path, "
+        _log.info("folder changed to:${_repo.name}$path, "
             "count:${folderInfo.subObjects.length}");
 
         if (widget.groupByDate) {
@@ -301,10 +306,12 @@ abstract class BrowserViewState {
           if (allAudios == null) return;
 
           // final groups = allAudios?.
-          groups = groupBy(allAudios,
-                  (AudioObject audio) => dateFormat.format(audio.timestamp))
-              .map((key, value) =>
-                  MapEntry(key, AudioItemGroupModel(audios: value)));
+          groups = groupBy(
+              allAudios,
+              (AudioObject audio) => audio.timestamp == null
+                  ? '----/--/--'
+                  : dateFormat.format(audio.timestamp!)).map((key, value) =>
+              MapEntry(key, AudioItemGroupModel(audios: value)));
         } else {
           groups = {
             "/": AudioItemGroupModel(
@@ -319,8 +326,14 @@ abstract class BrowserViewState {
 
         groupNotifier.value = groups;
 
+        // if (_currentFolder.path != folderInfo.path) {
         // folderInfo.dump();
         _resetSelectedItem();
+        _currentFolder.displayData?.updateWidget = null;
+        _log.debug("set folder updateWidget func:${folderInfo.path}");
+        folderInfo.displayData ??= AudioWidgetState(folderInfo);
+        folderInfo.displayData!.updateWidget =
+            () => cd(folderInfo.path, force: true);
         _folderNotifier.update(newValue: folderInfo, forceNotify: force);
         widget.onFolderChanged?.call(folderInfo);
         _notifyTitle();
@@ -328,8 +341,9 @@ abstract class BrowserViewState {
           await _agent.stopPlayIfPlaying();
           mode = GlobalMode.normal;
         }
+        // }
       } else {
-        log.critical("Failed to get folder($path) info");
+        _log.critical("Failed to get folder($path) info");
       }
     });
   }
@@ -350,9 +364,9 @@ abstract class BrowserViewState {
     final path = join(_currentFolder.path, newFolderName);
     final ret = await _repo.newFolder(path);
     if (ret.succeed) {
-      log.debug("create folder ok");
+      _log.debug("create folder ok");
     } else {
-      log.debug("create folder failed: ${ret.error}");
+      _log.debug("create folder failed: ${ret.error}");
     }
 
     refresh();
@@ -388,13 +402,13 @@ abstract class BrowserViewState {
     final dstRepo = dst.repo;
     //TODO: implement move between repos
     if (dstRepo != _repo) {
-      log.error("NOT implemented");
+      _log.error("NOT implemented");
       return false;
     }
 
     final result = await _repo.moveObjects(selectedObjects, dst);
     if (result.failed) {
-      log.error("Move to folder${dst.path} failed:${result.error}");
+      _log.error("Move to folder${dst.path} failed:${result.error}");
       return false;
     }
 
@@ -433,14 +447,14 @@ abstract class BrowserViewState {
     mode = GlobalMode.playback;
     var ret = await _agent.stopPlayIfPlaying();
     if (ret.failed) {
-      log.error("stop playing failed");
+      _log.error("stop playing failed");
       return;
     }
 
     ret = await _agent.startPlay(audio);
     if (ret.succeed) {
       if (_currentAudio != null) {
-        var state = _currentAudio!.displayData as AudioListItemState;
+        var state = _currentAudio!.displayData as AudioWidgetState;
         state.highlight = false;
         state.playing = false;
       }
@@ -452,12 +466,12 @@ abstract class BrowserViewState {
     final current = _currentAudioIndex ?? 0;
 
     if ((!repeat) && current >= _audioCount - 1) {
-      log.debug("this is the last one");
+      _log.debug("this is the last one");
       return;
     }
 
     final nextIndex = (current + 1) % _audioCount;
-    log.debug("playback next($nextIndex)");
+    _log.debug("playback next($nextIndex)");
     _playNewAudio(_audios![nextIndex]);
   }
 
@@ -471,7 +485,7 @@ abstract class BrowserViewState {
     }
 
     final prev = _audios![_currentAudioIndex! - 1];
-    log.debug("playback previous(${_currentAudioIndex! - 1})");
+    _log.debug("playback previous(${_currentAudioIndex! - 1})");
     _playNewAudio(prev);
   }
 }
@@ -541,13 +555,25 @@ class AudioItemGroupModel {
       // ignore: unnecessary_cast
       folders?.map((e) => e as AudioObject).toList();
 
+  int compareWitNull<T extends Comparable>(T? t1, T? t2) {
+    if (t1 == null && t2 == null) {
+      return 0;
+    } else if (t1 == null && t2 != null) {
+      return 1;
+    } else if (t1 != null && t2 == null) {
+      return -1;
+    } else {
+      return t1!.compareTo(t2!);
+    }
+  }
+
   void sortItems(AudioItemSortType sortType, bool reverseOrder) {
     int Function(AudioObject, AudioObject)? compare;
     switch (sortType) {
       case AudioItemSortType.dateTime:
         compare = (a, b) => reverseOrder
-            ? b.timestamp.compareTo(a.timestamp)
-            : a.timestamp.compareTo(b.timestamp);
+            ? compareWitNull(b.timestamp, a.timestamp)
+            : compareWitNull(a.timestamp, b.timestamp);
         break;
       case AudioItemSortType.name:
         compare = (a, b) {
@@ -559,8 +585,8 @@ class AudioItemGroupModel {
         break;
       case AudioItemSortType.size:
         compare = (a, b) => reverseOrder
-            ? b.bytes.compareTo(a.bytes)
-            : a.bytes.compareTo(b.bytes);
+            ? compareWitNull(b.bytes, a.bytes)
+            : compareWitNull(a.bytes, b.bytes);
         break;
     }
 

@@ -1,17 +1,49 @@
-import 'package:flutter/material.dart';
+import 'package:brecorder/data/filesystem_repository.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:googleapis/drive/v3.dart' as gdrive;
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart';
 
+import '../core/logging.dart';
 import '../core/result.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 
-class GoogleDriveRepository extends Repository {
-  final _googleSignIn =
-      GoogleSignIn.standard(scopes: [drive.DriveApi.driveScope]);
+const _kRootFolderName = "bRecorder";
+const _kFolderMimeType = 'application/vnd.google-apps.folder';
+const _kAppTagKey = "appTag";
+const _kAppTagValue = "bRecorder";
+const _kSingleFileFieldsInternal =
+    'id, name, parents, properties, size, modifiedTime, '
+    'videoMediaMetadata(durationMillis), mimeType';
+const _kSingleFileFields = 'files($_kSingleFileFieldsInternal)';
+const _kQueryWithTag = "properties has { "
+    "key='$_kAppTagKey' and value='$_kAppTagValue'} and $_kQueryNoTrash";
+const _kQueryNoTrash = "trashed = false";
+const _kContentType = 'audio/aac';
+const _kCommonProperties = {
+  _kAppTagKey: _kAppTagValue,
+};
 
+class GoogleDriveRepository extends FilesystemRepository {
+  CloudState _state = CloudState.init;
+  final _googleSignIn =
+      GoogleSignIn.standard(scopes: [gdrive.DriveApi.driveScope]);
   GoogleSignInAccount? _account;
+  gdrive.DriveApi? _driveApi;
+  String _cloudErrorMessage = "";
+  String? _gDriveRootFolderId;
+  String? _gDriveMyDriveId;
+
+  GoogleDriveRepository(Future<String> rootPathFuture) : super(rootPathFuture) {
+    log.name = "RepoGDrive";
+    log.level = LogLevel.verbose3;
+  }
+
+  gdrive.File get _googleDriveRootFolder => gdrive.File(
+      id: _gDriveRootFolderId,
+      mimeType: _kFolderMimeType,
+      name: _kRootFolderName);
 
   // GoogleDriveRepository() {
   //   _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
@@ -22,28 +54,36 @@ class GoogleDriveRepository extends Repository {
   // }
 
   @override
-  Future<Result> getFolderInfoRealOperation(String relativePath,
-      {bool folderOnly = false}) async {
-    return Succeed(FolderInfo(relativePath, 0, DateTime(1907), 0));
-  }
-
-  @override
-  Future<String> get rootPath async {
-    return "";
-  }
-
-  @override
-  bool get enabled => _account != null;
-
-  @override
-  Future<bool> setEnabled(bool value) async {
-    if (value) {
-      _account = await _googleSignIn.signIn();
-    } else {
-      await _googleSignIn.signOut();
+  Future<bool> connectCloud({bool background = false}) async {
+    _state = CloudState.connecting;
+    try {
+      if (background) {
+        _account = await _googleSignIn.signInSilently();
+      } else {
+        _account = await _googleSignIn.signIn();
+      }
+      if (_account == null) return false;
+      final authHeaders = await _account!.authHeaders;
+      final authenticateClient = GoogleAuthClient(authHeaders, log);
+      _driveApi = gdrive.DriveApi(authenticateClient);
+    } catch (e) {
       _account = null;
+      _driveApi = null;
+      _state = CloudState.error;
+      _cloudErrorMessage = e.toString();
+      return false;
     }
-    return enabled;
+    _state = CloudState.connected;
+    return true;
+  }
+
+  @override
+  Future<bool> disconnectCloud() async {
+    _account = null;
+    _driveApi = null;
+    await _googleSignIn.signOut();
+    _state = CloudState.init;
+    return true;
   }
 
   String? get account {
@@ -52,32 +92,562 @@ class GoogleDriveRepository extends Repository {
   }
 
   @override
+  String get cloudErrMessage => _cloudErrorMessage;
+
+  @override
   final type = RepoType.googleDrive;
 
   @override
-  final isCloud = true;
+  CloudState get cloudState => _state;
 
   @override
-  Future<Result> moveObjectsRealOperation(
-      String srcRelativePath, String dstRelativePath) async {
+  Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
+      {bool updateCloud = true}) async {
+    final ret = await super.moveObjectsRealOperation(src, dstFolder);
+    if (ret.failed || updateCloud == false) return ret;
+
     return Fail(IOFailure());
   }
 
   @override
-  Future<Result> newFolderRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+  Future<Result> newFolderRealOperation(String relativePath,
+      {bool updateCloud = true}) async {
+    final ret = await super.newFolderRealOperation(relativePath);
+    if (ret.failed || updateCloud == false) return ret;
+
+    FolderInfo folder = ret.value;
+    final newFolder = await _createDirectory(folder);
+    if (newFolder == null) {
+      return Fail(ErrMsg("Create Google Drive folder failed"
+          ": ${folder.path}"));
+    }
+    return ret;
   }
 
   @override
-  Future<Result> removeObjectRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+  Future<Result> removeObjectRealOperation(AudioObject obj,
+      {bool updateCloud = true}) async {
+    final ret = await super.removeObjectRealOperation(obj);
+    if (ret.failed || updateCloud == false) return ret;
+
+    final ok = await _removeFile(obj);
+    if (!ok) {
+      return Fail(ErrMsg("Create Google Drive folder failed"
+          ": ${obj.path}"));
+    }
+
+    return ret;
+  }
+
+  Future<bool> updateCloudState(FolderInfo folder) async {
+    int audioCount = 0;
+    int bytes = 0;
+    DateTime timestamp = DateTime(1970);
+    bool syncing = false;
+    bool downloading = false;
+    bool uploading = false;
+    bool conflict = false;
+
+    void setFlags(CloudFileState state) {
+      switch (state) {
+        case CloudFileState.init:
+          log.error("############# this should not happen ########");
+          break;
+        case CloudFileState.synced:
+          break;
+        case CloudFileState.downloading:
+          downloading = true;
+          break;
+        case CloudFileState.uploading:
+          uploading = true;
+          break;
+        case CloudFileState.syncing:
+          syncing = true;
+          break;
+        case CloudFileState.conflict:
+          conflict = true;
+          break;
+      }
+    }
+
+    log.debug("Get statics: ${folder.path}");
+    for (final sub in folder.subObjects) {
+      if (sub is FolderInfo) {
+        await updateCloudState(sub);
+        audioCount += sub.allAudioCount!;
+      } else if (sub is AudioInfo) {
+        //UI requested audios have no detail info, gather info here
+        if (sub.bytes == null) {
+          final result = await getAudioInfoFromRepo(sub, prefetch: true);
+          if (!result) {
+            log.error("Get AudioInfo from repo failed: ${sub.path}");
+            return false;
+          }
+        }
+        audioCount++;
+      }
+      bytes += sub.bytes!;
+      if (sub.timestamp!.compareTo(timestamp) > 1) timestamp = sub.timestamp!;
+
+      setFlags(sub.cloudData!.state);
+    }
+    folder.allAudioCount = audioCount;
+    folder.bytes = bytes;
+    folder.timestamp = timestamp;
+    if (conflict) {
+      folder.cloudData!.state = CloudFileState.conflict;
+    } else if (downloading && !uploading && !syncing) {
+      folder.cloudData!.state = CloudFileState.downloading;
+    } else if (!downloading && uploading && !syncing) {
+      folder.cloudData!.state = CloudFileState.uploading;
+    } else if (downloading || uploading || syncing) {
+      folder.cloudData!.state = CloudFileState.syncing;
+    } else if (!downloading && !uploading && !syncing) {
+      folder.cloudData!.state = CloudFileState.synced;
+    }
+    folder.updateUI();
+    return true;
   }
 
   @override
-  Future<Result> getAudioInfoRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+  Future<bool> preFetchInternal() async {
+    bool networkUpdate;
+    var ret = await super.preFetchInternal();
+    if (!doingRrefetch) return false;
+    await waitUiReqWhilePrefetch();
+    if (!ret) return false;
+
+    // log.debug("============== Prefetch: Add Cloud Data to cache");
+    // //Add Cloud Data
+    // for (var obj in cache!.subObjects) {
+    //   obj.cloudData = CloudFileData(CloudFileState.uploading);
+    // }
+
+    do {
+      log.debug("============== Prefetch: Get Google Drive Files with tag");
+      networkUpdate = await _updateFromCloudWithAppTag();
+      if (!doingRrefetch) return false;
+      await waitUiReqWhilePrefetch();
+      if (!networkUpdate) {
+        log.error("Get File info from Google Drive (with tag) failed"
+            ", retry in 10 seconds");
+        await Future.delayed(const Duration(seconds: 10));
+      }
+    } while (!networkUpdate);
+
+    do {
+      log.debug("============== Prefetch: Get Google Drive Files without tag");
+      networkUpdate = await _updateFromCloudWithoutAppTag();
+      if (!doingRrefetch) return false;
+      await waitUiReqWhilePrefetch();
+      if (!networkUpdate) {
+        log.error("Get File info from Google Drive (without tag) failed"
+            ", retry in 10 seconds");
+        await Future.delayed(const Duration(seconds: 10));
+      }
+    } while (!networkUpdate);
+
+    do {
+      log.debug("============== Prefetch: Sync");
+      networkUpdate = await _syncWorker(cache!);
+      if (!doingRrefetch) return false;
+      await waitUiReqWhilePrefetch();
+      if (!networkUpdate) {
+        log.error("Sync with Google Drive failed"
+            ", retry in 10 seconds");
+        await Future.delayed(const Duration(seconds: 10));
+      }
+    } while (!networkUpdate);
+
+    log.debug("============== Prefetch: End");
+    return true;
+  }
+
+  Future<List<gdrive.File>?> _getSubsFromCloud(String folderId,
+      {bool withoutProperty = true}) async {
+    String? nextToken;
+    List<gdrive.File> ret = [];
+    List<gdrive.File>? files;
+    gdrive.FileList queryResult;
+    var query = "'$folderId' in parents and $_kQueryNoTrash";
+    if (withoutProperty) query += " and not $_kQueryWithTag";
+    try {
+      //Get All files with app tag
+      do {
+        queryResult = await _driveApi!.files.list(
+            q: query,
+            $fields: 'nextPageToken, $_kSingleFileFields',
+            spaces: 'drive');
+        files = queryResult.files;
+        nextToken = queryResult.nextPageToken;
+        if (files == null || files.isEmpty) break;
+        for (var f in files) {
+          ret.add(await _makeSureHasProperty(f));
+        }
+      } while (nextToken != null);
+    } catch (e) {
+      log.error("Can not retrive files from Google Drive"
+          ", query:$query, error: $e");
+      return null;
+    }
+
+    return ret;
+  }
+
+  Future<bool> _addCloudFileToCache(String path, gdrive.File file,
+      {Map<String, List<gdrive.File>>? filesByParent}) async {
+    final id = file.id!;
+    final name = file.name!;
+    FolderInfo? parent;
+    log.debug("Add cloud file($path) to cache");
+
+    if (path == "/") {
+      parent = null;
+    } else {
+      final dirPath = dirname(path);
+      parent = findObjectFromCache(dirPath) as FolderInfo?;
+      if (parent == null) {
+        log.error("Not found parent dir:$dirPath");
+        return false;
+      }
+    }
+
+    if (file.isDirectory) {
+      FolderInfo thisFolder;
+      if (parent == null) {
+        thisFolder = cache!;
+      } else {
+        if (parent.hasSubfolder(name)) {
+          //Add Folder if not exists
+          thisFolder = parent.subfoldersMap![name]!;
+        } else {
+          //Create folder and add folder into cache
+          final ret = await newFolderRealOperation(path, updateCloud: false);
+          if (!doingRrefetch) return false;
+          await waitUiReqWhilePrefetch();
+          if (ret.failed) return false;
+
+          thisFolder = ret.value;
+        }
+      }
+      thisFolder.cloudData = CloudFileData(id);
+
+      List<gdrive.File>? subs;
+      //Get subs from cache
+      if (filesByParent != null && filesByParent.containsKey(id)) {
+        subs = filesByParent[id]!;
+        //Get subs from Cloud
+      } else {
+        subs = await _getSubsFromCloud(id);
+        if (!doingRrefetch) return false;
+        await waitUiReqWhilePrefetch();
+      }
+      if (subs != null) {
+        for (final sub in subs) {
+          final ret = await _addCloudFileToCache(join(path, sub.name!), sub,
+              filesByParent: filesByParent);
+          if (!doingRrefetch) return false;
+          await waitUiReqWhilePrefetch();
+          if (ret == false) return false;
+        }
+      }
+    } else {
+      AudioInfo thisFile;
+      if (parent!.hasAudio(name)) {
+        thisFile = parent.audiosMap![name]!;
+        if (thisFile.bytes == int.parse(file.size!)) {
+          thisFile.cloudData = CloudFileData(id, state: CloudFileState.synced);
+        } else {
+          thisFile.cloudData =
+              CloudFileData(id, state: CloudFileState.conflict);
+        }
+      } else {
+        thisFile = AudioInfo(path,
+            bytes: int.parse(file.size!),
+            timestamp: file.modifiedTime!,
+            repo: this);
+        thisFile.cloudData =
+            CloudFileData(id, state: CloudFileState.downloading);
+        addObjectIntoCache(thisFile, dst: parent, onlyStruct: true);
+      }
+    }
+
+    return true;
+  }
+
+/*=======================================================================*\ 
+  Sync Worker
+\*=======================================================================*/
+  Future<bool> _syncWorker(FolderInfo folder) async {
+    //Not exist in cloud, create it
+    if (folder.cloudData == null) {
+      final gFolder = await _createDirectory(folder);
+      if (gFolder == null) return false;
+    }
+
+    for (final sub in folder.subObjects) {
+      if (sub is FolderInfo) {
+        final ok = await _syncWorker(sub);
+        if (!ok) return false;
+      } else if (sub is AudioInfo) {
+        //Not exist in cloud, upload it
+        if (sub.cloudData == null) {
+          final ok = await _uploadFile(sub);
+          if (!ok) return false;
+        } else {
+          if (sub.cloudData!.state == CloudFileState.downloading) {
+            final ok = await _downloadFile(sub);
+            if (!ok) return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  Future<gdrive.File> _makeSureHasProperty(gdrive.File file) async {
+    final properties = file.properties;
+    if (properties != null &&
+        properties.containsKey(_kAppTagKey) &&
+        properties[_kAppTagKey] == _kAppTagValue) return file;
+
+    log.debug("Folder(${file.name}) has no tag, add tag");
+    final request = gdrive.File(properties: {_kAppTagKey: _kAppTagValue});
+    return _driveApi!.files
+        .update(request, file.id!, $fields: _kSingleFileFields);
+  }
+
+  Future<gdrive.File?> _getRootFolder() async {
+    gdrive.File? rootFolder;
+    final file =
+        await _driveApi!.files.get("root", $fields: "id") as gdrive.File;
+    log.verbose("Got 'My Drive' folder id:${file.id}");
+    final queryRootFolder = "name = '$_kRootFolderName'"
+        " and mimeType = '$_kFolderMimeType' and $_kQueryNoTrash"
+        " and '${file.id}' in parents";
+
+    //Get Root Folder with tag
+    var queryResult = await _driveApi!.files.list(
+        q: "$queryRootFolder and $_kQueryWithTag",
+        $fields: _kSingleFileFields,
+        spaces: 'drive');
+    if (!doingRrefetch) return null;
+    await waitUiReqWhilePrefetch();
+    var files = queryResult.files;
+
+    //No 'bRecorder' folder exists, search without tag
+    if (files == null || files.isEmpty) {
+      log.verbose("Get root folder with tag failed, retry get it without tag");
+      queryResult = await _driveApi!.files.list(
+          q: queryRootFolder, $fields: _kSingleFileFields, spaces: 'drive');
+      if (!doingRrefetch) return null;
+      await waitUiReqWhilePrefetch();
+      files = queryResult.files;
+    } else {
+      log.verbose("Get root folder with tag OK!");
+    }
+
+    //No 'bRecorder' folder exists, create it
+    if (files == null || files.isEmpty) {
+      log.verbose("Root folder not exists, create it");
+      rootFolder = await _createDirectory(cache!);
+    } else {
+      rootFolder = files.first;
+      log.info("[Google Drive] Got root folder, id:${rootFolder.id}");
+    }
+
+    if (rootFolder == null) return null;
+
+    //Got the 'bRecorder' Folder without app tag
+    rootFolder = await _makeSureHasProperty(rootFolder);
+    _gDriveRootFolderId = rootFolder.id!;
+    return rootFolder;
+  }
+
+  Future<bool> _updateFromCloudWithAppTag() async {
+    if (_account == null) return false;
+    Map<String, List<gdrive.File>> filesByParent = {};
+    String? nextToken;
+    gdrive.File? rootFolder;
+
+    const fields = 'nextPageToken, $_kSingleFileFields';
+    List<gdrive.File>? files;
+    gdrive.FileList queryResult;
+    try {
+      //Get root folder
+      rootFolder = await _getRootFolder();
+      if (rootFolder == null) return false;
+      if (!doingRrefetch) return false;
+      await waitUiReqWhilePrefetch();
+
+      //Get All files with app tag
+      do {
+        queryResult = await _driveApi!.files
+            .list(q: _kQueryWithTag, $fields: fields, spaces: 'drive');
+        if (!doingRrefetch) return false;
+        await waitUiReqWhilePrefetch();
+        files = queryResult.files;
+        nextToken = queryResult.nextPageToken;
+        if (files == null || files.isEmpty) break;
+
+        for (final f in files) {
+          log.debug("got file with tag:${f.name}");
+          final parentId = f.parents!.first;
+          if (filesByParent.containsKey(parentId)) {
+            filesByParent[parentId]!.add(f);
+          } else {
+            filesByParent[parentId] = [f];
+          }
+        }
+      } while (nextToken != null);
+    } catch (e) {
+      log.error("Can not retrive files from Google Drive: $e");
+      return false;
+    }
+
+    return await _addCloudFileToCache("/", rootFolder,
+        filesByParent: filesByParent);
+  }
+
+  Future<bool> _updateFromCloudWithoutAppTag() async {
+    return await _addCloudFileToCache("/", _googleDriveRootFolder);
+  }
+
+  ///Delete Google Drive File/Folder recursively
+  Future<bool> _removeFile(AudioObject file) async {
+    log.debug("[Google Drive] Remove:${file.path}");
+    try {
+      await _driveApi!.files.delete(file.cloudData!.id!);
+    } catch (e) {
+      log.error("Delete Google Drive file(${file.path}) failed, $e");
+      return false;
+    }
+    log.debug("Delete Google Drive file(${file.path}) OK");
+    return true;
+  }
+
+  Future<gdrive.File?> _createDirectory(FolderInfo folder) async {
+    log.debug("[Google Drive] Create Folder:${folder.path}");
+    final parent = folder.parent;
+    var file =
+        gdrive.File(properties: _kCommonProperties, mimeType: _kFolderMimeType);
+    if (parent == null) {
+      //Root folder
+      file.name = _kRootFolderName;
+    } else {
+      //Normal folder
+      file.name = folder.name;
+      file.parents = [
+        folder.parent!.cloudData!.id!,
+      ];
+    }
+
+    try {
+      file = await _driveApi!.files
+          .create(file, $fields: _kSingleFileFieldsInternal);
+      folder.cloudData = CloudFileData(file.id);
+    } catch (e) {
+      log.error("Create Google Drive folder failed, $e");
+      return null;
+    }
+    log.debug("Create Google Drive folder OK");
+    return file;
+  }
+
+  Future<bool> _uploadFile(AudioInfo audio, {bool overwrite = false}) async {
+    log.debug("[Google Drive] Upload:${audio.path}");
+    var media = gdrive.Media((await audio.file).openRead(), audio.bytes,
+        contentType: _kContentType);
+    var driveFile = gdrive.File(
+        properties: _kCommonProperties,
+        parents: [audio.parent!.cloudData!.id!],
+        name: audio.name);
+
+    //Overwrite upload
+    if (audio.cloudData != null) {
+      if (!overwrite) {
+        log.error("Upload error: File Already exists."
+            " use [overwrite] argument to overwrite");
+        return false;
+      }
+      driveFile.id = audio.cloudData!.id;
+    }
+
+    try {
+      final result =
+          await _driveApi!.files.create(driveFile, uploadMedia: media);
+      audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
+      audio.updateUI();
+      log.info("Upload audio to Google Drive OK: ${audio.path}");
+    } catch (e) {
+      log.error("Upload Google Drive file(${audio.path}) failed, $e");
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> _downloadFile(AudioInfo audio, {bool overwrite = false}) async {
+    log.debug("[Google Drive] Download:${audio.path}");
+    try {
+      if ((await audio.file).existsSync()) {
+        if (!overwrite) {
+          log.error("Download error: File Already exists."
+              " use [overwrite] argument to overwrite");
+          return false;
+        }
+      }
+      final media = await _driveApi!.files.get(audio.cloudData!.id!,
+          downloadOptions: gdrive.DownloadOptions.fullMedia) as gdrive.Media;
+      final result = (await audio.file).openWrite().addStream(media.stream);
+      log.info("Download file startted");
+      result.then((_) async {
+        final updateResult = await getAudioInfoFromRepo(audio);
+        if (!updateResult) return false;
+        audio.cloudData!.state = CloudFileState.synced;
+        audio.updateUI();
+        log.info("Download from Google Drive DONE: ${audio.path}");
+      }, onError: (e) {
+        log.info("Download from Google Drive ERROR: ${audio.path} \n$e");
+      });
+    } catch (e) {
+      log.error("Download Google Drive file(${audio.path}) failed, $e");
+      return false;
+    }
+    return true;
+  }
+
+  void debugDumpCache() {
+    cache!.dump();
+  }
+
+  void debugGetAllFiles() async {
+    if (_account == null) return;
+
+    log.debug("retriving file list");
+    _driveApi!.files
+        .list(
+            q: "name = '$_kRootFolderName' and type",
+            $fields: 'nextPageToken, files(id, name, parents)',
+            spaces: 'drive')
+        .then((list) {
+      log.debug("got file list");
+      list.files?.forEach((file) {
+        // _driveApi!.files
+        //     .get(file.id!, $fields: 'id, name, parents')
+        //     .then((value) {
+        //   final file = value as drive.File;
+        //   log.debug("parent:${file.parents}");
+        // });
+
+        log.debug("ID:${file.id}, "
+            "name:${file.name}, "
+            "parents:${file.parents}, "
+            "size:${file.size}");
+      });
+    });
   }
 }
+
 // final authHeaders = await account!.authHeaders;
 // final authenticateClient = GoogleAuthClient(authHeaders);
 // final driveApi = drive.DriveApi(authenticateClient);
@@ -92,13 +662,36 @@ class GoogleDriveRepository extends Repository {
 
 class GoogleAuthClient extends http.BaseClient {
   final Map<String, String> _headers;
+  Logger log;
 
   final http.Client _client = http.Client();
 
-  GoogleAuthClient(this._headers);
+  GoogleAuthClient(this._headers, this.log);
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    return _client.send(request..headers.addAll(_headers));
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final ret = await _client.send(request..headers.addAll(_headers));
+    // log.debug("Sent url: ${request.url}, bytes: ${request.contentLength} ");
+    return ret;
   }
+}
+
+extension GoogleDriveRepoExt on gdrive.File {
+  bool get isDirectory => mimeType == "application/vnd.google-apps.folder";
+}
+
+class CloudFileData {
+  String? id;
+  CloudFileState state;
+
+  CloudFileData(this.id, {this.state = CloudFileState.init});
+}
+
+enum CloudFileState {
+  init,
+  downloading,
+  uploading,
+  syncing, // uploading or downloading
+  synced,
+  conflict,
 }

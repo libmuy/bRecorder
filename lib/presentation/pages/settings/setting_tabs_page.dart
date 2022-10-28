@@ -1,3 +1,4 @@
+import 'package:brecorder/data/google_drive_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/global_info.dart';
@@ -26,31 +27,79 @@ class _SettingTabsPageState extends State<SettingTabsPage> {
 
   Widget _buildListItem(TabInfo tabInfo, int? draggableListIndex) {
     final repoType = tabInfo.repoType;
+    final repo = sl.getRepository(repoType);
     return Container(
+      height: 60,
       color: Theme.of(context).primaryColor,
-      key: Key(repoType.name),
+      key: Key(repoType.title),
       margin: const EdgeInsets.only(bottom: 1),
       child: Row(
         children: [
           Expanded(
-            child: ListTile(
-              // tileColor: _items[index].isOdd ? oddItemColor : evenItemColor,
-              title: Text(repoType.name),
-              leading: repoType.icon,
-              trailing: tabInfo.enabled && draggableListIndex != null
+            child: Row(children: [
+              //Leading Icon
+              Container(
+                alignment: Alignment.centerLeft,
+                padding: EdgeInsets.only(left: 15),
+                width: 50,
+                child: repoType.icon,
+              ),
+
+              //Titles
+              Expanded(
+                  child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    repoType.title,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  repo is GoogleDriveRepository && repo.account != null
+                      ? Text(
+                          repo.account!,
+                          style: TextStyle(
+                              fontSize: 12, color: Theme.of(context).hintColor),
+                        )
+                      : Container(),
+                ],
+              )),
+
+              //Drag handler
+              tabInfo.enabled && draggableListIndex != null
                   ? ReorderableDragStartListener(
                       index: draggableListIndex,
                       child: const Icon(Icons.drag_handle_outlined),
                     )
-                  : null,
-            ),
+                  : Container(),
+            ]),
           ),
           Switch(
             value: tabInfo.enabled,
-            onChanged: (value) {
-              setState(() {
-                tabInfo.enabled = !tabInfo.enabled;
-              });
+            onChanged: (enable) {
+              if (repo.isCloud) {
+                final Future<bool> ret;
+                if (enable) {
+                  ret = repo.connectCloud();
+                } else {
+                  ret = repo.disconnectCloud();
+                }
+                ret.then((succed) {
+                  if (succed) {
+                    setState(() {
+                      tabInfo.enabled = !tabInfo.enabled;
+                    });
+                  } else {
+                    sl.messageState.currentState!.showSnackBar(SnackBar(
+                        content: Text("Enable ${repoType.title} Failed!"
+                            "(${repo.cloudErrMessage})")));
+                  }
+                });
+              } else {
+                setState(() {
+                  tabInfo.enabled = !tabInfo.enabled;
+                });
+              }
             },
           )
         ],
@@ -106,6 +155,7 @@ class _SettingTabsPageState extends State<SettingTabsPage> {
                 return Column(
                   children: [
                     ReorderableListView(
+                      physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
                       buildDefaultDragHandles: false,
                       children: enabledItems,

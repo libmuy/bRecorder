@@ -1,34 +1,22 @@
 // ignore_for_file: unused_element
 
-import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
-import '../core/logging.dart';
 import '../core/result.dart';
 import '../core/service_locator.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 
-final log = Logger('FolderSelector');
-
 class AllStorageRepository extends Repository {
   List<Repository>? _repoList;
   Map<String, Repository>? _nameToRepo;
 
+  AllStorageRepository() {
+    log.name = "RepoAll";
+  }
+
   @override
   final type = RepoType.allStoreage;
-
-  @override
-  final String name = "All Storages";
-
-  @override
-  final Icon icon = const Icon(Icons.storage);
-
-  @override
-  final browsable = false;
-
-  @override
-  final isTab = false;
 
   List<Repository> get repoList {
     if (_repoList != null) {
@@ -84,7 +72,7 @@ class AllStorageRepository extends Repository {
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly = false}) async {
     if (relativePath == "/") {
-      var root = FolderInfo("/", 0, DateTime(1970), 0);
+      var root = FolderInfo("/");
       log.debug("get root folder info");
       var folders = await Future.wait(repoList.map((repo) async {
         final ret = await repo.getFolderInfo("/", folderOnly: folderOnly);
@@ -125,7 +113,12 @@ class AllStorageRepository extends Repository {
 
   @override
   Future<Result> moveObjectsRealOperation(
-      String srcRelativePath, String dstRelativePath) async {
+      AudioObject src, FolderInfo dstFolder) async {
+    return Fail(IOFailure());
+  }
+
+  @override
+  Future<Result> removeObjectRealOperation(AudioObject obj) async {
     return Fail(IOFailure());
   }
 
@@ -142,11 +135,6 @@ class AllStorageRepository extends Repository {
     if (ret.failed) return Fail(ErrMsg("New Folder($relativePath) failed!"));
 
     return Succeed();
-  }
-
-  @override
-  Future<Result> removeObjectRealOperation(String relativePath) async {
-    return Fail(IOFailure());
   }
 
   @override

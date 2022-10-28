@@ -9,7 +9,7 @@ import '../../data/repository.dart';
 import '../../domain/entities.dart';
 import 'browser_view_state.dart';
 
-final log = Logger('HomeState');
+final _log = Logger('HomeState');
 
 class HomePageState {
   TabController? tabController;
@@ -51,17 +51,19 @@ class HomePageState {
     if (!tabController!.indexIsChanging) {
       _setEditMode(false);
       currentTabIndex = tabController!.index;
-      currentBrowserState.refresh();
-      log.info("Tab switched, index:$currentTabIndex");
+      // currentBrowserState.refresh();
+      _log.info("Tab switched, index:$currentTabIndex");
     }
   }
 
-  void initTabController(TickerProviderStateMixin vsync, List<TabInfo> tabs) {
+  void initTabController(
+      TickerProviderStateMixin vsync, List<TabInfo> tabs, int index) {
     if (tabController != null) {
       tabController!.removeListener(_tabControllerListener);
       tabController!.dispose();
     }
-    tabController = TabController(length: tabs.length, vsync: vsync);
+    tabController =
+        TabController(length: tabs.length, vsync: vsync, initialIndex: index);
     tabsInfo = tabs;
     currentTabIndex = 0;
 
@@ -87,7 +89,7 @@ class HomePageState {
 
   void titleBarLeadingOnPressed(BuildContext context) {
     if (isRoot) {
-      log.debug("setting page");
+      _log.debug("setting page");
       // showBubbleDialog(
       //   context,
       //   position: const Offset(50, 300),
@@ -141,5 +143,14 @@ class HomePageState {
     if (currentBrowserState.cdParent()) return false;
 
     return true;
+  }
+
+  Future<void> onAppStateChanged(AppLifecycleState state) async {
+    _log.info("App State:$state");
+    if (state == AppLifecycleState.inactive) {
+      for (final listener in sl.appCloseListeners) {
+        listener();
+      }
+    }
   }
 }

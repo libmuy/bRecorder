@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
@@ -6,34 +8,50 @@ import '../core/result.dart';
 import '../domain/entities.dart';
 
 abstract class Repository {
+  @protected
+  final log = Logger('Repo', level: LogLevel.debug);
   abstract final RepoType type;
-  String get name => type.name;
+  String get name => type.title;
   Icon get icon => type.icon;
+
+  ///Could be in Tab
+  bool get isTab => type.isTab;
+
+  ///Could browse when selecting move to folder
+  bool get browsable => type.browsable;
+
+  ///Notify UI prefetching folder path
+  @protected
+  String? prefetchingFolderPath;
+
+  ///Prefetching is doing
+  @protected
+  bool doingRrefetch = false;
+
+  ///Notify UI Prefetching done
+  Completer? _prefetchCompleter;
+
+  ///UI requested folder info catch
+  @protected
+  List<FolderInfo> orphans = [];
+
+  ///Folderinfo cache
+  @protected
   FolderInfo? cache;
-
-  //Could browse when selecting move to folder
-  bool get browsable => true;
-
-  //Could be in Tab
-  bool get isTab => true;
 
   //iCloud Drive / Google Drive etc.
   CloudState get cloudState => CloudState.isNotCloud;
   bool get isCloud => cloudState != CloudState.isNotCloud;
   String get cloudErrMessage => "";
-  Future<bool> prepareCloud() async {
-    return true;
-  }
+  Future<bool> connectCloud({bool background = false}) async => true;
+  Future<bool> disconnectCloud() async => true;
 
-  // //Show in Tab or not
-  // //also used for checking that If Could Signed in or not
-  // bool get enabled => _enabled;
-  // Future<bool> setEnabled(bool value) async {
-  //   _enabled = value;
-  //   return _enabled;
-  // }
-
-  final _log = Logger('Repo');
+  ///UI requesting.
+  ///This will be checked by sub classes
+  @protected
+  Completer? uiRequest;
+  @protected
+  Completer? uiRequestNotifier;
 
   void destoryCache() {
     if (cache == null) return;
@@ -41,7 +59,8 @@ abstract class Repository {
     cache = null;
   }
 
-  AudioObject? _findObjectFromCache(String path, {bool folderOnly = false}) {
+  @protected
+  AudioObject? findObjectFromCache(String path, {bool folderOnly = false}) {
     final list = split(path);
     FolderInfo? current = cache;
 
@@ -66,23 +85,86 @@ abstract class Repository {
     return current;
   }
 
+  ///Clear cached [FolderInfo].
+  ///stop prefetching if prefetching is doing
+  Future<void> clearCache() async {
+    if (doingRrefetch) {
+      doingRrefetch = false;
+      await _prefetchCompleter!.future;
+    }
+    cache = null;
+    orphans = [];
+  }
+
+  @protected
+  Future<void> waitUiReqWhilePrefetch([bool prefetch = true]) async {
+    if (!prefetch) return;
+    if (uiRequest != null) await uiRequest!.future;
+  }
+
+  @protected
+  Future<bool> preFetchInternal() async => false;
+
+  Future<void> preFetch({bool force = false}) async {
+    if (force) {
+      await clearCache();
+    } else {
+      if (doingRrefetch) return;
+    }
+    doingRrefetch = true;
+    _prefetchCompleter = Completer();
+
+    final result = await preFetchInternal();
+    if (!result) {
+      log.critical("\n"
+          "##############################################\n"
+          "#            PreFetch FAILED!                #\n"
+          "##############################################");
+    }
+    _prefetchCompleter!.complete();
+    doingRrefetch = false;
+    _prefetchCompleter = null;
+  }
+
   Future<Result> getFolderInfo(String path,
-      {bool folderOnly = false, bool forcely = false}) async {
-    if (cache == null || forcely) {
-      _log.info("not cached, get data from real repository");
-      final ret = await getFolderInfoRealOperation("/", folderOnly: folderOnly);
-      if (ret.succeed) {
-        cache = ret.value;
-      } else {
-        _log.error("get data from real repository failed!");
-        return ret;
+      {bool folderOnly = false, bool force = false}) async {
+    FolderInfo? folder;
+
+    if (force) {
+      await clearCache();
+    } else {
+      //Wait prefetching done
+      if (prefetchingFolderPath != null && path == prefetchingFolderPath!) {
+        uiRequestNotifier = Completer();
+        await uiRequestNotifier!.future;
+        uiRequestNotifier = null;
+      }
+
+      folder = findObjectFromCache(path, folderOnly: true) as FolderInfo?;
+      if (folder == null) {
+        final result = orphans.where((f) => f.path == path);
+        if (result.isNotEmpty) folder = result.first;
       }
     }
+    if (folder == null || force) {
+      log.info("Get folder($path) from real repository");
+      uiRequest = Completer();
+      final ret =
+          await getFolderInfoRealOperation(path, folderOnly: folderOnly);
+      uiRequest!.complete();
+      uiRequest = null;
+      if (ret.succeed) {
+        folder = ret.value;
+      } else {
+        log.error("get folder($path) from real repository failed!");
+        return ret;
+      }
 
-    final folder = _findObjectFromCache(path, folderOnly: true);
-    if (folder == null) {
-      _log.error("get folder($path) info failed!");
-      return Fail(ErrMsg("Cannot find the folder in the cache!"));
+      if (path == "/") {
+        cache = folder;
+      } else {
+        orphans.add(folder!);
+      }
     }
 
     return Succeed(folder);
@@ -90,11 +172,11 @@ abstract class Repository {
 
   void _moveObjectForCache(AudioObject src, FolderInfo dst) {
     _removeObjectFromCache(src);
-    _addObjectIntoCache(src, dst: dst);
+    addObjectIntoCache(src, dst: dst);
   }
 
   void _destoryAudioObject(AudioObject obj) {
-    _log.debug("destroy repo:$name, obj:${obj.path}");
+    log.debug("destroy repo:$name, obj:${obj.path}");
     // if (obj.displayData != null) obj.displayData = null;
     if (obj.copyFrom != null) obj.copyFrom = null;
 
@@ -105,7 +187,7 @@ abstract class Repository {
         obj.parent?.audiosMap?.remove(obj.mapKey);
       }
     } catch (e) {
-      _log.warning("not exist in parent's subobject?, error:$e");
+      log.warning("not exist in parent's subobject?, error:$e");
     }
 
     obj.parent = null;
@@ -131,8 +213,22 @@ abstract class Repository {
     }
 
     while (parent != null) {
-      parent.allAudioCount -= obj is FolderInfo ? obj.allAudioCount : 1;
-      parent.bytes -= obj.bytes;
+      if (parent.allAudioCount != null) {
+        final audioCount = obj is FolderInfo ? obj.allAudioCount : 1;
+        parent.allAudioCount = parent.allAudioCount! - (audioCount ?? 0);
+      }
+      if (obj.timestamp != null && parent.timestamp == obj.timestamp) {
+        parent.timestamp = DateTime(1970);
+        for (var sub in parent.subObjects) {
+          if (sub.timestamp != null &&
+              sub.timestamp!.compareTo(parent.timestamp!) > 0) {
+            parent.timestamp = sub.timestamp!;
+          }
+        }
+      }
+      if (parent.bytes != null && obj.bytes != null) {
+        parent.bytes = parent.bytes! - obj.bytes!;
+      }
 
       child = parent;
       parent = parent.parent;
@@ -155,14 +251,16 @@ abstract class Repository {
     }
   }
 
-  bool _addObjectIntoCache(AudioObject obj, {FolderInfo? dst}) {
+  @protected
+  bool addObjectIntoCache(AudioObject obj,
+      {FolderInfo? dst, bool onlyStruct = false}) {
     FolderInfo? parent = dst;
     parent ??= obj.parent;
-    parent ??= _findObjectFromCache(dirname(obj.path), folderOnly: true)
-        as FolderInfo?;
+    parent ??=
+        findObjectFromCache(dirname(obj.path), folderOnly: true) as FolderInfo?;
 
     if (parent == null) {
-      _log.error("Can not find parent for ${obj.path}");
+      log.error("Can not find parent for ${obj.path}");
       return false;
     }
 
@@ -175,14 +273,20 @@ abstract class Repository {
     } else if (obj is FolderInfo) {
       parent.subfoldersMap ??= {};
       parent.subfoldersMap![obj.mapKey] = obj;
-      audioCount = obj.allAudioCount;
+      audioCount = obj.allAudioCount ?? 0;
     }
+
+    if (onlyStruct) return true;
 
     //update meta data of parents
     while (parent != null) {
-      parent.allAudioCount += audioCount;
-      parent.timestamp = obj.timestamp;
-      parent.bytes += obj.bytes;
+      if (parent.allAudioCount != null) {
+        parent.allAudioCount = parent.allAudioCount! + audioCount;
+      }
+      if (obj.timestamp != null) parent.timestamp = obj.timestamp;
+      if (parent.bytes != null && obj.bytes != null) {
+        parent.bytes = parent.bytes! + obj.bytes!;
+      }
       parent = parent.parent;
     }
 
@@ -195,11 +299,11 @@ abstract class Repository {
   Future<Result> moveObjects(
       List<AudioObject> srcObjList, FolderInfo folder) async {
     for (final src in srcObjList) {
-      final ret = await moveObjectsRealOperation(src.path, folder.path);
+      final ret = await moveObjectsRealOperation(src, folder);
       if (ret.succeed) {
         _moveObjectForCache(src, folder);
       } else {
-        _log.error("Move Object failed, src:$src, dst:$folder");
+        log.error("Move Object failed, src:$src, dst:$folder");
         return ret;
       }
     }
@@ -209,24 +313,18 @@ abstract class Repository {
   Future<Result> newFolder(String path) async {
     final ret = await newFolderRealOperation(path);
     if (ret.failed) {
-      _log.error("New Folder($path) failed");
+      log.error("New Folder($path) failed:${ret.error}");
       return ret;
     }
 
-    var newFolder = FolderInfo(path, 0, DateTime.now(), 0, repo: this);
-    final addRet = _addObjectIntoCache(newFolder);
-    if (addRet == false) {
-      return Fail(ErrMsg("Add folder info into cache failed!"));
-    }
-
-    return Succeed();
+    return ret;
   }
 
   Future<Result> notifyNewAudio(String path) async {
     var ret = await getAudioInfoRealOperation(path);
     if (ret.failed) return ret;
     AudioInfo newAudio = ret.value;
-    final addRet = _addObjectIntoCache(newAudio);
+    final addRet = addObjectIntoCache(newAudio);
     if (addRet == false) {
       return Fail(ErrMsg("Add audio info into cache failed!"));
     }
@@ -235,20 +333,30 @@ abstract class Repository {
   }
 
   Future<Result> removeObject(AudioObject obj) async {
-    final ret = await removeObjectRealOperation(obj.path);
+    final ret = await removeObjectRealOperation(obj);
     if (ret.succeed) {
       _removeObjectFromCache(obj, destory: true);
     } else {
-      _log.error("Remove object(${obj.path}) failed");
+      log.error("Remove object(${obj.path}) failed");
       return ret;
     }
     return Succeed();
   }
 
+  ///Move file/folder in storage
+  ///do NOT change cache <br>
+  ///Returned Result's value is null
   Future<Result> moveObjectsRealOperation(
-      String srcRelativePath, String dstRelativePath);
+      AudioObject src, FolderInfo dstFolder);
+
+  ///Create a new folder in storage and add new [FolderInfo] into cache. <br>
+  ///Returned Result's value is the new [FolderInfo]
   Future<Result> newFolderRealOperation(String relativePath);
-  Future<Result> removeObjectRealOperation(String relativePath);
+
+  ///Remove the file/folder from storage recursively <br>
+  ///do NOT change cache <br>
+  ///Returned Result's value is null
+  Future<Result> removeObjectRealOperation(AudioObject obj);
 
   Future<String> get rootPath;
   Future<Result> getFolderInfoRealOperation(String relativePath,
@@ -269,22 +377,24 @@ abstract class Repository {
 
 enum RepoType {
   filesystem("Local Stroage", Icon(Icons.phone_android)),
-  playlist("Playlist", Icon(Icons.playlist_play_outlined)),
-  trash("Trash", Icon(Icons.delete_outline)),
+  playlist("Playlist", Icon(Icons.playlist_play_outlined), browsable: false),
+  trash("Trash", Icon(Icons.delete_outline), browsable: false),
   iCloud("iCloud", Icon(Icons.cloud_outlined)),
   googleDrive("Google Drive", Icon(Icons.cloud_outlined)),
-  allStoreage("All Storages", Icon(Icons.storage));
+  allStoreage("All Storages", Icon(Icons.storage),
+      isTab: false, browsable: false);
 
-  final String name;
+  final String title;
   final Icon icon;
-  const RepoType(this.name, this.icon);
+  final bool isTab;
+  final bool browsable;
+  const RepoType(this.title, this.icon,
+      {this.isTab = true, this.browsable = true});
 
   @override
   String toString() => name;
 
-  factory RepoType.fromString(String string) {
-    return RepoType.values.where((element) => element.name == string).first;
-  }
+  static RepoType fromString(String string) => RepoType.values.byName(string);
 }
 
 enum CloudState {
