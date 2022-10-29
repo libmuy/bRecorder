@@ -622,21 +622,22 @@ class GoogleDriveRepository extends FilesystemRepository {
         parents: [audio.parent!.cloudData!.id!],
         name: audio.name);
 
-    //Overwrite upload
-    //TODO: should use update() ?
-    if (audio.cloudData != null) {
-      if (!overwrite) {
-        log.error("Upload error: File Already exists."
-            " use [overwrite] argument to overwrite");
-        return false;
-      }
-      driveFile.id = audio.cloudData!.id;
-    }
-
     try {
-      _driveApi.files.update(request, fileId)
-      final result =
-          await _driveApi!.files.create(driveFile, uploadMedia: media);
+      gdrive.File result;
+      //Overwrite upload
+      if (audio.cloudData != null) {
+        if (overwrite) {
+          result = await _driveApi!.files
+              .update(driveFile, audio.cloudData!.id!, uploadMedia: media);
+        } else {
+          log.error("Upload error: File Already exists."
+              " use [overwrite] argument to overwrite");
+          return false;
+        }
+        driveFile.id = audio.cloudData!.id;
+      } else {
+        result = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      }
       audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
       audio.updateUI();
       log.info("Upload audio to Google Drive OK: ${audio.path}");
