@@ -298,6 +298,7 @@ class AudioInfo extends AudioObject {
       parent: parent ?? this.parent,
     );
 
+    audio.cloudData = cloudData;
     audio.copyFrom = this;
     return audio;
   }
@@ -424,6 +425,7 @@ class FolderInfo extends AudioObject {
       folder.subfoldersMap = localSubfoldersMap;
       folder.audiosMap = localAudiosMap;
     }
+    folder.cloudData = cloudData;
     folder.copyFrom = this;
     return folder;
   }

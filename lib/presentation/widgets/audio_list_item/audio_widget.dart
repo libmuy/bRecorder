@@ -7,6 +7,7 @@ import 'package:path/path.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/logging.dart';
+import '../../../data/google_drive_repository.dart';
 import '../../../domain/entities.dart';
 import 'audio_widget_state.dart';
 
@@ -88,6 +89,26 @@ class _AudioWidgetState extends State<AudioWidget> {
     sec = sec % 60;
 
     return "${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}";
+  }
+
+  Widget _cloudIcon() {
+    if (!widget.audioItem.repo!.isCloud) return Container();
+    final cloudData = widget.audioItem.cloudData;
+    if (cloudData == null) return Container();
+    switch (cloudData.state) {
+      case CloudFileState.init:
+        return const Icon(Icons.sync_problem);
+      case CloudFileState.downloading:
+        return const Icon(Icons.cloud_download);
+      case CloudFileState.uploading:
+        return const Icon(Icons.cloud_upload);
+      case CloudFileState.syncing:
+        return const Icon(Icons.cloud_sync);
+      case CloudFileState.synced:
+        return const Icon(Icons.cloud_done);
+      case CloudFileState.conflict:
+        return const Icon(Icons.cloud_off);
+    }
   }
 
   void doNothing(BuildContext context) {}
@@ -263,9 +284,13 @@ class _AudioWidgetState extends State<AudioWidget> {
                               // Title
                               Padding(
                                   padding: EdgeInsets.all(widget.titlePadding),
-                                  child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(widget.audioItem.mapKey))),
+                                  child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(widget.audioItem.mapKey),
+                                        _cloudIcon()
+                                      ])),
 
                               // Details
                               Padding(
