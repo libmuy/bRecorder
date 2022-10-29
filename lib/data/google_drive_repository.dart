@@ -139,7 +139,63 @@ class GoogleDriveRepository extends FilesystemRepository {
     return ret;
   }
 
-  Future<bool> updateCloudState(FolderInfo folder) async {
+  @override
+  Future<Result> notifyNewAudio(String path) async {
+    var ret = await super.notifyNewAudio(path);
+    if (ret.failed) return ret;
+
+    final audio = ret.value as AudioInfo;
+    final meta = await _getMetaData(audio);
+    //Not exist in cloud, upload
+    if (meta == null) {
+      log.info("Audio($path) not exists in cloud, upload it");
+      audio.cloudData = CloudFileData(null, state: CloudFileState.uploading);
+      _uploadFile(audio);
+    } else {
+      log.info("Audio($path) already exists? not expected");
+      audio.cloudData = CloudFileData(meta.id);
+    }
+
+    return ret;
+  }
+
+  Future<gdrive.File?> _getMetaDataFromId(String id) async {
+    try {
+      final file = await _driveApi!.files.get(id) as gdrive.File;
+      return file;
+    } catch (e) {
+      log.error("Download Google Drive file(id:$id) failed, $e");
+    }
+    return null;
+  }
+
+  Future<gdrive.File?> _getMetaDataFromName(
+      String parentId, String name) async {
+    var query = "'$parentId' in parents and name = '$name' and $_kQueryNoTrash";
+    try {
+      final queryResult = await _driveApi!.files.list(
+          q: query,
+          $fields: 'nextPageToken, $_kSingleFileFields',
+          spaces: 'drive');
+      final files = queryResult.files;
+      if (files == null || files.isEmpty) return null;
+      return files.first;
+    } catch (e) {
+      log.error("Can not retrive files from Google Drive"
+          ", query:$query, error: $e");
+      return null;
+    }
+  }
+
+  Future<gdrive.File?> _getMetaData(AudioObject audio) async {
+    final cloudData = audio.cloudData;
+    if (cloudData != null) return _getMetaDataFromId(cloudData.id!);
+    final parent = audio.parent;
+    assert(parent != null && parent.cloudData != null);
+    return _getMetaDataFromName(parent!.cloudData!.id!, audio.name);
+  }
+
+  Future<bool> _updateCloudState(FolderInfo folder) async {
     int audioCount = 0;
     int bytes = 0;
     DateTime timestamp = DateTime(1970);
@@ -173,7 +229,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     log.debug("Get statics: ${folder.path}");
     for (final sub in folder.subObjects) {
       if (sub is FolderInfo) {
-        await updateCloudState(sub);
+        await _updateCloudState(sub);
         audioCount += sub.allAudioCount!;
       } else if (sub is AudioInfo) {
         //UI requested audios have no detail info, gather info here
@@ -258,6 +314,9 @@ class GoogleDriveRepository extends FilesystemRepository {
         await Future.delayed(const Duration(seconds: 10));
       }
     } while (!networkUpdate);
+
+    log.debug("============== Prefetch: Update Cloud state");
+    await _updateCloudState(cache!);
 
     log.debug("============== Prefetch: End");
     return true;
@@ -564,6 +623,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         name: audio.name);
 
     //Overwrite upload
+    //TODO: should use update() ?
     if (audio.cloudData != null) {
       if (!overwrite) {
         log.error("Upload error: File Already exists."
@@ -574,6 +634,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     }
 
     try {
+      _driveApi.files.update(request, fileId)
       final result =
           await _driveApi!.files.create(driveFile, uploadMedia: media);
       audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
