@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:googleapis/sourcerepo/v1.dart';
 import 'package:path/path.dart';
 
 import '../core/global_info.dart';
@@ -115,6 +116,11 @@ class AudioObject extends AudioEqual {
     return await repo!.absolutePath(path);
   }
 
+  void updatePath(Repository newRepo, String newPath) {
+    path = newPath;
+    repo = newRepo;
+  }
+
   void destory() {}
 
   String get mapKey => basename(path);
@@ -179,16 +185,14 @@ class AudioInfo extends AudioObject {
   Future<File> get file async => File(await realPath);
 
   @override
-  set path(String newPath) => _setPath(newPath);
-
-  void _setPath(String newPath) async {
+  void updatePath(Repository newRepo, String newPath) async {
     if (!await hasPerf) {
-      super.path = newPath;
+      super.updatePath(newRepo, newPath);
       return;
     } else {
       final sharedPref = await sl.asyncPref;
       final oldIdKey = _prefIdKey;
-      super.path = newPath;
+      super.updatePath(newRepo, newPath);
       final newIdKey = _prefIdKey;
       sharedPref.setInt(newIdKey, await id);
       sharedPref.remove(oldIdKey);

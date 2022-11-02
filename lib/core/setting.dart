@@ -10,31 +10,42 @@ import 'logging.dart';
 import 'service_locator.dart';
 
 const _kPrefKeyTabs = "settingsTabs";
+const _kPrefKeyCloudSync = "settingsCloudSync";
 const _kPrefKeyTabIndex = "settingsTabIndex";
 final log = Logger('Settings', level: LogLevel.debug);
 
 class Settings {
   final tabsNotifier = ValueNotifier<List<TabInfo>?>(null);
   int? tabIndex;
+  CloudSyncSetting? cloudSyncSetting;
 
   List<TabInfo>? get tabs => tabsNotifier.value;
+  final Completer<Settings> _loadCompleter = Completer();
+  final bool _loadDone = false;
   Settings() {
     sl.appCloseListeners.add(save);
   }
 
+  Future<Settings> waitLoadDone() async {
+    if (_loadDone) return this;
+    return _loadCompleter.future;
+  }
+
   Future<void> load() async {
     final pref = await sl.asyncPref;
-    var jsonStr = pref.getStringList(_kPrefKeyTabs);
+    //============================= Load Tabs ============================
+    final jsonStrList = pref.getStringList(_kPrefKeyTabs);
     List<TabInfo>? tabs;
 
-    if (jsonStr != null) {
+    if (jsonStrList != null) {
       try {
-        tabs = jsonStr.map((str) => TabInfo.fromJson(jsonDecode(str))).toList();
+        tabs = jsonStrList
+            .map((str) => TabInfo.fromJson(jsonDecode(str)))
+            .toList();
       } catch (e) {
-        log.error("convert shared preference value to RepoType Failed\n"
+        log.warning("convert shared preference value to RepoType Failed\n"
             "error:$e\n"
-            "jsons str:$jsonStr");
-        jsonStr = null;
+            "jsons str:$jsonStrList");
       }
     }
 
@@ -57,6 +68,23 @@ class Settings {
     tabIndex = pref.getInt(_kPrefKeyTabIndex) ?? 0;
     if (tabIndex! >= tabs.length || tabIndex! < 0) tabIndex = 0;
 
+    //========================== Load Cloud Sync ==========================
+    final jsonStr = pref.getString(_kPrefKeyCloudSync);
+
+    if (jsonStr != null) {
+      try {
+        cloudSyncSetting = CloudSyncSetting.fromJson(jsonDecode(jsonStr));
+      } catch (e) {
+        log.warning("convert shared preference value to RepoType Failed\n"
+            "error:$e\n"
+            "jsons str:$jsonStr");
+        cloudSyncSetting = CloudSyncSetting(
+            conflictResolveMethod: CloudConflictResolveMethod.byUser,
+            syncMethod: CloudSyncMethod.merge);
+      }
+    }
+
+    //========================== Prefetch Repos ==========================
     //Wait folder information
     //while waiting, the lanuch screen will be displayed
     final tab = tabs[tabIndex!];
@@ -74,6 +102,8 @@ class Settings {
       }
       if (!repo.isCloud) repo.preFetch();
     }
+
+    _loadCompleter.complete(this);
   }
 
   Future<bool> save() async {

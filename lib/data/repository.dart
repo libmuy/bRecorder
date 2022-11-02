@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:brecorder/core/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
@@ -45,6 +46,8 @@ abstract class Repository {
   String get cloudErrMessage => "";
   Future<bool> connectCloud({bool background = false}) async => true;
   Future<bool> disconnectCloud() async => true;
+  Future<bool> removeFromCloud(AudioObject obj) async => true;
+  Future<bool> addToCloud(AudioObject obj) async => true;
 
   ///UI requesting.
   ///This will be checked by sub classes
@@ -170,11 +173,6 @@ abstract class Repository {
     return Succeed(folder);
   }
 
-  void _moveObjectForCache(AudioObject src, FolderInfo dst) {
-    _removeObjectFromCache(src);
-    addObjectIntoCache(src, dst: dst);
-  }
-
   void _destoryAudioObject(AudioObject obj) {
     log.debug("destroy repo:$name, obj:${obj.path}");
     // if (obj.displayData != null) obj.displayData = null;
@@ -202,7 +200,7 @@ abstract class Repository {
     folder.audiosMap = null;
   }
 
-  void _removeObjectFromCache(AudioObject obj, {bool destory = false}) {
+  void removeObjectFromCache(AudioObject obj, {bool destory = false}) {
     var child = obj;
     var parent = child.parent;
     final key = obj.mapKey;
@@ -242,7 +240,7 @@ abstract class Repository {
   }
 
   void _updatePath(AudioObject obj) {
-    obj.path = join(obj.parent!.path, obj.mapKey);
+    obj.updatePath(obj.parent!.repo!, join(obj.parent!.path, obj.mapKey));
     if (obj is AudioInfo) return;
 
     final folder = obj as FolderInfo;
@@ -298,14 +296,43 @@ abstract class Repository {
 
   Future<Result> moveObjects(
       List<AudioObject> srcObjList, FolderInfo folder) async {
+    Result ret;
     for (final src in srcObjList) {
-      final ret = await moveObjectsRealOperation(src, folder);
-      if (ret.succeed) {
-        _moveObjectForCache(src, folder);
+      final srcRepo = src.repo as Repository;
+      final dstRepo = folder.repo as Repository;
+      if (srcRepo == dstRepo) {
+        ret = await moveObjectsRealOperation(src, folder);
       } else {
-        log.error("Move Object failed, src:$src, dst:$folder");
+        log.debug("Move Object between Repo");
+        if (dstRepo.isCloud) {
+          final ok = await dstRepo.addToCloud(src);
+          if (!ok) {
+            final errMsg = "Add Object to ${dstRepo.name} failed!\n"
+                "Object:$src";
+            showSnackBar(Text(errMsg));
+            log.error(errMsg);
+            return Fail(ErrMsg(errMsg));
+          }
+        }
+        if (srcRepo.isCloud) {
+          final ok = await srcRepo.removeFromCloud(src);
+          if (!ok) {
+            final errMsg = "Remove Object from ${srcRepo.name} failed!\n"
+                "Object:$src";
+            showSnackBar(Text(errMsg));
+            log.error(errMsg);
+            return Fail(ErrMsg(errMsg));
+          }
+        }
+        ret = await moveObjectsRealOperation(src, folder, updateCloud: false);
+      }
+      if (ret.failed) {
+        showSnackBar(Text("Move Object failed!\nsrc:$src, dst:$folder"));
+        log.error("Move Object failed! src:$src, dst:$folder");
         return ret;
       }
+      removeObjectFromCache(src);
+      addObjectIntoCache(src, dst: folder);
     }
     return Succeed();
   }
@@ -316,6 +343,10 @@ abstract class Repository {
       log.error("New Folder($path) failed:${ret.error}");
       return ret;
     }
+    final folder = ret.value as FolderInfo;
+    folder.allAudioCount = 0;
+    folder.bytes = 0;
+    folder.timestamp = DateTime.now();
 
     return ret;
   }
@@ -335,7 +366,7 @@ abstract class Repository {
   Future<Result> removeObject(AudioObject obj) async {
     final ret = await removeObjectRealOperation(obj);
     if (ret.succeed) {
-      _removeObjectFromCache(obj, destory: true);
+      removeObjectFromCache(obj, destory: true);
     } else {
       log.error("Remove object(${obj.path}) failed");
       return ret;
@@ -346,8 +377,8 @@ abstract class Repository {
   ///Move file/folder in storage
   ///do NOT change cache <br>
   ///Returned Result's value is null
-  Future<Result> moveObjectsRealOperation(
-      AudioObject src, FolderInfo dstFolder);
+  Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
+      {bool updateCloud = true});
 
   ///Create a new folder in storage and add new [FolderInfo] into cache. <br>
   ///Returned Result's value is the new [FolderInfo]
@@ -403,4 +434,49 @@ enum CloudState {
   connecting,
   connected,
   error,
+}
+
+enum CloudSyncMethod {
+  merge,
+  syncToRemote,
+  syncToLocal;
+
+  @override
+  String toString() => name;
+
+  static CloudSyncMethod fromString(String string) =>
+      CloudSyncMethod.values.byName(string);
+}
+
+enum CloudConflictResolveMethod {
+  byUser,
+  byTimestamp,
+  useLocal,
+  useRemote;
+
+  @override
+  String toString() => name;
+
+  static CloudConflictResolveMethod fromString(String string) =>
+      CloudConflictResolveMethod.values.byName(string);
+}
+
+class CloudSyncSetting {
+  CloudSyncMethod syncMethod;
+  CloudConflictResolveMethod conflictResolveMethod;
+
+  CloudSyncSetting(
+      {required this.conflictResolveMethod, required this.syncMethod});
+
+  factory CloudSyncSetting.fromJson(Map<String, dynamic> json) {
+    return CloudSyncSetting(
+      syncMethod: CloudSyncMethod.fromString(json['syncMethod']!),
+      conflictResolveMethod:
+          CloudConflictResolveMethod.fromString(json['syncMethod']!),
+    );
+  }
+  Map<String, dynamic> toJson() => {
+        'syncMethod': syncMethod.toString(),
+        'conflictResolveMethod': conflictResolveMethod.toString(),
+      };
 }

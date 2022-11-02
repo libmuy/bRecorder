@@ -7,7 +7,10 @@ abstract class Result {
   bool get succeed;
   bool get failed;
 
-  Result({this.value, this.error});
+  const Result({this.value, this.error});
+  const Result.noValue()
+      : value = null,
+        error = null;
 }
 
 class Succeed extends Result {
@@ -16,7 +19,8 @@ class Succeed extends Result {
   @override
   bool get failed => false;
 
-  Succeed([dynamic value]) : super(value: value);
+  const Succeed(dynamic value) : super(value: value);
+  const Succeed.noValue() : super.noValue();
 }
 
 class Fail extends Result {
@@ -25,28 +29,31 @@ class Fail extends Result {
   @override
   bool get failed => true;
 
-  Fail(ErrInfo error) : super(error: error);
+  const Fail(ErrInfo error) : super(error: error);
+  const Fail.noValue() : super.noValue();
 }
 
-abstract class ErrInfo extends Equatable {
-  @override
-  List<Object> get props => [];
+abstract class ErrInfo {
+  const ErrInfo();
 }
 
 // General failures
 class PlatformFailure extends ErrInfo {
   @override
   String toString() => "PlatformFailure";
+  const PlatformFailure();
 }
 
 class IOFailure extends ErrInfo {
   @override
   String toString() => "IOFailure";
+  const IOFailure();
 }
 
 class AlreadExists extends ErrInfo {
   @override
   String toString() => "AlreadyExists";
+  const AlreadExists();
 }
 
 class ErrMsg extends ErrInfo {

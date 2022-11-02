@@ -6,6 +6,8 @@ import 'package:path/path.dart';
 
 import '../core/logging.dart';
 import '../core/result.dart';
+import '../core/service_locator.dart';
+import '../core/setting.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
 
@@ -101,12 +103,48 @@ class GoogleDriveRepository extends FilesystemRepository {
   CloudState get cloudState => _state;
 
   @override
+  Future<bool> removeFromCloud(AudioObject obj) async => _removeFile(obj);
+  @override
+  Future<bool> addToCloud(AudioObject obj) async {
+    if (obj.isFolder) {}
+  }
+
+  Future<bool> _existInCloud(AudioObject obj, {String? parentId}) async {
+    var parent = parentId ?? obj.parent?.cloudData?.id;
+    parent ??= _gDriveRootFolderId;
+    var query = "'$parent' in parents and "
+        "name = '${obj.name}' and $_kQueryNoTrash";
+    try {
+      final queryResult = await _driveApi!.files
+          .list(q: query, $fields: _kSingleFileFields, spaces: 'drive');
+      final files = queryResult.files;
+      if (files == null || files.isEmpty) return false;
+      return true;
+    } catch (e) {
+      log.error("Can not retrive files from Google Drive"
+          ", query:$query, error: $e");
+      return false;
+    }
+  }
+
+  @override
   Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
       {bool updateCloud = true}) async {
     final ret = await super.moveObjectsRealOperation(src, dstFolder);
     if (ret.failed || updateCloud == false) return ret;
 
-    return Fail(IOFailure());
+    //Update Cloud: move cloud object
+    assert(src.repo == this && src.repo == dstFolder.repo);
+    try {
+      final request = gdrive.File(parents: [dstFolder.cloudData!.id!]);
+      await _driveApi!.files
+          .update(request, src.cloudData!.id!, $fields: _kSingleFileFields);
+    } catch (e) {
+      return Fail(ErrMsg("Move Google Drive object failed!"
+          " src:$src, dst:$dstFolder"));
+    }
+
+    return Succeed();
   }
 
   @override
@@ -305,7 +343,7 @@ class GoogleDriveRepository extends FilesystemRepository {
 
     do {
       log.debug("============== Prefetch: Sync");
-      networkUpdate = await _syncWorker(cache!);
+      networkUpdate = await _syncAudioObject(cache!);
       if (!doingRrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
@@ -437,7 +475,9 @@ class GoogleDriveRepository extends FilesystemRepository {
 /*=======================================================================*\ 
   Sync Worker
 \*=======================================================================*/
-  Future<bool> _syncWorker(FolderInfo folder) async {
+  Future<bool> _syncAudioObject(FolderInfo folder,
+      {CloudSyncSetting? syncSetting}) async {
+    final setting = syncSetting ?? (await sl.settings).cloudSyncSetting;
     //Not exist in cloud, create it
     if (folder.cloudData == null) {
       final gFolder = await _createDirectory(folder);
@@ -446,7 +486,7 @@ class GoogleDriveRepository extends FilesystemRepository {
 
     for (final sub in folder.subObjects) {
       if (sub is FolderInfo) {
-        final ok = await _syncWorker(sub);
+        final ok = await _syncAudioObject(sub);
         if (!ok) return false;
       } else if (sub is AudioInfo) {
         //Not exist in cloud, upload it
@@ -585,9 +625,16 @@ class GoogleDriveRepository extends FilesystemRepository {
     return true;
   }
 
-  Future<gdrive.File?> _createDirectory(FolderInfo folder) async {
+  ///Create a
+  Future<Result> _createDirectory(FolderInfo folder, {String? parentId}) async {
     log.debug("[Google Drive] Create Folder:${folder.path}");
-    final parent = folder.parent;
+    final exist = await _existInCloud(folder, parentId: parentId);
+    if (exist) {
+      log.error("Already exist: $folder");
+      return const Fail(AlreadExists());
+    }
+
+    final parent = parentId ?? folder.parent?.cloudData?.id;
     var file =
         gdrive.File(properties: _kCommonProperties, mimeType: _kFolderMimeType);
     if (parent == null) {
@@ -606,11 +653,12 @@ class GoogleDriveRepository extends FilesystemRepository {
           .create(file, $fields: _kSingleFileFieldsInternal);
       folder.cloudData = CloudFileData(file.id);
     } catch (e) {
-      log.error("Create Google Drive folder failed, $e");
-      return null;
+      final errMsg = "Create Google Drive folder failed, $e";
+      log.error(errMsg);
+      return Fail(ErrMsg(errMsg));
     }
     log.debug("Create Google Drive folder OK");
-    return file;
+    return Succeed(file);
   }
 
   Future<bool> _uploadFile(AudioInfo audio, {bool overwrite = false}) async {
