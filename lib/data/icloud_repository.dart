@@ -23,8 +23,8 @@ class ICloudRepository extends Repository {
   final type = RepoType.iCloud;
 
   @override
-  Future<Result> moveObjectsRealOperation(
-      AudioObject src, FolderInfo dstFolder) async {
+  Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
+      {bool updateCloud = true}) async {
     return Fail(IOFailure());
   }
 

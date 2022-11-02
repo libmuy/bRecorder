@@ -27,8 +27,7 @@ abstract class BrowserViewState {
 
   //About Repository
   final Repository _repo;
-  final ForcibleValueNotifier<FolderInfo> _folderNotifier =
-      ForcibleValueNotifier(FolderInfo.empty);
+  ForcibleValueNotifier<FolderInfo>? _folderNotifier;
 
   // About Display
   final _modeNotifier = sl.get<GlobalModeNotifier>();
@@ -67,6 +66,7 @@ abstract class BrowserViewState {
     }
     _scrollToCallback = scrollTo;
     _initialized = true;
+    _folderNotifier = ForcibleValueNotifier(FolderInfo.empty);
     refresh();
   }
 
@@ -87,7 +87,7 @@ abstract class BrowserViewState {
     return _currentFolder.path;
   }
 
-  FolderInfo get _currentFolder => _folderNotifier.value;
+  FolderInfo get _currentFolder => _folderNotifier!.value;
   int? _currentAudioIndex;
   AudioInfo? get _currentAudio {
     if (_currentAudioIndex == null || _audioCount <= 0) {
@@ -115,13 +115,6 @@ abstract class BrowserViewState {
   /*=======================================================================*\ 
     Display
   \*=======================================================================*/
-  void _notifyTitle() {
-    if (_rootPath == "/") {
-      widget.titleNotifier.value = _repo.name;
-    } else {
-      widget.titleNotifier.value = _repo.name + _rootPath;
-    }
-  }
 
   bool get _isEditMode => mode == GlobalMode.edit;
 
@@ -253,7 +246,8 @@ abstract class BrowserViewState {
     Repository
   \*=======================================================================*/
   void setInitialPath(String path) {
-    _folderNotifier.value = FolderInfo(path);
+    _folderNotifier ??= ForcibleValueNotifier(FolderInfo.empty);
+    _folderNotifier!.value = FolderInfo(path);
   }
 
   void resetAudioItemDisplayData(AudioObject obj) {
@@ -334,9 +328,8 @@ abstract class BrowserViewState {
         folderInfo.displayData ??= AudioWidgetState(folderInfo);
         folderInfo.displayData!.updateWidget =
             () => cd(folderInfo.path, force: true);
-        _folderNotifier.update(newValue: folderInfo, forceNotify: force);
+        _folderNotifier!.update(newValue: folderInfo, forceNotify: force);
         widget.onFolderChanged?.call(folderInfo);
-        _notifyTitle();
         if (mode == GlobalMode.playback) {
           await _agent.stopPlayIfPlaying();
           mode = GlobalMode.normal;
@@ -399,14 +392,7 @@ abstract class BrowserViewState {
   }
 
   Future<bool> moveSelectedToFolder(FolderInfo dst) async {
-    final dstRepo = dst.repo;
-    //TODO: implement move between repos
-    if (dstRepo != _repo) {
-      _log.error("NOT implemented");
-      return false;
-    }
-
-    final result = await _repo.moveObjects(selectedObjects, dst);
+    final result = await dst.repo!.moveObjects(selectedObjects, dst);
     if (result.failed) {
       _log.error("Move to folder${dst.path} failed:${result.error}");
       return false;

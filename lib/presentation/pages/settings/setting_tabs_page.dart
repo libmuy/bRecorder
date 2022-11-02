@@ -90,7 +90,7 @@ class _SettingTabsPageState extends State<SettingTabsPage> {
                       tabInfo.enabled = !tabInfo.enabled;
                     });
                   } else {
-                    sl.messageState.currentState!.showSnackBar(SnackBar(
+                    showSnackBar(SnackBar(
                         content: Text("Enable ${repoType.title} Failed!"
                             "(${repo.cloudErrMessage})")));
                   }

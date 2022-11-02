@@ -7,6 +7,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/repository.dart';
+import '../service_locator.dart';
 
 enum RecordState {
   stopped,
@@ -64,6 +65,8 @@ class TabInfo {
     required this.repoType,
   });
 
+  String get title => repoType.title;
+
   factory TabInfo.fromJson(Map<String, dynamic> json) {
     return TabInfo(
       currentPath: json['currentPath']!,
@@ -106,4 +109,8 @@ class PathProvider {
 
   static Future<String> get iCloudPath =>
       _createAndReturnPath(_appDataDir, "bRecorder/iCloudDrive");
+}
+
+void showSnackBar(Widget content) {
+  sl.messageState.currentState!.showSnackBar(SnackBar(content: content));
 }

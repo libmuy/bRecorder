@@ -237,17 +237,41 @@ class FilesystemRepository extends Repository {
     return Succeed(folder);
   }
 
-  @override
-  Future<Result> moveObjectsRealOperation(
-      AudioObject src, FolderInfo dstFolder) async {
-    final dstPath = await absolutePath(src.path);
-    final srcPath = await absolutePath(dstFolder.path);
-
+  Future<bool> _copyBetweenFs(String src, String dst) async {
+    final newPath = join(dst, basename(src));
     try {
-      FileSystemEntity src =
-          await _isFile(srcPath) ? File(srcPath) : Directory(srcPath);
+      if (await _isFile(src)) {
+        await File(src).copy(newPath);
+      } else {
+        await Directory(newPath).create(recursive: true);
+        await for (final sub in Directory(src).list()) {
+          final ok = await _copyBetweenFs(sub.path, newPath);
+          if (!ok) return false;
+        }
+      }
+    } catch (e) {
+      log.error("Copy file failed! src:$src, dst:$dst");
+      return false;
+    }
+
+    return true;
+  }
+
+  @override
+  Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
+      {bool updateCloud = true}) async {
+    final srcPath = await src.realPath;
+    final dstPath = await dstFolder.realPath;
+
+    FileSystemEntity srcFile =
+        await _isFile(srcPath) ? File(srcPath) : Directory(srcPath);
+    try {
       final newPath = join(dstPath, basename(srcPath));
-      await src.rename(newPath);
+      await srcFile.rename(newPath);
+    } on FileSystemException catch (e) {
+      final ok = await _copyBetweenFs(srcPath, dstPath);
+      if (!ok) return Fail(ErrMsg("Copy file between fs failed!"));
+      await srcFile.delete(recursive: true);
     } catch (e) {
       log.critical("got a file IO exception: $e");
       return Fail(IOFailure());

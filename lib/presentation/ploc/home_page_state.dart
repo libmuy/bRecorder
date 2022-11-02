@@ -52,6 +52,7 @@ class HomePageState {
       _setEditMode(false);
       currentTabIndex = tabController!.index;
       // currentBrowserState.refresh();
+      _notifyTitle();
       _log.info("Tab switched, index:$currentTabIndex");
     }
   }
@@ -131,6 +132,15 @@ class HomePageState {
 
   void onFolderChanged(FolderInfo folder) {
     currentTab.currentPath = folder.path;
+    _notifyTitle();
+  }
+
+  void _notifyTitle() {
+    if (currentPath == "/") {
+      titleNotifier.value = currentRepoType.title;
+    } else {
+      titleNotifier.value = currentRepoType.title + currentPath;
+    }
   }
 
   bool onPop() {

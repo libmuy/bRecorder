@@ -117,4 +117,6 @@ class ServiceLocator {
       _showWaveformNotifier;
 
   List<void Function()> appCloseListeners = [];
+
+  Future<Settings> get settings => sl.get<Settings>().waitLoadDone();
 }
