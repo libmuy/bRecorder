@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:googleapis/drive/v3.dart' as gdrive;
 
 import '../data/all_storage_repository.dart';
 import '../data/filesystem_repository.dart';
@@ -25,6 +26,7 @@ final _log = Logger("SL");
 
 class ServiceLocator {
   final getIt = GetIt.instance;
+  gdrive.DriveApi? gDriveApi;
   static final ServiceLocator _instance = ServiceLocator();
   static ServiceLocator get instance => _instance;
 

@@ -108,6 +108,7 @@ class AudioObject extends AudioEqual {
   String get name => basename(path);
 
   bool get isFolder => this is FolderInfo;
+  bool get isAudio => this is AudioInfo;
 
   Future<String> get realPath async {
     if (repo == null) {
