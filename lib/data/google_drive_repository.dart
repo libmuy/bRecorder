@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:brecorder/data/filesystem_repository.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as gdrive;
@@ -32,7 +34,8 @@ class GoogleDriveRepository extends FilesystemRepository {
   final _googleSignIn =
       GoogleSignIn.standard(scopes: [gdrive.DriveApi.driveScope]);
   GoogleSignInAccount? _account;
-  gdrive.DriveApi? _driveApi;
+  gdrive.DriveApi? get _driveApi => sl.gDriveApi;
+  set _driveApi(newApi) => sl.gDriveApi = newApi;
   String _cloudErrorMessage = "";
   String? _gDriveRootFolderId;
   String? _gDriveMyDriveId;
@@ -109,22 +112,10 @@ class GoogleDriveRepository extends FilesystemRepository {
     if (obj.isFolder) {}
   }
 
-  Future<bool> _existInCloud(AudioObject obj, {String? parentId}) async {
-    var parent = parentId ?? obj.parent?.cloudData?.id;
-    parent ??= _gDriveRootFolderId;
-    var query = "'$parent' in parents and "
-        "name = '${obj.name}' and $_kQueryNoTrash";
-    try {
-      final queryResult = await _driveApi!.files
-          .list(q: query, $fields: _kSingleFileFields, spaces: 'drive');
-      final files = queryResult.files;
-      if (files == null || files.isEmpty) return false;
-      return true;
-    } catch (e) {
-      log.error("Can not retrive files from Google Drive"
-          ", query:$query, error: $e");
-      return false;
-    }
+  bool _existInFs(AudioObject obj) {
+    if (obj.cloudData == null) return true;
+    if (obj.cloudData!.state == CloudFileState.downloading) return false;
+    return true;
   }
 
   @override
@@ -475,16 +466,44 @@ class GoogleDriveRepository extends FilesystemRepository {
 /*=======================================================================*\ 
   Sync Worker
 \*=======================================================================*/
-  Future<bool> _syncAudioObject(FolderInfo folder,
-      {CloudSyncSetting? syncSetting}) async {
+  ///Sync a [AudioObject] with Cloud using following identify local and cloud
+  /// - local data: `obj.path`
+  /// - cloud data: `obj.cloudData.id`
+  ///
+  /// Parameters:
+  ///
+  /// [obj] - the [AudioObject] will be sync
+  ///
+  /// [parentId] - `obj`'s parent id in Cloud side.
+  /// Get the parent id from `obj.parent?.cloudData?.id` if omitted.
+  ///
+  /// [syncSetting] - the sync behavior. get it from global settings if omitted.
+  Future<bool> _syncAudioObject(AudioObject obj,
+      {String? parentId, CloudSyncSetting? syncSetting}) async {
     final setting = syncSetting ?? (await sl.settings).cloudSyncSetting;
+    var parent = parentId ?? obj.parent?.cloudData?.id;
+    parent ??= _gDriveRootFolderId;
+    final existInCloud = await _existInCloud(obj, parentId: parent);
+    final existInFs = _existInFs(obj);
+    if (obj.isAudio) {
+      switch (setting!.syncMethod) {
+        case CloudSyncMethod.merge:
+          break;
+        case CloudSyncMethod.syncToRemote:
+          // TODO: Handle this case.
+          break;
+        case CloudSyncMethod.syncToLocal:
+          // TODO: Handle this case.
+          break;
+      }
+    }
     //Not exist in cloud, create it
-    if (folder.cloudData == null) {
-      final gFolder = await _createDirectory(folder);
+    if (obj.cloudData == null) {
+      final gFolder = await _createDirectory(obj);
       if (gFolder == null) return false;
     }
 
-    for (final sub in folder.subObjects) {
+    for (final sub in obj.subObjects) {
       if (sub is FolderInfo) {
         final ok = await _syncAudioObject(sub);
         if (!ok) return false;
@@ -790,11 +809,83 @@ extension GoogleDriveRepoExt on gdrive.File {
   bool get isDirectory => mimeType == "application/vnd.google-apps.folder";
 }
 
+extension AudioObjectExt on AudioObject {
+  Future<bool> existInFs({String? parentId}) async {
+    if (cloudData != null && cloudData!.existInFs != null) {
+      return cloudData!.existInCloud!;
+    }
+
+    final type = await FileSystemEntity.type(path);
+    final file =
+        type == FileSystemEntityType.file ? File(path) : Directory(path);
+    cloudData!.existInFs = await file.exists();
+    return cloudData!.existInCloud!;
+  }
+
+  Future<bool> existInCloud({String? parentId}) async {
+    if (cloudData != null && cloudData!.existInCloud != null) {
+      return cloudData!.existInCloud!;
+    }
+
+    final ok = await updateCloudData(parentId: parentId);
+    if (!ok) return false;
+
+    return cloudData!.existInCloud!;
+  }
+
+  Future<bool> updateCloudData({String? parentId}) async {
+    //already updated
+    if (cloudData != null && cloudData!.existInCloud != null) {
+      return true;
+    }
+
+    var parentCloudId = parentId ?? parent?.cloudData?.id;
+    assert(parentCloudId != null);
+    var query = "'$parentCloudId' in parents and "
+        "name = '$name' and $_kQueryNoTrash";
+    try {
+      final queryResult = await sl.gDriveApi!.files
+          .list(q: query, $fields: _kSingleFileFields, spaces: 'drive');
+      final files = queryResult.files;
+      cloudData ??= CloudFileData();
+
+      if (files == null || files.isEmpty) {
+        cloudData!.existInCloud = false;
+      } else {
+        final file = files.first;
+        cloudData!.existInCloud = true;
+        cloudData!.id = file.id;
+        cloudData!.size = int.parse(file.size!);
+      }
+
+      //Dont know filesystem info, set size by cloud side
+      if (cloudData!.existInFs == null) {}
+      return true;
+    } catch (e) {
+      log.error("Can not retrive files from Google Drive"
+          ", query:$query, error: $e");
+      return false;
+    }
+  }
+}
+
 class CloudFileData {
   String? id;
-  CloudFileState state;
+  int? size;
+  CloudFileState get state {
+    if (existInCloud == null || existInFs == null) return CloudFileState.init;
+    assert(existInCloud! || !existInFs!);
+    if (existInCloud! && !existInFs!) return CloudFileState.downloading;
+    if (!existInCloud! && existInFs!) return CloudFileState.uploading;
+    if (synced) return CloudFileState.synced;
+    return CloudFileState.conflict;
+  }
 
-  CloudFileData(this.id, {this.state = CloudFileState.init});
+  bool? existInCloud;
+  bool? existInFs;
+  bool synced = false;
+
+  CloudFileData([this.id]);
 }
 
 enum CloudFileState {
