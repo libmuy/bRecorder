@@ -27,7 +27,7 @@ abstract class Repository {
 
   ///Prefetching is doing
   @protected
-  bool doingRrefetch = false;
+  bool doingPrefetch = false;
 
   ///Notify UI Prefetching done
   Completer? _prefetchCompleter;
@@ -91,8 +91,8 @@ abstract class Repository {
   ///Clear cached [FolderInfo].
   ///stop prefetching if prefetching is doing
   Future<void> clearCache() async {
-    if (doingRrefetch) {
-      doingRrefetch = false;
+    if (doingPrefetch) {
+      doingPrefetch = false;
       await _prefetchCompleter!.future;
     }
     cache = null;
@@ -112,9 +112,9 @@ abstract class Repository {
     if (force) {
       await clearCache();
     } else {
-      if (doingRrefetch) return;
+      if (doingPrefetch) return;
     }
-    doingRrefetch = true;
+    doingPrefetch = true;
     _prefetchCompleter = Completer();
 
     final result = await preFetchInternal();
@@ -125,7 +125,7 @@ abstract class Repository {
           "##############################################");
     }
     _prefetchCompleter!.complete();
-    doingRrefetch = false;
+    doingPrefetch = false;
     _prefetchCompleter = null;
   }
 
@@ -171,6 +171,13 @@ abstract class Repository {
     }
 
     return Succeed(folder);
+  }
+
+  void addOrphanCache(FolderInfo orphan) {
+    final found = findObjectFromCache(orphan.path);
+    //alread in cache, donot need this
+    if (found != null) return;
+    orphans.add(orphan);
   }
 
   void _destoryAudioObject(AudioObject obj) {
@@ -390,6 +397,9 @@ abstract class Repository {
   Future<Result> removeObjectRealOperation(AudioObject obj);
 
   Future<String> get rootPath;
+
+  ///Get a new [FolderInfo] by relative path. called only if folder is not in cache <br>
+  ///Returned Result's value is the new [FolderInfo]
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly});
   Future<Result> getAudioInfoRealOperation(String relativePath);

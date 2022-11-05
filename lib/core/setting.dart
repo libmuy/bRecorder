@@ -63,6 +63,10 @@ class Settings {
         .toList();
 
     tabsNotifier.value = tabs;
+    for (var tab in tabs) {
+      final folder = tab.currentFolder;
+      if (folder != null) folder.repo!.addOrphanCache(folder);
+    }
 
     //Get Tab index
     tabIndex = pref.getInt(_kPrefKeyTabIndex) ?? 0;
