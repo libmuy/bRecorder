@@ -65,12 +65,12 @@ class FilesystemRepository extends Repository {
       final file = File(path);
       final stat = await file.stat();
       await waitUiReqWhilePrefetch(prefetch);
-      if (!doingRrefetch && prefetch) return false;
+      if (!doingPrefetch && prefetch) return false;
       timestamp = stat.modified;
       bytes = stat.size;
       final ret = await audioAgent.getDuration(path);
       await waitUiReqWhilePrefetch(prefetch);
-      if (!doingRrefetch && prefetch) return false;
+      if (!doingPrefetch && prefetch) return false;
       if (ret.succeed) {
         log.verbose("duration:${ret.value}");
       } else {
@@ -93,8 +93,8 @@ class FilesystemRepository extends Repository {
     queue.add(cache == null ? FolderInfo("/") : cache!);
 
     await waitUiReqWhilePrefetch();
-    if (!doingRrefetch) return true;
-    while (queue.isNotEmpty && doingRrefetch) {
+    if (!doingPrefetch) return true;
+    while (queue.isNotEmpty && doingPrefetch) {
       final folder = queue.removeFirst();
       final itr = orphans.where((f) => f.path == folder.path);
       if (itr.isNotEmpty) {
@@ -109,9 +109,9 @@ class FilesystemRepository extends Repository {
         // Get Folder Info from Repo
         log.debug("get folder from repo: ${folder.path}");
         prefetchingFolderPath = folder.path;
-        final result = await _getFolderInfoInternal(folder, prefetch: true);
+        final result = await fetchFolderInfoFs(folder, prefetch: true);
         await waitUiReqWhilePrefetch();
-        if (!doingRrefetch) break;
+        if (!doingPrefetch) break;
 
         if (!result) {
           log.error("Get Folder Info Failed!(${folder.path})");
@@ -176,7 +176,7 @@ class FilesystemRepository extends Repository {
     return ret;
   }
 
-  Future<bool> _getFolderInfoInternal(FolderInfo request,
+  Future<bool> fetchFolderInfoFs(FolderInfo request,
       {bool folderOnly = false, bool prefetch = false}) async {
     final relativePath = request.path;
     final absolautePath = await absolutePath(relativePath);
@@ -189,11 +189,11 @@ class FilesystemRepository extends Repository {
       return false;
     }
     await waitUiReqWhilePrefetch(prefetch);
-    if (!doingRrefetch && prefetch) return false;
+    if (!doingPrefetch && prefetch) return false;
 
     await for (final file in dir.list()) {
       await waitUiReqWhilePrefetch(prefetch);
-      if (!doingRrefetch && prefetch) return false;
+      if (!doingPrefetch && prefetch) return false;
       final name = basename(file.path);
       final path = join(relativePath, name);
       late AudioObject obj;
@@ -208,7 +208,7 @@ class FilesystemRepository extends Repository {
           obj = AudioInfo(path);
           final result =
               await getAudioInfoFromRepo(obj as AudioInfo, prefetch: prefetch);
-          if (!doingRrefetch && prefetch) return false;
+          if (!doingPrefetch && prefetch) return false;
           if (result == false) obj = AudioInfo.brokenAudio(path: path);
         } else {
           obj = AudioInfo(path, repo: this);
@@ -228,7 +228,7 @@ class FilesystemRepository extends Repository {
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly = false}) async {
     final folder = FolderInfo(relativePath);
-    final result = await _getFolderInfoInternal(folder, folderOnly: folderOnly);
+    final result = await fetchFolderInfoFs(folder, folderOnly: folderOnly);
 
     if (!result) {
       log.error("get folder($relativePath) not exists");

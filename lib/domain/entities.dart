@@ -324,6 +324,21 @@ class AudioInfo extends AudioObject {
 
   @override
   String toString() => basename(path);
+
+  factory AudioInfo.fromJson(Map<String, dynamic> json) {
+    return AudioInfo(json['path'],
+        durationMS: json['durationMS'],
+        bytes: json['bytes'],
+        timestamp: DateTime.parse(json['timestamp']),
+        repo: sl.getRepository(RepoType.fromString(json['repoType'])));
+  }
+  Map<String, dynamic> toJson() => {
+        'path': path,
+        'durationMS': durationMS,
+        'bytes': bytes,
+        'timestamp': timestamp,
+        'repoType': repo!.type.toString()
+      };
 }
 
 /*=======================================================================*\ 
@@ -457,6 +472,21 @@ class FolderInfo extends AudioObject {
 
   @override
   String toString() => "${basename(path)}/";
+
+  factory FolderInfo.fromJson(Map<String, dynamic> json) {
+    return FolderInfo(json['path'],
+        allAudioCount: json['allAudioCount'],
+        bytes: json['bytes'],
+        timestamp: DateTime.parse(json['timestamp']),
+        repo: sl.getRepository(RepoType.fromString(json['repoType'])));
+  }
+  Map<String, dynamic> toJson() => {
+        'path': path,
+        'allAudioCount': allAudioCount,
+        'bytes': bytes,
+        'timestamp': timestamp,
+        'repoType': repo!.type.toString()
+      };
 }
 
 class AudioPref {

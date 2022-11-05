@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:brecorder/domain/entities.dart';
@@ -55,12 +56,12 @@ class AudioPositionInfo extends Equatable {
 }
 
 class TabInfo {
-  String currentPath;
+  FolderInfo? currentFolder;
   RepoType repoType;
   bool enabled;
 
+  String get currentPath => currentFolder == null ? '/' : currentFolder!.path;
   TabInfo({
-    this.currentPath = "/",
     this.enabled = true,
     required this.repoType,
   });
@@ -68,16 +69,41 @@ class TabInfo {
   String get title => repoType.title;
 
   factory TabInfo.fromJson(Map<String, dynamic> json) {
-    return TabInfo(
-      currentPath: json['currentPath']!,
+    final tab = TabInfo(
       repoType: RepoType.fromString(json['repoType']!),
       enabled: json['enabled']!.toLowerCase() == "true",
     );
+    Map<String, dynamic> folderCache = json['folderCache'];
+    final folder = FolderInfo.fromJson(folderCache['root']);
+
+    //sub folders map
+    List<Map<String, dynamic>>? subFoldersList = folderCache['subFolders'];
+    if (subFoldersList != null) {
+      final subFolders =
+          subFoldersList.map((json) => FolderInfo.fromJson(json));
+      final subFolderKeys = subFolders.map((f) => f.mapKey);
+      folder.subfoldersMap = Map.fromIterables(subFolderKeys, subFolders);
+    }
+
+    //sub audios map
+    List<Map<String, dynamic>>? subAudiosList = folderCache['subAudios'];
+    if (subAudiosList != null) {
+      final subAudios = subAudiosList.map((json) => AudioInfo.fromJson(json));
+      final subAudioKeys = subAudios.map((a) => a.mapKey);
+      folder.audiosMap = Map.fromIterables(subAudioKeys, subAudios);
+    }
+
+    tab.currentFolder = folder;
+    return tab;
   }
   Map<String, dynamic> toJson() => {
-        'currentPath': currentPath,
         'repoType': repoType.toString(),
         'enabled': enabled ? 'true' : 'false',
+        'folderCache': {
+          'root': currentFolder,
+          'subFolders': currentFolder!.subfolders,
+          'subAudios': currentFolder!.audios,
+        }
       };
 }
 

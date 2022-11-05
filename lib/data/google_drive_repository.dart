@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:brecorder/data/filesystem_repository.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as gdrive;
 import 'package:http/http.dart' as http;
@@ -9,8 +9,9 @@ import 'package:path/path.dart';
 import '../core/logging.dart';
 import '../core/result.dart';
 import '../core/service_locator.dart';
-import '../core/setting.dart';
+import '../core/utils/task_queue.dart';
 import '../domain/entities.dart';
+import 'filesystem_repository.dart';
 import 'repository.dart';
 
 const _kRootFolderName = "bRecorder";
@@ -39,6 +40,7 @@ class GoogleDriveRepository extends FilesystemRepository {
   String _cloudErrorMessage = "";
   String? _gDriveRootFolderId;
   String? _gDriveMyDriveId;
+  final _taskQ = TaskQueue(maxConcurrentTasks: 20);
 
   GoogleDriveRepository(Future<String> rootPathFuture) : super(rootPathFuture) {
     log.name = "RepoGDrive";
@@ -115,6 +117,23 @@ class GoogleDriveRepository extends FilesystemRepository {
   bool _existInFs(AudioObject obj) {
     if (obj.cloudData == null) return true;
     if (obj.cloudData!.state == CloudFileState.downloading) return false;
+    return true;
+  }
+
+  @override
+  Future<bool> fetchFolderInfoFs(FolderInfo request,
+      {bool folderOnly = false, bool prefetch = false}) async {
+    final ok = await super
+        .fetchFolderInfoFs(request, folderOnly: folderOnly, prefetch: prefetch);
+    if (!ok) return false;
+
+    request.cloudData ??= CloudFileData(existInFs: true);
+    for (var obj in request.subObjects) {
+      obj.cloudData ??= CloudFileData(existInFs: true);
+    }
+    //this is more time consuming than fetch all items with property once
+    // _taskQ.add(Task((_) async => await request.updateCloudData()));
+
     return true;
   }
 
@@ -297,10 +316,7 @@ class GoogleDriveRepository extends FilesystemRepository {
   @override
   Future<bool> preFetchInternal() async {
     bool networkUpdate;
-    var ret = await super.preFetchInternal();
-    if (!doingRrefetch) return false;
-    await waitUiReqWhilePrefetch();
-    if (!ret) return false;
+    final fsPrefetchResult = super.preFetchInternal();
 
     // log.debug("============== Prefetch: Add Cloud Data to cache");
     // //Add Cloud Data
@@ -310,8 +326,8 @@ class GoogleDriveRepository extends FilesystemRepository {
 
     do {
       log.debug("============== Prefetch: Get Google Drive Files with tag");
-      networkUpdate = await _updateFromCloudWithAppTag();
-      if (!doingRrefetch) return false;
+      networkUpdate = await _updateFromCloudWithAppTag(fsPrefetchResult);
+      if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
         log.error("Get File info from Google Drive (with tag) failed"
@@ -323,7 +339,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     do {
       log.debug("============== Prefetch: Get Google Drive Files without tag");
       networkUpdate = await _updateFromCloudWithoutAppTag();
-      if (!doingRrefetch) return false;
+      if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
         log.error("Get File info from Google Drive (without tag) failed"
@@ -335,7 +351,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     do {
       log.debug("============== Prefetch: Sync");
       networkUpdate = await _syncAudioObject(cache!);
-      if (!doingRrefetch) return false;
+      if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
         log.error("Sync with Google Drive failed"
@@ -411,7 +427,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         } else {
           //Create folder and add folder into cache
           final ret = await newFolderRealOperation(path, updateCloud: false);
-          if (!doingRrefetch) return false;
+          if (!doingPrefetch) return false;
           await waitUiReqWhilePrefetch();
           if (ret.failed) return false;
 
@@ -427,14 +443,14 @@ class GoogleDriveRepository extends FilesystemRepository {
         //Get subs from Cloud
       } else {
         subs = await _getSubsFromCloud(id);
-        if (!doingRrefetch) return false;
+        if (!doingPrefetch) return false;
         await waitUiReqWhilePrefetch();
       }
       if (subs != null) {
         for (final sub in subs) {
           final ret = await _addCloudFileToCache(join(path, sub.name!), sub,
               filesByParent: filesByParent);
-          if (!doingRrefetch) return false;
+          if (!doingPrefetch) return false;
           await waitUiReqWhilePrefetch();
           if (ret == false) return false;
         }
@@ -549,7 +565,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         q: "$queryRootFolder and $_kQueryWithTag",
         $fields: _kSingleFileFields,
         spaces: 'drive');
-    if (!doingRrefetch) return null;
+    if (!doingPrefetch) return null;
     await waitUiReqWhilePrefetch();
     var files = queryResult.files;
 
@@ -558,7 +574,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       log.verbose("Get root folder with tag failed, retry get it without tag");
       queryResult = await _driveApi!.files.list(
           q: queryRootFolder, $fields: _kSingleFileFields, spaces: 'drive');
-      if (!doingRrefetch) return null;
+      if (!doingPrefetch) return null;
       await waitUiReqWhilePrefetch();
       files = queryResult.files;
     } else {
@@ -582,7 +598,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     return rootFolder;
   }
 
-  Future<bool> _updateFromCloudWithAppTag() async {
+  Future<bool> _updateFromCloudWithAppTag(Future<bool> fsPrefetchResult) async {
     if (_account == null) return false;
     Map<String, List<gdrive.File>> filesByParent = {};
     String? nextToken;
@@ -595,14 +611,14 @@ class GoogleDriveRepository extends FilesystemRepository {
       //Get root folder
       rootFolder = await _getRootFolder();
       if (rootFolder == null) return false;
-      if (!doingRrefetch) return false;
+      if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
 
       //Get All files with app tag
       do {
         queryResult = await _driveApi!.files
             .list(q: _kQueryWithTag, $fields: fields, spaces: 'drive');
-        if (!doingRrefetch) return false;
+        if (!doingPrefetch) return false;
         await waitUiReqWhilePrefetch();
         files = queryResult.files;
         nextToken = queryResult.nextPageToken;
@@ -622,6 +638,10 @@ class GoogleDriveRepository extends FilesystemRepository {
       log.error("Can not retrive files from Google Drive: $e");
       return false;
     }
+
+    //Wait filesystem prefetch done
+    final ok = await fsPrefetchResult;
+    if (!ok) return false;
 
     return await _addCloudFileToCache("/", rootFolder,
         filesByParent: filesByParent);
@@ -835,9 +855,12 @@ extension AudioObjectExt on AudioObject {
 
   Future<bool> updateCloudData({String? parentId}) async {
     //already updated
-    if (cloudData != null && cloudData!.existInCloud != null) {
-      return true;
+    if (cloudData != null) {
+      if (cloudData!.existInCloud != null) return true;
+      if (cloudData!.updating != null) return cloudData!.updating!.future;
     }
+    cloudData ??= CloudFileData();
+    cloudData!.updating = Completer();
 
     var parentCloudId = parentId ?? parent?.cloudData?.id;
     assert(parentCloudId != null);
@@ -847,7 +870,6 @@ extension AudioObjectExt on AudioObject {
       final queryResult = await sl.gDriveApi!.files
           .list(q: query, $fields: _kSingleFileFields, spaces: 'drive');
       final files = queryResult.files;
-      cloudData ??= CloudFileData();
 
       if (files == null || files.isEmpty) {
         cloudData!.existInCloud = false;
@@ -860,10 +882,14 @@ extension AudioObjectExt on AudioObject {
 
       //Dont know filesystem info, set size by cloud side
       if (cloudData!.existInFs == null) {}
+      cloudData!.updating!.complete(true);
+      cloudData!.updating = null;
       return true;
     } catch (e) {
       log.error("Can not retrive files from Google Drive"
           ", query:$query, error: $e");
+      cloudData!.updating!.complete(false);
+      cloudData!.updating = null;
       return false;
     }
   }
@@ -872,6 +898,7 @@ extension AudioObjectExt on AudioObject {
 class CloudFileData {
   String? id;
   int? size;
+  Completer<bool>? updating;
   CloudFileState get state {
     if (existInCloud == null || existInFs == null) return CloudFileState.init;
     assert(existInCloud! || !existInFs!);
@@ -885,7 +912,7 @@ class CloudFileData {
   bool? existInFs;
   bool synced = false;
 
-  CloudFileData([this.id]);
+  CloudFileData({this.id, this.existInFs, this.existInCloud, this.size});
 }
 
 enum CloudFileState {
