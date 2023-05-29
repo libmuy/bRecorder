@@ -232,7 +232,7 @@ class FilesystemRepository extends Repository {
 
     if (!result) {
       log.error("get folder($relativePath) not exists");
-      return Fail(IOFailure());
+      return const Fail(IOFailure());
     }
     return Succeed(folder);
   }
@@ -274,10 +274,10 @@ class FilesystemRepository extends Repository {
       await srcFile.delete(recursive: true);
     } catch (e) {
       log.critical("got a file IO exception: $e");
-      return Fail(IOFailure());
+      return const Fail(IOFailure());
     }
 
-    return Succeed();
+    return const Succeed(null);
   }
 
   @override
@@ -286,12 +286,12 @@ class FilesystemRepository extends Repository {
     final dir = Directory(absPath);
     try {
       if (await dir.exists()) {
-        return Fail(AlreadExists());
+        return const Fail(AlreadExists());
       }
       await dir.create();
     } catch (e) {
       log.critical("got a file IO exception: $e");
-      return Fail(IOFailure());
+      return const Fail(IOFailure());
     }
 
     var newFolder = FolderInfo(relativePath, repo: this);
@@ -325,9 +325,9 @@ class FilesystemRepository extends Repository {
       await entity.delete(recursive: true);
     } catch (e) {
       log.critical("got a file IO exception: $e");
-      return Fail(IOFailure());
+      return const Fail(IOFailure());
     }
 
-    return Succeed();
+    return const Succeed(null);
   }
 }
