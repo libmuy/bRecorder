@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:brecorder/data/google_drive_repository.dart';
 import 'package:brecorder/presentation/widgets/audio_list_item/audio_widget_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../core/logging.dart';
 import '../../core/service_locator.dart';

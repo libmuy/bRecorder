@@ -209,35 +209,35 @@ class AudioServiceAgent {
       "path": path,
     });
     if (ret == false) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     state = AudioState.recording;
 
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> stopRecord() async {
     if (!await _callVoidPlatformMethod("stopRecord")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     state = AudioState.idle;
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> pauseRecord() async {
     if (!await _callVoidPlatformMethod("pauseRecord")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     state = AudioState.recordPaused;
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> resumeRecord() async {
     if (!await _callVoidPlatformMethod("resumeRecord")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     state = AudioState.recording;
-    return Succeed();
+    return const Succeed();
   }
 
   /*=======================================================================*\ 
@@ -265,56 +265,56 @@ class AudioServiceAgent {
       "path": path,
       "positionNotifyIntervalMs": positionNotifyIntervalMs,
     })) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     currentAudio = audio;
     _notifyAudioEventListeners(AudioEventType.started, audio);
     state = AudioState.playing;
 
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> stopPlay() async {
     if (!await _callVoidPlatformMethod("stopPlay")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     _notifyAudioEventListeners(AudioEventType.stopped, null);
     currentAudio = null;
     state = AudioState.idle;
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> stopPlayIfPlaying() async {
     if (state == AudioState.playing || state == AudioState.playPaused) {
       return stopPlay();
     }
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> pausePlay() async {
-    if (state != AudioState.playing) return Succeed();
+    if (state != AudioState.playing) return const Succeed();
     if (!await _callVoidPlatformMethod("pausePlay")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     _notifyAudioEventListeners(AudioEventType.paused, null);
     state = AudioState.playPaused;
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> pausePlayIfPlaying() async {
     if (state != AudioState.playing) {
-      return Succeed();
+      return const Succeed();
     }
     return pausePlay();
   }
 
   Future<Result> resumePlay() async {
     if (!await _callVoidPlatformMethod("resumePlay")) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     _notifyAudioEventListeners(AudioEventType.started, currentAudio!);
     state = AudioState.playing;
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> togglePlay(AudioInfo audio) async {
@@ -344,10 +344,10 @@ class AudioServiceAgent {
       "position": positionMs,
       "sync": sync,
     })) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
     _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> seekTo(int positionMs) async {
@@ -376,23 +376,23 @@ class AudioServiceAgent {
       pitch = GlobalInfo.PLATFORM_PITCH_MIN_VALUE;
     }
     if (!await _callVoidPlatformMethod("setPitch", {"pitch": pitch})) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> setSpeed(double speed) async {
     if (!await _callVoidPlatformMethod("setSpeed", {"speed": speed})) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> setVolume(double volume) async {
     if (!await _callVoidPlatformMethod("setVolume", {"volume": volume})) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
-    return Succeed();
+    return const Succeed();
   }
 
   /*=======================================================================*\ 
@@ -407,7 +407,7 @@ class AudioServiceAgent {
       ret = -1;
     }
 
-    if (ret < 0) return Fail(PlatformFailure());
+    if (ret < 0) return const Fail(PlatformFailure());
 
     return Succeed(ret);
   }
@@ -425,7 +425,7 @@ class AudioServiceAgent {
       ret = -1;
     }
 
-    if (ret < 0) return Fail(PlatformFailure());
+    if (ret < 0) return const Fail(PlatformFailure());
 
     return Succeed(ret);
   }
@@ -446,9 +446,9 @@ class AudioServiceAgent {
           GlobalInfo.PLAYBACK_POSITION_NOTIFY_INTERVAL_MS,
     });
     if (ret == false) {
-      return Fail(PlatformFailure());
+      return const Fail(PlatformFailure());
     }
-    return Succeed();
+    return const Succeed();
   }
 
   /*=======================================================================*\ 
@@ -463,7 +463,7 @@ class AudioServiceAgent {
       ret = -1;
     }
 
-    if (ret < 0) return Fail(PlatformFailure());
+    if (ret < 0) return const Fail(PlatformFailure());
 
     return Succeed(ret);
   }
@@ -477,7 +477,7 @@ class AudioServiceAgent {
       ret = -1;
     }
 
-    if (ret < 0) return Fail(PlatformFailure());
+    if (ret < 0) return const Fail(PlatformFailure());
 
     return Succeed(ret);
   }

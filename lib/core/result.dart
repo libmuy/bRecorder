@@ -1,4 +1,3 @@
-import 'package:equatable/equatable.dart';
 
 abstract class Result {
   final dynamic value;
@@ -8,9 +7,7 @@ abstract class Result {
   bool get failed;
 
   const Result({this.value, this.error});
-  const Result.noValue()
-      : value = null,
-        error = null;
+
 }
 
 class Succeed extends Result {
@@ -19,8 +16,8 @@ class Succeed extends Result {
   @override
   bool get failed => false;
 
-  const Succeed(dynamic value) : super(value: value);
-  const Succeed.noValue() : super.noValue();
+  const Succeed([dynamic value]) : super(value: value);
+
 }
 
 class Fail extends Result {
@@ -30,7 +27,7 @@ class Fail extends Result {
   bool get failed => true;
 
   const Fail(ErrInfo error) : super(error: error);
-  const Fail.noValue() : super.noValue();
+
 }
 
 abstract class ErrInfo {

@@ -40,7 +40,7 @@ class _SettingTabsPageState extends State<SettingTabsPage> {
               //Leading Icon
               Container(
                 alignment: Alignment.centerLeft,
-                padding: EdgeInsets.only(left: 15),
+                padding: const EdgeInsets.only(left: 15),
                 width: 50,
                 child: repoType.icon,
               ),
@@ -53,7 +53,7 @@ class _SettingTabsPageState extends State<SettingTabsPage> {
                 children: [
                   Text(
                     repoType.title,
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16),
                   ),
                   repo is GoogleDriveRepository && repo.account != null
                       ? Text(

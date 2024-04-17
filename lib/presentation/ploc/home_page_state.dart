@@ -131,7 +131,7 @@ class HomePageState {
   }
 
   void onFolderChanged(FolderInfo folder) {
-    currentTab.currentPath = folder.path;
+    currentTab.currentFolder = folder;
     _notifyTitle();
   }
 

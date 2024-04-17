@@ -341,7 +341,7 @@ abstract class Repository {
       removeObjectFromCache(src);
       addObjectIntoCache(src, dst: folder);
     }
-    return Succeed();
+    return const Succeed();
   }
 
   Future<Result> newFolder(String path) async {
@@ -378,7 +378,7 @@ abstract class Repository {
       log.error("Remove object(${obj.path}) failed");
       return ret;
     }
-    return Succeed();
+    return const Succeed();
   }
 
   ///Move file/folder in storage

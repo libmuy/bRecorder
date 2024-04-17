@@ -175,7 +175,7 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
   Widget build(context) {
     log.debug("duration${widget.duration}");
     _colorTween ??= ColorTween(
-            begin: Theme.of(context).textTheme.bodyText1!.color,
+            begin: Theme.of(context).textTheme.bodyLarge!.color,
             end: Theme.of(context).indicatorColor)
         .animate(_animationController);
     _optacityTween ??= Tween(begin: 0, end: 1).animate(_animationController);

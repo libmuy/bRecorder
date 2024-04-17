@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage>
   final state = sl.get<HomePageState>();
   final settings = sl.get<Settings>();
   final _modeNotifier = sl.get<GlobalModeNotifier>();
-  Map<RepoType, Widget> _browserViewCache = {};
+  final Map<RepoType, Widget> _browserViewCache = {};
 
   @override
   void initState() {

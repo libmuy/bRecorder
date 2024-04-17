@@ -1,4 +1,3 @@
-import '../core/logging.dart';
 import '../core/result.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
@@ -27,21 +26,21 @@ class PlaylistRepository extends Repository {
   @override
   Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
       {bool updateCloud = true}) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 
   @override
   Future<Result> removeObjectRealOperation(AudioObject obj) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 
   @override
   Future<Result> newFolderRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 
   @override
   Future<Result> getAudioInfoRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 }

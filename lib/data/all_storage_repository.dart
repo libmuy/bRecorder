@@ -114,12 +114,12 @@ class AllStorageRepository extends Repository {
   @override
   Future<Result> moveObjectsRealOperation(AudioObject src, FolderInfo dstFolder,
       {bool updateCloud = true}) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 
   @override
   Future<Result> removeObjectRealOperation(AudioObject obj) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 
   @override
@@ -134,12 +134,12 @@ class AllStorageRepository extends Repository {
     final ret = await repo.newFolder(repoPath);
     if (ret.failed) return Fail(ErrMsg("New Folder($relativePath) failed!"));
 
-    return Succeed();
+    return const Succeed();
   }
 
   @override
   Future<Result> getAudioInfoRealOperation(String relativePath) async {
-    return Fail(IOFailure());
+    return const Fail(IOFailure());
   }
 }
 

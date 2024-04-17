@@ -1,12 +1,7 @@
 import 'package:brecorder/core/global_info.dart';
-import 'package:brecorder/core/utils/notifiers.dart';
-import 'package:brecorder/data/repository.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
 
 import '../../../core/logging.dart';
-import '../../../core/service_locator.dart';
 import 'setting_tabs_page.dart';
 
 final log = Logger('SettingPage', level: LogLevel.debug);

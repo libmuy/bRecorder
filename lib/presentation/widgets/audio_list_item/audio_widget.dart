@@ -153,7 +153,7 @@ class _AudioWidgetState extends State<AudioWidget> {
               Share.shareXFiles([XFile(await widget.audioItem.realPath)],
                   text: basename(widget.audioItem.path));
             },
-            backgroundColor: Color(0xFF21B7CA),
+            backgroundColor: const Color(0xFF21B7CA),
             foregroundColor: Colors.white,
             icon: Icons.share,
             label: 'Share',
@@ -169,14 +169,14 @@ class _AudioWidgetState extends State<AudioWidget> {
             // An action can be bigger than the others.
             flex: 2,
             onPressed: doNothing,
-            backgroundColor: Color(0xFF7BC043),
+            backgroundColor: const Color(0xFF7BC043),
             foregroundColor: Colors.white,
             icon: Icons.archive,
             label: 'Archive',
           ),
           SlidableAction(
             onPressed: doNothing,
-            backgroundColor: Color(0xFF0392CF),
+            backgroundColor: const Color(0xFF0392CF),
             foregroundColor: Colors.white,
             icon: Icons.save,
             label: 'Save',

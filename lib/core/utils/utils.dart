@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:brecorder/domain/entities.dart';
@@ -61,6 +60,7 @@ class TabInfo {
   bool enabled;
 
   String get currentPath => currentFolder == null ? '/' : currentFolder!.path;
+
   TabInfo({
     this.enabled = true,
     required this.repoType,

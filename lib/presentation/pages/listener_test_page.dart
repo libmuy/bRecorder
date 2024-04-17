@@ -47,11 +47,11 @@ class _ListenerTestPageState extends State<ListenerTestPage> {
             children: <Widget>[
               Text(
                 '$_downCounter presses\n$_upCounter releases',
-                style: Theme.of(context).textTheme.headline4,
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
               Text(
                 'The cursor is here: (${x.toStringAsFixed(2)}, ${y.toStringAsFixed(2)})',
-                style: Theme.of(context).textTheme.headline4,
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
             ],
           ),

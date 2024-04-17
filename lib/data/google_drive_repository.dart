@@ -154,7 +154,7 @@ class GoogleDriveRepository extends FilesystemRepository {
           " src:$src, dst:$dstFolder"));
     }
 
-    return Succeed();
+    return const Succeed();
   }
 
   @override
@@ -165,10 +165,6 @@ class GoogleDriveRepository extends FilesystemRepository {
 
     FolderInfo folder = ret.value;
     final newFolder = await _createDirectory(folder);
-    if (newFolder == null) {
-      return Fail(ErrMsg("Create Google Drive folder failed"
-          ": ${folder.path}"));
-    }
     return ret;
   }
 
@@ -516,7 +512,6 @@ class GoogleDriveRepository extends FilesystemRepository {
     //Not exist in cloud, create it
     if (obj.cloudData == null) {
       final gFolder = await _createDirectory(obj);
-      if (gFolder == null) return false;
     }
 
     for (final sub in obj.subObjects) {
