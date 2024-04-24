@@ -44,7 +44,7 @@ class Waveform extends StatefulWidget {
 
   const Waveform(
     this.waveformData, {
-    Key? key,
+    super.key,
     // required Key key,
     this.zoomLevel = 1.0,
     this.height,
@@ -53,7 +53,7 @@ class Waveform extends StatefulWidget {
     this.startSeek,
     this.endSeek,
     this.delegate,
-  }) : super(key: key);
+  });
 
   @override
   State<Waveform> createState() => _WaveformState();

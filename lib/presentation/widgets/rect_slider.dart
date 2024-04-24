@@ -23,7 +23,7 @@ class RectThumbSlider extends StatefulWidget {
   final String Function(double value)? labelFormater;
 
   const RectThumbSlider(
-      {Key? key,
+      {super.key,
       this.onChangeEnd,
       this.onChangeStart,
       this.onChanged,
@@ -37,8 +37,7 @@ class RectThumbSlider extends StatefulWidget {
       this.divisions,
       this.icon,
       this.color,
-      this.initValue})
-      : super(key: key);
+      this.initValue});
   @override
   State<RectThumbSlider> createState() => _RectThumbSliderState();
 }

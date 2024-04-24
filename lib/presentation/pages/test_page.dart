@@ -15,7 +15,7 @@ import '../widgets/waveform/waveform.dart';
 final log = Logger('TestPage');
 
 class MyTestPage extends StatefulWidget {
-  const MyTestPage({Key? key, required this.title}) : super(key: key);
+  const MyTestPage({super.key, required this.title});
 
   final String title;
 

@@ -12,7 +12,7 @@ class BubbleDialog extends StatefulWidget {
   final double sideMargin;
 
   const BubbleDialog({
-    Key? key,
+    super.key,
     this.markHeight = 12,
     this.markWidth = 10,
     required this.position,
@@ -22,7 +22,7 @@ class BubbleDialog extends StatefulWidget {
     this.color,
     this.borderRadius = const Radius.circular(8),
     this.padding = const EdgeInsets.all(15),
-  }) : super(key: key);
+  });
 
   @override
   State createState() => _BubbleDialogState();

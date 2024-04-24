@@ -32,7 +32,7 @@ class BrowserView extends StatefulWidget {
   final ValueNotifier<String> titleNotifier;
   final void Function(FolderInfo folder)? onFolderChanged;
   const BrowserView({
-    Key? key,
+    super.key,
     required this.repoType,
     required this.titleNotifier,
     this.folderOnly = false,
@@ -41,7 +41,7 @@ class BrowserView extends StatefulWidget {
     this.editable = true,
     this.onFolderChanged,
     this.groupByDate = false,
-  }) : super(key: key);
+  });
 
   @override
   State<BrowserView> createState() => _BrowserViewState();

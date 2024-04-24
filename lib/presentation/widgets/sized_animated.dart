@@ -13,12 +13,12 @@ class SizedAnimated extends StatefulWidget {
   final EdgeInsets? padding;
 
   const SizedAnimated({
-    Key? key,
+    super.key,
     required this.child,
     this.show,
     this.showNotifier,
     this.padding,
-  }) : super(key: key);
+  });
 
   @override
   State<SizedAnimated> createState() => _SizedAnimatedState();

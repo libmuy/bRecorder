@@ -1,10 +1,8 @@
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart';
-import 'package:share_plus/share_plus.dart';
+// import 'package:share_plus/share_plus.dart';
 
 import '../../../core/logging.dart';
 import '../../../data/google_drive_repository.dart';
@@ -24,7 +22,7 @@ class AudioWidget extends StatefulWidget {
   final void Function(AudioWidgetState state)? onLongPressed;
 
   const AudioWidget(
-      {Key? key,
+      {super.key,
       required this.audioItem,
       required this.state,
       this.padding = 5,
@@ -32,8 +30,7 @@ class AudioWidget extends StatefulWidget {
       this.iconPadding = 5,
       this.detailPadding = 5,
       this.onTap,
-      this.onLongPressed})
-      : super(key: key);
+      this.onLongPressed});
 
   @override
   State<AudioWidget> createState() => _AudioWidgetState();
@@ -150,8 +147,8 @@ class _AudioWidgetState extends State<AudioWidget> {
           ),
           SlidableAction(
             onPressed: (context) async {
-              Share.shareXFiles([XFile(await widget.audioItem.realPath)],
-                  text: basename(widget.audioItem.path));
+              // Share.shareXFiles([XFile(await widget.audioItem.realPath)],
+              //     text: basename(widget.audioItem.path));
             },
             backgroundColor: const Color(0xFF21B7CA),
             foregroundColor: Colors.white,

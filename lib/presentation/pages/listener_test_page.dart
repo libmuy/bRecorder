@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ListenerTestPage extends StatefulWidget {
-  const ListenerTestPage({Key? key}) : super(key: key);
+  const ListenerTestPage({super.key});
 
   @override
   State<ListenerTestPage> createState() => _ListenerTestPageState();

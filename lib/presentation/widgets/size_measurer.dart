@@ -13,11 +13,11 @@ class SizeMeasurer extends StatefulWidget {
   final bool useNotification;
 
   const SizeMeasurer({
-    Key? key,
+    super.key,
     this.onSizeChange,
     required this.child,
     this.useNotification = false,
-  }) : super(key: key);
+  });
 
   @override
   State createState() => _SizeMeasurerState();

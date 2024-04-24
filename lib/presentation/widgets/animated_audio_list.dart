@@ -23,12 +23,12 @@ class AnimatedAudioSliver extends StatefulWidget {
   final bool editable;
   final ForcibleValueNotifier<List<AudioObject>> listNotifier;
   const AnimatedAudioSliver({
-    Key? key,
+    super.key,
     required this.repoType,
     this.editable = true,
     // required this.showingNotifier,
     required this.listNotifier,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedAudioSliver> createState() => _AnimatedAudioSliverState();

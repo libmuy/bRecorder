@@ -10,7 +10,7 @@ import '../../../core/utils/utils.dart';
 final log = Logger('SettingPage', level: LogLevel.debug);
 
 class SettingTabsPage extends StatefulWidget {
-  const SettingTabsPage({Key? key}) : super(key: key);
+  const SettingTabsPage({super.key});
 
   @override
   State<SettingTabsPage> createState() => _SettingTabsPageState();

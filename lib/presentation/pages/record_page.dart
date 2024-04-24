@@ -13,8 +13,7 @@ final log = Logger('TestPage');
 class RecordPage extends StatefulWidget {
   final String dirPath;
   final RepoType repoType;
-  const RecordPage({Key? key, required this.dirPath, required this.repoType})
-      : super(key: key);
+  const RecordPage({super.key, required this.dirPath, required this.repoType});
 
   @override
   State<RecordPage> createState() => _RecordPageState();

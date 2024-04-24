@@ -17,7 +17,7 @@ class AnimatedSizedPanel extends StatefulWidget {
   final String debugLabel;
   final Widget child;
   const AnimatedSizedPanel({
-    Key? key,
+    super.key,
     required this.show,
     required this.child,
     this.relayNotification = false,
@@ -27,7 +27,7 @@ class AnimatedSizedPanel extends StatefulWidget {
     this.dragNotifier,
     this.dragListenerPriority = 0,
     this.debugLabel = "",
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedSizedPanel> createState() => _AnimatedSizedPanelState();

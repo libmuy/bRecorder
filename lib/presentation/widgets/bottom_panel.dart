@@ -18,8 +18,8 @@ const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
 class BottomPanel extends StatefulWidget {
   const BottomPanel({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<BottomPanel> createState() => _BottomPanelState();

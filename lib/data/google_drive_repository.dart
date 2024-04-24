@@ -30,6 +30,11 @@ const _kCommonProperties = {
   _kAppTagKey: _kAppTagValue,
 };
 
+// not implemented
+bool _existInCloud(AudioObject folder, {String? parentId}) {
+  return false;
+}
+
 class GoogleDriveRepository extends FilesystemRepository {
   CloudState _state = CloudState.init;
   final _googleSignIn =
@@ -42,7 +47,7 @@ class GoogleDriveRepository extends FilesystemRepository {
   String? _gDriveMyDriveId;
   final _taskQ = TaskQueue(maxConcurrentTasks: 20);
 
-  GoogleDriveRepository(Future<String> rootPathFuture) : super(rootPathFuture) {
+  GoogleDriveRepository(super.rootPathFuture) {
     log.name = "RepoGDrive";
     log.level = LogLevel.verbose3;
   }
@@ -110,8 +115,10 @@ class GoogleDriveRepository extends FilesystemRepository {
   @override
   Future<bool> removeFromCloud(AudioObject obj) async => _removeFile(obj);
   @override
+  // not implemented
   Future<bool> addToCloud(AudioObject obj) async {
     if (obj.isFolder) {}
+    return true;
   }
 
   bool _existInFs(AudioObject obj) {
@@ -193,11 +200,11 @@ class GoogleDriveRepository extends FilesystemRepository {
     //Not exist in cloud, upload
     if (meta == null) {
       log.info("Audio($path) not exists in cloud, upload it");
-      audio.cloudData = CloudFileData(null, state: CloudFileState.uploading);
+      audio.cloudData = CloudFileData(existInCloud: false, existInFs: true);
       _uploadFile(audio);
     } else {
       log.info("Audio($path) already exists? not expected");
-      audio.cloudData = CloudFileData(meta.id);
+      audio.cloudData = CloudFileData(id: meta.id);
     }
 
     return ret;
@@ -294,17 +301,17 @@ class GoogleDriveRepository extends FilesystemRepository {
     folder.allAudioCount = audioCount;
     folder.bytes = bytes;
     folder.timestamp = timestamp;
-    if (conflict) {
-      folder.cloudData!.state = CloudFileState.conflict;
-    } else if (downloading && !uploading && !syncing) {
-      folder.cloudData!.state = CloudFileState.downloading;
-    } else if (!downloading && uploading && !syncing) {
-      folder.cloudData!.state = CloudFileState.uploading;
-    } else if (downloading || uploading || syncing) {
-      folder.cloudData!.state = CloudFileState.syncing;
-    } else if (!downloading && !uploading && !syncing) {
-      folder.cloudData!.state = CloudFileState.synced;
-    }
+    // if (conflict) {
+    //   folder.cloudData!.state = CloudFileState.conflict;
+    // } else if (downloading && !uploading && !syncing) {
+    //   folder.cloudData!.state = CloudFileState.downloading;
+    // } else if (!downloading && uploading && !syncing) {
+    //   folder.cloudData!.state = CloudFileState.uploading;
+    // } else if (downloading || uploading || syncing) {
+    //   folder.cloudData!.state = CloudFileState.syncing;
+    // } else if (!downloading && !uploading && !syncing) {
+    //   folder.cloudData!.state = CloudFileState.synced;
+    // }
     folder.updateUI();
     return true;
   }
@@ -430,7 +437,7 @@ class GoogleDriveRepository extends FilesystemRepository {
           thisFolder = ret.value;
         }
       }
-      thisFolder.cloudData = CloudFileData(id);
+      thisFolder.cloudData = CloudFileData(id:id);
 
       List<gdrive.File>? subs;
       //Get subs from cache
@@ -453,23 +460,23 @@ class GoogleDriveRepository extends FilesystemRepository {
       }
     } else {
       AudioInfo thisFile;
-      if (parent!.hasAudio(name)) {
-        thisFile = parent.audiosMap![name]!;
-        if (thisFile.bytes == int.parse(file.size!)) {
-          thisFile.cloudData = CloudFileData(id, state: CloudFileState.synced);
-        } else {
-          thisFile.cloudData =
-              CloudFileData(id, state: CloudFileState.conflict);
-        }
-      } else {
-        thisFile = AudioInfo(path,
-            bytes: int.parse(file.size!),
-            timestamp: file.modifiedTime!,
-            repo: this);
-        thisFile.cloudData =
-            CloudFileData(id, state: CloudFileState.downloading);
-        addObjectIntoCache(thisFile, dst: parent, onlyStruct: true);
-      }
+      // if (parent!.hasAudio(name)) {
+      //   thisFile = parent.audiosMap![name]!;
+      //   if (thisFile.bytes == int.parse(file.size!)) {
+      //     thisFile.cloudData = CloudFileData(id:id, state: CloudFileState.synced);
+      //   } else {
+      //     thisFile.cloudData =
+      //         CloudFileData(id, state: CloudFileState.conflict);
+      //   }
+      // } else {
+      //   thisFile = AudioInfo(path,
+      //       bytes: int.parse(file.size!),
+      //       timestamp: file.modifiedTime!,
+      //       repo: this);
+      //   thisFile.cloudData =
+      //       CloudFileData(id, state: CloudFileState.downloading);
+      //   addObjectIntoCache(thisFile, dst: parent, onlyStruct: true);
+      // }
     }
 
     return true;
@@ -495,7 +502,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     final setting = syncSetting ?? (await sl.settings).cloudSyncSetting;
     var parent = parentId ?? obj.parent?.cloudData?.id;
     parent ??= _gDriveRootFolderId;
-    final existInCloud = await _existInCloud(obj, parentId: parent);
+    final existInCloud = _existInCloud(obj, parentId: parent);
     final existInFs = _existInFs(obj);
     if (obj.isAudio) {
       switch (setting!.syncMethod) {
@@ -508,13 +515,13 @@ class GoogleDriveRepository extends FilesystemRepository {
           // TODO: Handle this case.
           break;
       }
-    }
+    } else if (obj.isFolder) {
     //Not exist in cloud, create it
     if (obj.cloudData == null) {
-      final gFolder = await _createDirectory(obj);
+      final gFolder = await _createDirectory(obj as FolderInfo);
     }
 
-    for (final sub in obj.subObjects) {
+    for (final sub in (obj as FolderInfo).subObjects) {
       if (sub is FolderInfo) {
         final ok = await _syncAudioObject(sub);
         if (!ok) return false;
@@ -530,6 +537,8 @@ class GoogleDriveRepository extends FilesystemRepository {
           }
         }
       }
+    }
+
     }
     return true;
   }
@@ -579,7 +588,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     //No 'bRecorder' folder exists, create it
     if (files == null || files.isEmpty) {
       log.verbose("Root folder not exists, create it");
-      rootFolder = await _createDirectory(cache!);
+      // rootFolder = await _createDirectory(cache!);
     } else {
       rootFolder = files.first;
       log.info("[Google Drive] Got root folder, id:${rootFolder.id}");
@@ -662,7 +671,7 @@ class GoogleDriveRepository extends FilesystemRepository {
   ///Create a
   Future<Result> _createDirectory(FolderInfo folder, {String? parentId}) async {
     log.debug("[Google Drive] Create Folder:${folder.path}");
-    final exist = await _existInCloud(folder, parentId: parentId);
+    final exist = _existInCloud(folder, parentId: parentId);
     if (exist) {
       log.error("Already exist: $folder");
       return const Fail(AlreadExists());
@@ -685,7 +694,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     try {
       file = await _driveApi!.files
           .create(file, $fields: _kSingleFileFieldsInternal);
-      folder.cloudData = CloudFileData(file.id);
+      folder.cloudData = CloudFileData(id: file.id);
     } catch (e) {
       final errMsg = "Create Google Drive folder failed, $e";
       log.error(errMsg);
@@ -720,7 +729,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       } else {
         result = await _driveApi!.files.create(driveFile, uploadMedia: media);
       }
-      audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
+      // audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
       audio.updateUI();
       log.info("Upload audio to Google Drive OK: ${audio.path}");
     } catch (e) {
@@ -747,7 +756,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       result.then((_) async {
         final updateResult = await getAudioInfoFromRepo(audio);
         if (!updateResult) return false;
-        audio.cloudData!.state = CloudFileState.synced;
+        // audio.cloudData!.state = CloudFileState.synced;
         audio.updateUI();
         log.info("Download from Google Drive DONE: ${audio.path}");
       }, onError: (e) {

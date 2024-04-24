@@ -22,7 +22,7 @@ class OnOffIconButton extends StatefulWidget {
   final Duration duration;
 
   const OnOffIconButton({
-    Key? key,
+    super.key,
     this.icon,
     this.onStateIcon,
     this.onStateChanged,
@@ -37,7 +37,7 @@ class OnOffIconButton extends StatefulWidget {
     this.labelAnimation = true,
     this.padding = const EdgeInsets.all(3),
     this.duration = const Duration(milliseconds: 100),
-  }) : super(key: key);
+  });
 
   @override
   State<OnOffIconButton> createState() => _OnOffIconButtonState();

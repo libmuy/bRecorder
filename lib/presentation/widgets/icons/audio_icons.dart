@@ -8,13 +8,13 @@ class OverlayIcon extends StatelessWidget {
   final Color? color;
 
   const OverlayIcon({
-    Key? key,
+    super.key,
     required this.bigIcon,
     required this.smallIcon,
     this.height,
     this.width,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(context) {

@@ -17,9 +17,9 @@ class FolderSelector extends StatefulWidget {
   final void Function(FolderInfo folder) onFolderSelected;
 
   const FolderSelector({
-    Key? key,
+    super.key,
     required this.onFolderSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<FolderSelector> createState() => _FolderSelectorState();

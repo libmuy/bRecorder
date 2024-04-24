@@ -23,7 +23,7 @@ class Settings {
   final Completer<Settings> _loadCompleter = Completer();
   final bool _loadDone = false;
   Settings() {
-    sl.appCloseListeners.add(save);
+    // sl.appCloseListeners.add(save);
   }
 
   Future<Settings> waitLoadDone() async {

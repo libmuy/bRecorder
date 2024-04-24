@@ -26,14 +26,14 @@ class PlaybackPanel extends StatefulWidget {
   final void Function()? onClose;
   final ValueNotifier<PlayLoopType> loopNotifier;
   const PlaybackPanel({
-    Key? key,
+    super.key,
     this.onPlayNext,
     this.onPlayPrevious,
     this.onClose,
     this.padding =
         const EdgeInsets.only(top: 10, bottom: 15, left: 5, right: 5),
     required this.loopNotifier,
-  }) : super(key: key);
+  });
 
   @override
   State<PlaybackPanel> createState() => _PlaybackPanelState();

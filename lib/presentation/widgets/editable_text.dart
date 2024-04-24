@@ -12,12 +12,11 @@ class EditableText extends StatefulWidget {
   final void Function(String)? onTextChanged;
 
   const EditableText(this.initialText,
-      {Key? key,
+      {super.key,
       this.height = 35,
       this.padding = const EdgeInsets.all(0),
       this.textAlign = TextAlign.start,
-      this.onTextChanged})
-      : super(key: key);
+      this.onTextChanged});
 
   @override
   State<EditableText> createState() => _EditableTextState();

@@ -22,7 +22,7 @@ class TitleBar extends StatefulWidget implements PreferredSizeWidget {
   final void Function(String path)? onTitleTapped;
 
   const TitleBar(
-      {Key? key,
+      {super.key,
       required this.titleNotifier,
       this.leadingOnPressed,
       this.endingOnPressed,
@@ -35,8 +35,7 @@ class TitleBar extends StatefulWidget implements PreferredSizeWidget {
       this.titleMargin = 2,
       this.dividerHeight = 1,
       this.onTitleTapped})
-      : bottomHeight = bottom == null ? 0 : bottomHeight,
-        super(key: key);
+      : bottomHeight = bottom == null ? 0 : bottomHeight;
 
   @override
   Size get preferredSize {

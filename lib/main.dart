@@ -18,7 +18,7 @@ void main() async {
 }
 
 class BRecorderApp extends StatelessWidget {
-  const BRecorderApp({Key? key}) : super(key: key);
+  const BRecorderApp({super.key});
 
   @override
   Widget build(BuildContext context) {

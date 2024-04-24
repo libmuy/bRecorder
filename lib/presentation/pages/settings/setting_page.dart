@@ -7,7 +7,7 @@ import 'setting_tabs_page.dart';
 final log = Logger('SettingPage', level: LogLevel.debug);
 
 class SettingPage extends StatefulWidget {
-  const SettingPage({Key? key}) : super(key: key);
+  const SettingPage({super.key});
 
   @override
   State<SettingPage> createState() => _SettingPageState();

@@ -12,13 +12,13 @@ class SquareIconButton extends StatelessWidget {
   final void Function()? onPressed;
 
   const SquareIconButton({
-    Key? key,
+    super.key,
     this.onPressed,
     required this.child,
     this.label,
     this.minWidth = 50,
     this.padding = const EdgeInsets.all(3),
-  }) : super(key: key);
+  });
   @override
   Widget build(context) {
     return SizedBox(

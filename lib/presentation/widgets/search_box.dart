@@ -13,12 +13,12 @@ class SearchBox extends StatefulWidget {
   final SimpleNotifier? cancelNotifier;
 
   const SearchBox({
-    Key? key,
+    super.key,
     this.height = 35.0,
     this.padding = 4.0,
     this.onTextChanged,
     this.cancelNotifier,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchBox> createState() => _SearchBoxState();

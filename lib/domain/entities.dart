@@ -163,21 +163,16 @@ class AudioInfo extends AudioObject {
   void Function()? get onPlayPaused => displayData?.onPlayPaused;
   void Function()? get onPlayStarted => displayData?.onPlayStarted;
 
-  AudioInfo(String path,
+  AudioInfo(super.path,
       {this.durationMS,
-      int? bytes,
-      DateTime? timestamp,
+      super.bytes,
+      super.timestamp,
       this.currentPosition = 0,
       this.broken = false,
-      Repository? repo,
-      FolderInfo? parent,
+      super.repo,
+      super.parent,
       displayData})
-      : super(path,
-            bytes: bytes,
-            timestamp: timestamp,
-            repo: repo,
-            parent: parent,
-            displayData: displayData);
+      : super(displayData: displayData);
 
   @override
   List<Object?> get props => [durationMS, path, bytes, timestamp];
@@ -400,21 +395,16 @@ class FolderInfo extends AudioObject {
     return audiosMap!.length;
   }
 
-  FolderInfo(String path,
-      {int? bytes,
-      DateTime? timestamp,
+  FolderInfo(super.path,
+      {super.bytes,
+      super.timestamp,
       this.allAudioCount,
       this.subfoldersMap,
       this.audiosMap,
-      Repository? repo,
-      FolderInfo? parent,
+      super.repo,
+      super.parent,
       displayData})
-      : super(path,
-            bytes: bytes,
-            timestamp: timestamp,
-            repo: repo,
-            parent: parent,
-            displayData: displayData);
+      : super(displayData: displayData);
 
   FolderInfo copyWith({
     String? path,
