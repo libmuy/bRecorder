@@ -1,31 +1,16 @@
 # brecorder
 
-# Move Object between Repo(Cloud)
+A new Flutter project.
 
-1. delete from source repo
-   1. delete from cloud
-   2. delete from local file system cache
-   3. remove object from memory cache
-2. add to target repo
-   1. add to file system cache
-   2. add to memory cache
-   3. upload(sync) to cloud
+## Getting Started
 
-# Cloud Sync usecase
+This project is a starting point for a Flutter application.
 
-1. File operations in local side
-   this doesn't include file operation out of app(the folder is not visable out of app)
-2. File operations in cloud side
-3. File Operations
-   - Delete
-   - Add
-   - Move
+A few resources to get you started if this is your first Flutter project:
 
-# Cloud Sync Policy
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-Using local for default policy
-
-# Known problems
-
-1. File options doing in both local side and cloud side will result in unexpected result.
-
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
