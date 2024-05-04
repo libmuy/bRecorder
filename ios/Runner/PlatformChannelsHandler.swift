@@ -8,6 +8,7 @@ import Foundation
 import Flutter
 import UIKit
 
+fileprivate let log = Logger(name: "PCHandler")
 
 class PlatformChannelsHandler {
     var mEventListener: EventChannelListener? = nil
@@ -214,12 +215,15 @@ class PlatformChannelsHandler {
             \*=======================================================================*/
         case "getDuration":
             guard let path: String = unwrapParamString(result: result, args: call.arguments, name: "path") else {return}
-            guard let ret = mAudioManager?.getDuration(path: path) else {
-                endCallWithParamError(result: result, message: "AudioManager not initialized?")
-                return
+            Task {
+                if let ret = await self.mAudioManager?.getDuration(path: path) {
+                    log.debug("got duration")
+                    self.endCallWithResult(result: result, ret: ret)
+                } else {
+                    log.debug("audio manager is nil?")
+                    self.endCallWithResult(result: result, ret: AudioResult(type: .NG, value: 0))
+                }
             }
-            endCallWithResult(result: result, ret: ret)
-            
         case "setParams":
             guard let samplesPerSecond = unwrapParamInt(result: result, args: call.arguments, name: "samplesPerSecond") else {return}
             WAVEFORM_SAMPLES_PER_SECOND = samplesPerSecond

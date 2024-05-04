@@ -30,28 +30,34 @@ class AudioManager {
     }
 
     
-    func getDuration(path: String)-> AudioResult<Int> {
-        let duration: Int = 0
+    func getDuration(path: String) async -> AudioResult<Int>{
+        var duration: Int = 0
+        let url: URL = URL(fileURLWithPath: path)
         
         //check state
-        if (mState != AudioState.Idle) {
-            return AudioResult(type: .StateErrNotIdle, extraString: "current state:\(mState)")
+        guard mState == AudioState.Idle else {
+            return AudioResult(type: .StateErrNotIdle, extraString: "current state:\(self.mState)")
         }
-        
-        //        if (!File(path).exists()) {
-        //            return AudioResult(error: AudioErrorInfo.FileNotFound)
-        //        }
-        //
-        //        try {
-        //            val mmr = MediaMetadataRetriever()
-        //            mmr.setDataSource(path)
-        //            val durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-        //            duration = durationStr!!.toInt()
-        //        } catch (e: Exception) {
-        //            Log.e(LOG_TAG, "GetDuration Got Exception:$e")
-        //            return AudioResult(error: AudioErrorInfo.NG)
-        //        }
-        return AudioResult(type: .OK, value: duration)
+
+        let start = Date()
+
+        //重い処理を書く
+
+        let audioAsset = AVURLAsset.init(url: url, options: nil)
+
+        log.debug("get duration of: \(url)")
+        do {
+            let durationTime = try await audioAsset.load(.duration)
+            let durationInSeconds = CMTimeGetSeconds(durationTime)
+            duration = Int(durationInSeconds * 1000)
+
+            let elapsed = Date().timeIntervalSince(start)
+            log.debug("GET DURATION: \(duration), COST TIME:\(elapsed)")
+        } catch {
+            log.debug("load audio asset error:\(error)!")
+            return AudioResult(type: .FileNotFound, extraString: "load audio asset failed!")
+        }
+        return AudioResult(type: .OK, value:duration)
     }
     
     

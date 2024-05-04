@@ -122,7 +122,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   void _positionListener(_, data) {
     final seconds = data / 1000;
-
+    // log.debug("update position:$seconds");
     if (seconds > _durationNotifier.value) return;
     _positionNotifier.value = seconds;
     _waveformDelegate.setPosition(seconds, dispatchNotification: false);

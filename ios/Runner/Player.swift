@@ -47,7 +47,7 @@ class Player {
      Public Methods
     \*======================================================================================================*/
     func startPlay(path: String, fromTimeMs: Int = 0, onComplete: @escaping () -> Void)-> AudioResult<NoValue> {
-        log.debug("startPlay")
+        log.debug("startPlay from \(fromTimeMs) ms")
         try? AVAudioSession.sharedInstance().overrideOutputAudioPort(AVAudioSession.PortOverride.speaker)
 
         guard let url: URL = URL(string: path) else {
@@ -68,6 +68,8 @@ class Player {
         startPositionNotifyTimer()
         if (fromTimeMs > 0) {
             mStartFrame = timeMsToFrame(fromTimeMs)
+        } else {
+            mStartFrame = 0
         }
 
         do {
@@ -160,7 +162,7 @@ class Player {
             at: nil,
             completionCallbackType: .dataPlayedBack,
             completionHandler: {_ in
-                DispatchQueue.main.async {
+                Task {
                     self.playbackComplete()
                 }
             }
@@ -225,18 +227,17 @@ class Player {
         mPositionNotifyTimer = Timer.scheduledTimer(
             withTimeInterval: Double(PLAYBACK_POSITION_NOTIFY_INTERVAL_MS) / 1000,
             repeats: true) { _ in
-                weak var weakself = self
-                if (weakself!.mState != .playing) {
+                if (self.mState != .playing) {
                     return
                 }
-                let time = weakself!.currentTimeMs
-                if (time <= 0 || time > Int(weakself!.mDuration * 1000)) {
+                let time = self.currentTimeMs
+                if (time <= 0 || time > Int(self.mDuration * 1000)) {
                     return
                 }
-                DispatchQueue.main.async {
-                    weakself!.sendEvent(event: [
+                Task {
+                    self.sendEvent(event: [
                         "event": "PositionUpdate",
-                        "data": time,
+                        "position": time,
                     ])
                 }
             }
