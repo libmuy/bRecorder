@@ -47,7 +47,7 @@ class AudioWidgetState {
         log.debug("play started: ${audio.path}");
         highlight = true;
         playing = true;
-        ensureVisible();
+        //ensureVisible();
       };
       onPlayPaused = () {
         log.debug("play paused: ${audio.path}");

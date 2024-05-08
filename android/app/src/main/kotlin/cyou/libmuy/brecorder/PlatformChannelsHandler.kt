@@ -116,18 +116,12 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                 }
                 "seekTo" -> {
                     val position: Int? = call.argument("position")
-                    val sync: Boolean? = call.argument("sync")
-                    if (position == null || sync == null) {
+                    if (position == null) {
                         endCallWithParamError(result, "params is NULL")
                     }
-                    if (sync!!) {
-                        audioManager!!.seekTo(position!!) {
-                            endCallWithResult(result, AudioResult<NoValue>(AudioErrorInfo.OK))
-                        }
-                    } else {
-                        val ret = audioManager!!.seekTo(position!!, null)
-                        endCallWithResult(result, ret)
-                    }
+
+                    val ret = audioManager!!.seekTo(position!!)
+                    endCallWithResult(result, ret)
                 }
                 "setPitch" -> {
                     val pitch: Double? = call.argument("pitch")

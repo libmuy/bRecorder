@@ -140,7 +140,7 @@ abstract class BrowserViewState {
       itemState.resetHighLight();
     }
     if (mode != GlobalMode.playback) {
-      _agent.stopPlayIfPlaying();
+      _agent.stopPlay();
     }
   }
 
@@ -217,7 +217,7 @@ abstract class BrowserViewState {
 
   void onBottomPanelClosed() {
     mode = GlobalMode.normal;
-    _agent.stopPlayIfPlaying();
+    _agent.stopPlay();
   }
 
   void onListItemLongPressed(AudioWidgetState item) {
@@ -331,7 +331,7 @@ abstract class BrowserViewState {
         _folderNotifier!.update(newValue: folderInfo, forceNotify: force);
         widget.onFolderChanged?.call(folderInfo);
         if (mode == GlobalMode.playback) {
-          await _agent.stopPlayIfPlaying();
+          await _agent.stopPlay();
           mode = GlobalMode.normal;
         }
         // }
@@ -431,7 +431,7 @@ abstract class BrowserViewState {
 
   void _playNewAudio(AudioInfo audio) async {
     mode = GlobalMode.playback;
-    var ret = await _agent.stopPlayIfPlaying();
+    var ret = await _agent.stopPlay();
     if (ret.failed) {
       _log.error("stop playing failed");
       return;

@@ -25,7 +25,7 @@ class Player {
     private var mTotalFrame: Int64 = 0
     private var mSampleRate: Double = 0
     private var mFile: AVAudioFile?
-    private var mDuration: Double = 0.0
+    private var mDurationMs: Int = 0
     private var onPlaybackComplete: (() -> Void)?
     private var mPositionNotifyTimer: Timer?
     private var mPendingSeek = false
@@ -62,8 +62,8 @@ class Player {
         
         mTotalFrame = mFile!.length
         mSampleRate = mFile!.processingFormat.sampleRate
-        mDuration = Double(mTotalFrame) / mSampleRate
-        log.debug("Audio File: frames:\(mFile!.length), samplerate:\(mFile!.processingFormat.sampleRate), duration:\(mDuration)")
+        mDurationMs = Int(Double(mTotalFrame) / mSampleRate * 1000)
+        log.debug("Audio File: frames:\(mFile!.length), samplerate:\(mFile!.processingFormat.sampleRate), duration:\(mDurationMs)")
         onPlaybackComplete = onComplete
         startPositionNotifyTimer()
         if (fromTimeMs > 0) {
@@ -110,6 +110,9 @@ class Player {
     }
     
     func seekTo(timeMs: Int)-> AudioResult<NoValue> {
+        guard timeMs < mDurationMs else {
+            return AudioResult(type: .ParamError, extraString: "target time(\(timeMs)) is bigger than duration(\(mDurationMs))")
+        }
         mStartFrame = timeMsToFrame(timeMs)
         if (mState == .playing) {
             log.debug("seek to \(timeMs) ms")
@@ -231,7 +234,7 @@ class Player {
                     return
                 }
                 let time = self.currentTimeMs
-                if (time <= 0 || time > Int(self.mDuration * 1000)) {
+                if (time <= 0 || time > self.mDurationMs) {
                     return
                 }
                 Task {

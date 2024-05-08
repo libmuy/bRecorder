@@ -167,19 +167,13 @@ class Player constructor(
         return AudioResult(AudioErrorInfo.OK)
     }
 
-    fun seekTo(position: Int, onComplete: (() -> Unit)?): AudioResult<NoValue> {
+    fun seekTo(position: Int): AudioResult<NoValue> {
         if (mPlayer == null) {
             mPlayStartPosition = position
             return AudioResult(AudioErrorInfo.OK)
         }
 
         try {
-            if (onComplete != null) {
-                mOnSeekCompleteCallback = {
-                    onComplete()
-                    mOnSeekCompleteCallback = null
-                }
-            }
             mPlayer?.seekTo(position)
             Log.d(LOG_TAG, "Seek to $position, result:${mPlayer?.currentPosition}")
             return AudioResult(AudioErrorInfo.OK)

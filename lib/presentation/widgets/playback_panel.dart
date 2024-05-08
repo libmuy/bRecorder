@@ -146,17 +146,18 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         currentAudio!.pref.then((audioPref) async {
           if (audioPref.pitch != _pitchDefaultValue) {
             await agent.setPitch(audioPref.pitch);
-            _pitchValueNotifier.value = audioPref.pitch;
           }
+          _pitchValueNotifier.value = audioPref.pitch;
+
           if (audioPref.volume != _volumeDefaultValue) {
             await agent.setVolume(audioPref.volume);
-            _volumeValueNotifier.value = audioPref.volume;
           }
+          _volumeValueNotifier.value = audioPref.volume;
 
           if (audioPref.speed != _speedDefaultValue) {
             await agent.setSpeed(audioPref.speed);
-            _speedValueNotifier.value = audioPref.speed;
           }
+          _speedValueNotifier.value = audioPref.speed;
         });
       } else {
         _pitchValueNotifier.value = _pitchDefaultValue;
@@ -363,7 +364,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                           RectThumbSlider(
                             icon: Icons.graphic_eq,
                             initValue: _pitchDefaultValue,
-                            divisions: 26,
+                            divisions: 20,
                             min: GlobalInfo.PLATFORM_PITCH_MIN_VALUE,
                             max: GlobalInfo.PLATFORM_PITCH_MAX_VALUE,
                             valueNotifier: _pitchValueNotifier,
@@ -474,7 +475,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                                 if (value > 0) {
                                   _timerValueNotifier.value = value - 1;
                                 } else {
-                                  agent.stopPlayIfPlaying();
+                                  agent.stopPlay();
                                   _timer!.cancel();
                                   _timer = null;
                                 }

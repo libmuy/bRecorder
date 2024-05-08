@@ -112,7 +112,10 @@ class AudioManager {
         log.debug("Play Start")
         //check state
         if (mState != AudioState.Idle) {
-            return AudioResult(type: .StateErrNotIdle, extraString: "current state:\(mState)")
+            let ret = stopPlay()
+            if (!ret.isOK()) {
+                return ret
+            }
         }
         
         let result = mPlayer.startPlay(path: path, onComplete: {
@@ -125,8 +128,12 @@ class AudioManager {
     
     func stopPlay()-> AudioResult<NoValue>{
         log.debug("Play Stop")
-        //check state
-        if (mState != AudioState.Playing && mState != AudioState.PlayPaused) {
+        
+        if (mState == AudioState.Idle) {
+            return AudioResult(type: .OK)
+        }
+        
+        guard (mState == AudioState.Playing || mState == AudioState.PlayPaused) else {
             return AudioResult(type: .StateErrNotPlaying, extraString: "current state:\(mState)")
         }
         

@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:path/path.dart';
 
 import '../domain/entities.dart';
 import 'global_info.dart';
 import 'logging.dart';
 import 'result.dart';
 
-final _log = Logger('Audio-Agent');
+final _log = Logger('Audio-Agent', level: LogLevel.debug);
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 
@@ -24,6 +25,7 @@ class AudioServiceAgent {
   StreamSubscription? _eventStream;
   bool _gotPlatformParams = false;
   Completer? _platformParamCompleter;
+  Completer? _methodLockCompleter = Completer();
   AudioState state = AudioState.idle;
   final Map<AudioEventType, List<AudioEventListener>> _playEventListeners = {};
 
@@ -143,6 +145,8 @@ class AudioServiceAgent {
 
   void _playbackEventHandler(dynamic data) {
     // log.debug("Got Player Event:${map['playEvent']}");
+    if (currentAudio == null) return;
+
     switch (data["event"]) {
       case "PlayComplete":
         _notifyAudioEventListeners(
@@ -184,60 +188,88 @@ class AudioServiceAgent {
     return _platformParamCompleter!.future;
   }
 
+  void _platformMethodLock() async {
+    while(_methodLockCompleter != null) {
+      await _methodLockCompleter!.future;
+    }
+      _methodLockCompleter = Completer();
+  }
+
+  void _platformMethodUnlock() {
+    final tmp = _methodLockCompleter;
+    _methodLockCompleter = null;
+    tmp!.complete();
+  }
+
   /*=======================================================================*\ 
     Method Channel
-    ---------------
   \*=======================================================================*/
-  // true: Success
-  // false: Fail
-  Future<bool> _callVoidPlatformMethod(String method, [dynamic args]) async {
+  Future<Result> _callPlatformMethod(String method, [dynamic args]) async {
+    dynamic retMethodCall;
+    dynamic ret;
+
+    _log.debug("START $method: $args");
+
     try {
-      await _methodChannel.invokeMethod(method, args);
+      retMethodCall = await _methodChannel.invokeMethod(method, args);
+      ret = Succeed(retMethodCall);
     } on PlatformException catch (e) {
       _log.critical("Platform Method:$method Got exception: $e, args:$args");
-      return false;
+      ret = const Fail(PlatformFailure());
+    } catch (e, stackTrace) {
+      _log.critical("exception: $e");
+      _log.critical("stack trace: $stackTrace");
     }
 
-    return true;
+    _log.debug("END   $method: $args");
+    return ret;
   }
 
   /*=======================================================================*\ 
     Recording
   \*=======================================================================*/
   Future<Result> startRecord(String path) async {
-    final ret = await _callVoidPlatformMethod("startRecord", {
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("startRecord", {
       "path": path,
     });
-    if (ret == false) {
-      return const Fail(PlatformFailure());
+    if (ret is Succeed) {
+      state = AudioState.recording;
     }
-    state = AudioState.recording;
 
-    return const Succeed();
+    _platformMethodUnlock();
+    return ret;
   }
 
   Future<Result> stopRecord() async {
-    if (!await _callVoidPlatformMethod("stopRecord")) {
-      return const Fail(PlatformFailure());
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("stopRecord");
+    if (ret is Succeed) {
+      state = AudioState.idle;
     }
-    state = AudioState.idle;
-    return const Succeed();
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> pauseRecord() async {
-    if (!await _callVoidPlatformMethod("pauseRecord")) {
-      return const Fail(PlatformFailure());
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("pauseRecord");
+    if (ret is Succeed) {
+      state = AudioState.idle;
     }
-    state = AudioState.recordPaused;
-    return const Succeed();
+    _platformMethodUnlock();
+    return ret;
   }
 
   Future<Result> resumeRecord() async {
-    if (!await _callVoidPlatformMethod("resumeRecord")) {
-      return const Fail(PlatformFailure());
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("resumeRecord");
+    if (ret is Succeed) {
+      state = AudioState.recording;
     }
-    state = AudioState.recording;
-    return const Succeed();
+    _platformMethodUnlock();
+    return ret;
   }
 
   /*=======================================================================*\ 
@@ -261,60 +293,62 @@ class AudioServiceAgent {
       case AudioState.recording:
         return Fail(ErrMsg("AudioServiceAgent State error, now:$state"));
     }
-    if (!await _callVoidPlatformMethod("startPlay", {
+
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("startPlay", {
       "path": path,
       "positionNotifyIntervalMs": positionNotifyIntervalMs,
-    })) {
-      return const Fail(PlatformFailure());
+    });
+    if (ret is Succeed) {
+      currentAudio = audio;
+      _notifyAudioEventListeners(AudioEventType.started, audio);
+      state = AudioState.playing;
     }
-    currentAudio = audio;
-    _notifyAudioEventListeners(AudioEventType.started, audio);
-    state = AudioState.playing;
+    _platformMethodUnlock();
 
-    return const Succeed();
+    return ret;
   }
 
   Future<Result> stopPlay() async {
-    if (!await _callVoidPlatformMethod("stopPlay")) {
-      return const Fail(PlatformFailure());
+    if (state == AudioState.idle) return const Succeed(); 
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("stopPlay");
+    if (ret is Succeed) {
+      _notifyAudioEventListeners(AudioEventType.stopped, null);
+      // currentAudio = null;
+      state = AudioState.idle;
+      ret = const Succeed();
     }
-    _notifyAudioEventListeners(AudioEventType.stopped, null);
-    currentAudio = null;
-    state = AudioState.idle;
-    return const Succeed();
-  }
-
-  Future<Result> stopPlayIfPlaying() async {
-    if (state == AudioState.playing || state == AudioState.playPaused) {
-      return stopPlay();
-    }
-    return const Succeed();
+    _platformMethodUnlock();
+    return ret;
   }
 
   Future<Result> pausePlay() async {
     if (state != AudioState.playing) return const Succeed();
-    if (!await _callVoidPlatformMethod("pausePlay")) {
-      return const Fail(PlatformFailure());
-    }
-    _notifyAudioEventListeners(AudioEventType.paused, null);
-    state = AudioState.playPaused;
-    return const Succeed();
-  }
 
-  Future<Result> pausePlayIfPlaying() async {
-    if (state != AudioState.playing) {
-      return const Succeed();
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("pausePlay");
+    if (ret is Succeed) {
+      _notifyAudioEventListeners(AudioEventType.stopped, null);
+      state = AudioState.playPaused;
+      ret = const Succeed();
     }
-    return pausePlay();
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> resumePlay() async {
-    if (!await _callVoidPlatformMethod("resumePlay")) {
-      return const Fail(PlatformFailure());
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("resumePlay");
+    if (ret is Succeed) {
+      _notifyAudioEventListeners(AudioEventType.started, currentAudio!);
+      state = AudioState.playing;
+      ret = const Succeed();
     }
-    _notifyAudioEventListeners(AudioEventType.started, currentAudio!);
-    state = AudioState.playing;
-    return const Succeed();
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> togglePlay(AudioInfo audio) async {
@@ -331,31 +365,30 @@ class AudioServiceAgent {
     }
   }
 
-  Future<Result> _seekTo(int positionMs, bool sync) async {
-    if (currentAudio != null &&
-        (state == AudioState.playPaused || state == AudioState.playing)) {
-      if (positionMs > currentAudio!.durationMS!) {
-        positionMs = currentAudio!.durationMS!;
-      } else if (positionMs < 0) {
-        positionMs = 0;
-      }
+  Future<Result> _seekTo(int positionMs) async {
+    if (currentAudio == null) {
+      return Fail(ErrMsg("current position is null, " "Not Playing?"));
     }
-    if (!await _callVoidPlatformMethod("seekTo", {
+    if (positionMs >= currentAudio!.durationMS!) {
+      return await stopPlay();
+    } else if (positionMs < 0) {
+      positionMs = 0;
+    }
+
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("seekTo", {
       "position": positionMs,
-      "sync": sync,
-    })) {
-      return const Fail(PlatformFailure());
+    });
+    if (ret is Succeed) {
+      _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
     }
-    _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
-    return const Succeed();
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> seekTo(int positionMs) async {
-    return _seekTo(positionMs, false);
-  }
-
-  Future<Result> seekToSync(int positionMs) async {
-    return _seekTo(positionMs, true);
+    return _seekTo(positionMs);
   }
 
   Future<Result> seekToRelative(int positionMs) async {
@@ -364,7 +397,7 @@ class AudioServiceAgent {
     }
 
     var pos = currentAudio!.currentPosition + positionMs;
-    return _seekTo(pos, false);
+    return _seekTo(pos);
   }
 
 // Set playback parameters
@@ -375,63 +408,54 @@ class AudioServiceAgent {
     if (pitch < GlobalInfo.PLATFORM_PITCH_MIN_VALUE) {
       pitch = GlobalInfo.PLATFORM_PITCH_MIN_VALUE;
     }
-    if (!await _callVoidPlatformMethod("setPitch", {"pitch": pitch})) {
-      return const Fail(PlatformFailure());
-    }
-    return const Succeed();
+
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("setPitch", {"pitch": pitch});
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> setSpeed(double speed) async {
-    if (!await _callVoidPlatformMethod("setSpeed", {"speed": speed})) {
-      return const Fail(PlatformFailure());
-    }
-    return const Succeed();
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("setSpeed", {"speed": speed});
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   Future<Result> setVolume(double volume) async {
-    if (!await _callVoidPlatformMethod("setVolume", {"volume": volume})) {
-      return const Fail(PlatformFailure());
-    }
-    return const Succeed();
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod("setVolume", {"volume": volume});
+    _platformMethodUnlock();
+
+    return ret;
   }
 
   /*=======================================================================*\ 
     Other
-  \*=======================================================================*/
+  \*==============================ƒ=========================================*/
   Future<Result> getDuration(String path) async {
-    var ret = 0;
-    try {
-      ret = await _methodChannel.invokeMethod('getDuration', {"path": path});
-    } on PlatformException catch (e) {
-      _log.critical("Got exception: $e");
-      ret = -1;
+    _platformMethodLock();
+    Result ret = await _callPlatformMethod('getDuration', {"path": path});
+    if (ret is Succeed) {
+      state = AudioState.idle;
     }
-
-    if (ret < 0) return const Fail(PlatformFailure());
-
-    return Succeed(ret);
+    _platformMethodUnlock();
+    return ret;
   }
 
   Future<Result> getCurrentDuration() async {
     if (currentAudio == null) {
       return Fail(ErrMsg("current audio is null"));
     }
-    var ret = 0;
-    try {
-      ret = await _methodChannel
-          .invokeMethod('getDuration', {"path": currentAudio!.path});
-    } on PlatformException catch (e) {
-      _log.critical("Got exception: $e");
-      ret = -1;
-    }
 
-    if (ret < 0) return const Fail(PlatformFailure());
-
-    return Succeed(ret);
+    return getDuration(currentAudio!.path);
   }
 
   Future<Result> setParams() async {
-    final ret = await _callVoidPlatformMethod("setParams", {
+    _platformMethodLock();
+    final ret = await _callPlatformMethod("setParams", {
       //Recording
       "samplesPerSecond": GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND,
       "sendPerSecond": GlobalInfo.WAVEFORM_SEND_PER_SECOND,
@@ -454,34 +478,6 @@ class AudioServiceAgent {
   /*=======================================================================*\ 
     For Debugging
   \*=======================================================================*/
-  Future<Result> startRecordWav(String path) async {
-    var ret = 0;
-    try {
-      await _methodChannel.invokeMethod('recordWav', path);
-    } on PlatformException catch (e) {
-      _log.critical("Got exception: ${e.message}");
-      ret = -1;
-    }
-
-    if (ret < 0) return const Fail(PlatformFailure());
-
-    return Succeed(ret);
-  }
-
-  Future<Result> stopRecordWav() async {
-    var ret = 0;
-    try {
-      await _methodChannel.invokeMethod('stopRecordWav');
-    } on PlatformException catch (e) {
-      _log.critical("Got exception: ${e.message}");
-      ret = -1;
-    }
-
-    if (ret < 0) return const Fail(PlatformFailure());
-
-    return Succeed(ret);
-  }
-
   Future<Result> test(String path) async {
     String ret = "";
     try {

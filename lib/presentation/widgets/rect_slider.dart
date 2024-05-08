@@ -64,7 +64,7 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
   Widget _internalSlider(
       BuildContext context, double value, double min, double max) {
     final sliderFontStyle = Theme.of(context).textTheme.labelSmall;
-
+    log.debug("slider min:$min, max:$max, value:$value");
     return Container(
       color: widget.color ?? Theme.of(context).primaryColor,
       child: Column(
@@ -135,7 +135,7 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
         valueListenable: widget.valueNotifier,
         builder: (context, value, _) {
           if (value > max) value = max;
-          if (value.isNaN || value < 0) value = 0;
+          if (value.isNaN) value = 0;
           if (widget.icon == null) {
             return _internalSlider(context, value, min, max);
           }
