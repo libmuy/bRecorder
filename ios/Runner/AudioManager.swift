@@ -39,10 +39,6 @@ class AudioManager {
             return AudioResult(type: .StateErrNotIdle, extraString: "current state:\(self.mState)")
         }
 
-        let start = Date()
-
-        //重い処理を書く
-
         let audioAsset = AVURLAsset.init(url: url, options: nil)
 
         log.debug("get duration of: \(url)")
@@ -50,9 +46,6 @@ class AudioManager {
             let durationTime = try await audioAsset.load(.duration)
             let durationInSeconds = CMTimeGetSeconds(durationTime)
             duration = Int(durationInSeconds * 1000)
-
-            let elapsed = Date().timeIntervalSince(start)
-            log.debug("GET DURATION: \(duration), COST TIME:\(elapsed)")
         } catch {
             log.debug("load audio asset error:\(error)!")
             return AudioResult(type: .FileNotFound, extraString: "load audio asset failed!")
