@@ -17,7 +17,9 @@ import 'rect_slider.dart';
 import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
-final log = Logger('PlaybackPanel', level: LogLevel.debug);
+final log = Logger('PlaybackPanel',
+//  level: LogLevel.debug
+ );
 
 class PlaybackPanel extends StatefulWidget {
   final EdgeInsets padding;
@@ -46,6 +48,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   final _playingNotifier = ValueNotifier(false);
   final _positionNotifier = ValueNotifier(0.0);
   final _durationNotifier = ValueNotifier(0.0);
+  final _titleNotifier = ValueNotifier("");
   bool needResume = false;
   Timer? _timer;
   final _waveformDataNotifier = ValueNotifier(Float32List(0));
@@ -141,22 +144,17 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         _positionNotifier.value = seconds;
       }
       _durationNotifier.value = seconds;
+      _titleNotifier.value = currentAudio!.name;
 
       if (await currentAudio!.hasPerf) {
         currentAudio!.pref.then((audioPref) async {
-          if (audioPref.pitch != _pitchDefaultValue) {
-            await agent.setPitch(audioPref.pitch);
-          }
+          await agent.setPitch(audioPref.pitch);
           _pitchValueNotifier.value = audioPref.pitch;
 
-          if (audioPref.volume != _volumeDefaultValue) {
-            await agent.setVolume(audioPref.volume);
-          }
+          await agent.setVolume(audioPref.volume);
           _volumeValueNotifier.value = audioPref.volume;
 
-          if (audioPref.speed != _speedDefaultValue) {
-            await agent.setSpeed(audioPref.speed);
-          }
+          await agent.setSpeed(audioPref.speed);
           _speedValueNotifier.value = audioPref.speed;
         });
       } else {
@@ -289,6 +287,9 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         /*============================================================*\ 
           Header
         \*============================================================*/
+        // const Divider(
+        //   height: 1,
+        // ),
         GestureDetector(
           onVerticalDragStart: (details) => sl.playbackPanelDragNotifier.value =
               AnimatedSizedPanelDragEvent.fromDragStartEvent(details),
@@ -300,7 +301,15 @@ class _PlaybackPanelState extends State<PlaybackPanel>
             _expandNotifier.value = !_expandNotifier.value;
           },
           child: Container(
-            color: Colors.transparent,
+            decoration: const BoxDecoration(
+              color: Color.fromARGB(255, 47, 47, 47),
+              // border: Border.all(
+              //   width: 0.5,
+              //   color: Color.fromARGB(255, 53, 53, 53),
+              // ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            // color: Colors.transparent,
             child: IntrinsicHeight(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -308,10 +317,16 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                   Container(
                     width: 50,
                   ),
-                  const Icon(
-                    Icons.drag_handle,
-                    size: 30,
-                  ),
+                  // const Icon(
+                  //   Icons.drag_handle,
+                  //   size: 30,
+                  // ),
+                  ValueListenableBuilder<String>(
+                    valueListenable: _titleNotifier,
+                    builder: (context, value, _) {
+                      return Text(_titleNotifier.value);
+                    })
+                              ,
                   SizedBox(
                     width: 50,
                     child: IconButton(
@@ -333,9 +348,9 @@ class _PlaybackPanelState extends State<PlaybackPanel>
             ),
           ),
         ),
-        const Divider(
-          height: 1,
-        ),
+        // const Divider(
+        //   height: 1,
+        // ),
         _buildWaveform(context),
         const SizedBox(
           height: 20,
@@ -456,7 +471,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                             initValue: _timerDefaultValue,
                             min: 0,
                             max: 7200,
-                            divisions: 24,
+                            divisions: 48,
                             icon: Icons.timer,
                             valueNotifier: _timerValueNotifier,
                             labelFormater: _timerLabelFormatter,

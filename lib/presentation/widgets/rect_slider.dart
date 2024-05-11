@@ -4,7 +4,9 @@ import '../../core/logging.dart';
 import 'icons/audio_icons.dart';
 import 'square_icon_button.dart';
 
-final log = Logger('OnOffIconButton', level: LogLevel.debug);
+final log = Logger('OnOffIconButton', 
+// level: LogLevel.debug
+);
 
 class RectThumbSlider extends StatefulWidget {
   final ValueNotifier<double> valueNotifier;

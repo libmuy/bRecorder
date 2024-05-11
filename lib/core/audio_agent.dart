@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:path/path.dart';
 
 import '../domain/entities.dart';
 import 'global_info.dart';
@@ -28,6 +27,9 @@ class AudioServiceAgent {
   Completer? _methodLockCompleter = Completer();
   AudioState state = AudioState.idle;
   final Map<AudioEventType, List<AudioEventListener>> _playEventListeners = {};
+  double _currentPitch = 0;
+  double _currentSpeed = 0;
+  double _currentVolume = 0;
 
   /*=======================================================================*\ 
     Contructor
@@ -57,6 +59,7 @@ class AudioServiceAgent {
   }
 
   void _notifyAudioEventListeners(AudioEventType eventType, dynamic data) {
+    _log.debug("Audio EVENT: $eventType, data:$data");
     if (eventType == AudioEventType.started) {
       final audio = currentAudio!;
       Timer.run(() {
@@ -370,7 +373,9 @@ class AudioServiceAgent {
       return Fail(ErrMsg("current position is null, " "Not Playing?"));
     }
     if (positionMs >= currentAudio!.durationMS!) {
-      return await stopPlay();
+      final ret = await stopPlay();
+      _notifyAudioEventListeners(AudioEventType.positionUpdate, currentAudio!.durationMS!);
+      return ret;
     } else if (positionMs < 0) {
       positionMs = 0;
     }
@@ -396,7 +401,7 @@ class AudioServiceAgent {
       return Fail(ErrMsg("current position is null, " "Not Playing?"));
     }
 
-    var pos = currentAudio!.currentPosition + positionMs;
+    final pos = currentAudio!.currentPosition + positionMs;
     return _seekTo(pos);
   }
 
@@ -409,24 +414,31 @@ class AudioServiceAgent {
       pitch = GlobalInfo.PLATFORM_PITCH_MIN_VALUE;
     }
 
+    if (pitch == _currentPitch) return const Succeed();
+
     _platformMethodLock();
     Result ret = await _callPlatformMethod("setPitch", {"pitch": pitch});
+    if (ret is Succeed) _currentPitch = pitch;
     _platformMethodUnlock();
 
     return ret;
   }
 
   Future<Result> setSpeed(double speed) async {
+    if (speed == _currentSpeed) return const Succeed();
     _platformMethodLock();
     Result ret = await _callPlatformMethod("setSpeed", {"speed": speed});
+    if (ret is Succeed) _currentSpeed = speed;
     _platformMethodUnlock();
 
     return ret;
   }
 
   Future<Result> setVolume(double volume) async {
+    if (volume == _currentVolume) return const Succeed();
     _platformMethodLock();
     Result ret = await _callPlatformMethod("setVolume", {"volume": volume});
+    if (ret is Succeed) _currentVolume = volume;
     _platformMethodUnlock();
 
     return ret;
