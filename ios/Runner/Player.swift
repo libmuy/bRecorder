@@ -28,9 +28,10 @@ class Player {
     private var mDurationMs: Int = 0
     private var onPlaybackComplete: (() -> Void)?
     private var mPositionNotifyTimer: Timer?
+    // There are seeks when stopped or paused
     private var mPendingSeek = false
     private var mState = PlayerState.stopped
-    private var mNotFinalize = false
+//    private var mNotFinalize = false
     
     init(channelHandler: PlatformChannelsHandler) {
         mEventChannel = channelHandler
@@ -179,7 +180,7 @@ class Player {
     /// Stop playback, [playbackComplete()] will be called after this
     private func stop(temporarily: Bool = false) {
         if (temporarily) {
-            mNotFinalize = true
+//            mNotFinalize = true
             mAudioPlayer.stop()
         } else {
             mAudioPlayer.stop()
@@ -190,26 +191,24 @@ class Player {
     
     /// Playback complete callback, called by [mAudioPlayer]
     private func playbackComplete() {
-        if (mNotFinalize) {
-            log.debug("playback completed but not finalize")
-            mNotFinalize = false
-            return
-        }
-        log.debug("playback completed")
+//        if (mNotFinalize) {
+//            log.debug("playback completed but not finalize")
+//            mNotFinalize = false
+//            return
+//        }
+        log.debug("playback completed START")
         mPositionNotifyTimer!.invalidate()
-        onPlaybackComplete?()
         mAudioPlayer.stop()
         mEngine.stop()
-        mEngine.reset()
-        onPlaybackComplete = nil
-        mFile = nil
-        mPositionNotifyTimer = nil
         mPendingSeek = false
         mState = .stopped
+        onPlaybackComplete?()
         sendEvent(event: [
             "event": "PlayComplete",
             "data": nil
         ])
+        log.debug("playback completed END")
+
     }
     
     /// Send Playback Event to Flutter
