@@ -7,8 +7,9 @@
 
 import Foundation
 import AVFoundation
+import os
 
-fileprivate let log = Logger(name: "Audio-Mgr")
+fileprivate let log = Logger(subsystem: "Audio-Mgr", category: "")
 
 class AudioManager {
     var mState = AudioState.Idle

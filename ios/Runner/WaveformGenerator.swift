@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import os
 
-private let log = Logger(name: "WAVEFORM")
+private let log = Logger(subsystem: "WAVEFORM", category: "")
 
 class WaveformGenerator {
     private let sendWaveformCallback: (Any) -> Void
@@ -42,9 +43,9 @@ class WaveformGenerator {
         }
         let duration1 = Double(waveformSampleCount) / Double(WAVEFORM_SAMPLES_PER_SECOND)
         let duration2 = Double(frameCount) / Double(sampleRate!)
-        log.debug("samplerate:\(sampleRate!)")
-        log.debug("sent \(waveformSampleCount) samples, duration:\(duration1)")
-        log.debug("sent \(frameCount) frames, duration:\(duration2)")
+        log.debug("samplerate:\(self.sampleRate!)")
+        log.debug("sent \(self.waveformSampleCount) samples, duration:\(duration1)")
+        log.debug("sent \(self.frameCount) frames, duration:\(duration2)")
     }
     private func sendWaveform() {
 //        log.debug("send \(dataIndex) samples, total:\(waveformSampleCount)")

@@ -5,7 +5,7 @@ import 'icons/audio_icons.dart';
 import 'square_icon_button.dart';
 
 final log = Logger('OnOffIconButton', 
-// level: LogLevel.debug
+level: LogLevel.debug
 );
 
 class RectThumbSlider extends StatefulWidget {
@@ -60,6 +60,8 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
   }
 
   void _rebuild() {
+    widget.valueNotifier.value = 0;
+    log.debug("rebuild progress bar, position:${widget.valueNotifier.value}");
     setState(() {});
   }
 

@@ -7,8 +7,9 @@
 import Foundation
 import Flutter
 import UIKit
+import os
 
-fileprivate let log = Logger(name: "PCHandler")
+fileprivate let log = Logger(subsystem: "PCHandler", category:"")
 
 class PlatformChannelsHandler {
     var mEventListener: EventChannelListener? = nil

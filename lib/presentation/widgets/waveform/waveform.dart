@@ -153,7 +153,7 @@ class _WaveformState extends State<Waveform> {
     final metrics = _metrics;
     if (_noDispatchNotification == true) {
       _noDispatchNotification = false;
-    } else if (metrics != null && _notifiedMetrics != metrics) {
+    } else if (metrics != null && _notifiedMetrics != metrics && _seeking) {
       widget.positionListener?.call(metrics);
     }
     _notifiedMetrics = metrics;

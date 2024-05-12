@@ -26,7 +26,6 @@ class Player constructor(
     private val mOnCleanupCallback = onCleanupCallback
     private var mPlayStartPosition = 0
     private var mPositionNotifyTimer: Timer? = null
-    private var mPositionNotifyIntervalMs: Long = 0
     private var mOnSeekCompleteCallback: (() -> Unit)? = null
 
     private fun cleanup(): Boolean {
@@ -49,8 +48,6 @@ class Player constructor(
     }
 
     private fun sendPositionUpdateEvent() {
-        if (mPositionNotifyIntervalMs <= 0) return
-
         mChannelsHandler.sendEvent(
             hashMapOf(
                 "playEvent" to hashMapOf(
@@ -62,16 +59,14 @@ class Player constructor(
     }
 
     private fun startPositionUpdateNotification() {
-        if (mPositionNotifyIntervalMs > 0) {
-            mPositionNotifyTimer = Timer()
-            mPositionNotifyTimer?.scheduleAtFixedRate(object: TimerTask(){
-                override fun run() {
-                    Handler(Looper.getMainLooper()).post {
-                        sendPositionUpdateEvent()
-                    }
+        mPositionNotifyTimer = Timer()
+        mPositionNotifyTimer?.scheduleAtFixedRate(object: TimerTask(){
+            override fun run() {
+                Handler(Looper.getMainLooper()).post {
+                    sendPositionUpdateEvent()
                 }
-            },0, mPositionNotifyIntervalMs)
-        }
+            }
+        },0, PLAYBACK_POSITION_NOTIFY_INTERVAL_MS)
     }
     
     fun startPlay(path: String, positionNotifyIntervalMs: Int): AudioResult<NoValue> {
@@ -79,7 +74,6 @@ class Player constructor(
             return AudioResult(AudioErrorInfo.FileNotFound)
         }
 
-        mPositionNotifyIntervalMs = positionNotifyIntervalMs.toLong()
         try {
             mPlayer = MediaPlayer()
             mPlayer?.setDataSource(path)

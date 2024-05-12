@@ -7,7 +7,9 @@ import 'global_info.dart';
 import 'logging.dart';
 import 'result.dart';
 
-final _log = Logger('Audio-Agent', level: LogLevel.debug);
+final _log = Logger('Audio-Agent', 
+level: LogLevel.verbose
+);
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
 
@@ -24,7 +26,8 @@ class AudioServiceAgent {
   StreamSubscription? _eventStream;
   bool _gotPlatformParams = false;
   Completer? _platformParamCompleter;
-  Completer? _methodLockCompleter = Completer();
+  Completer? _methodLockCompleter;
+  Completer? _playbackCompleter;
   AudioState state = AudioState.idle;
   final Map<AudioEventType, List<AudioEventListener>> _playEventListeners = {};
   double _currentPitch = 0;
@@ -59,23 +62,26 @@ class AudioServiceAgent {
   }
 
   void _notifyAudioEventListeners(AudioEventType eventType, dynamic data) {
-    _log.debug("Audio EVENT: $eventType, data:$data");
+    _log.verbose("Audio EVENT: $eventType, data:$data");
     if (eventType == AudioEventType.started) {
       final audio = currentAudio!;
-      Timer.run(() {
+      // Timer.run(() {
         audio.onPlayStarted?.call();
-      });
+      // });
     } else if (eventType == AudioEventType.paused) {
       final audio = currentAudio!;
-      Timer.run(() {
+      // Timer.run(() {
         audio.onPlayPaused?.call();
-      });
-    } else if (eventType == AudioEventType.stopped ||
-        eventType == AudioEventType.complete) {
-      final audio = currentAudio!;
-      Timer.run(() {
-        audio.onPlayStopped?.call();
-      });
+      // });
+    } else if (eventType == AudioEventType.stopped) {
+        currentAudio!.onPlayStopped?.call();
+    } else if (eventType == AudioEventType.complete) {
+      // Timer.run(() {
+        currentAudio!.onPlayStopped?.call();
+      // });
+      final tmp = _playbackCompleter;
+      _playbackCompleter = null;
+      tmp?.complete();
     } else if (eventType == AudioEventType.positionUpdate) {
       currentAudio?.currentPosition = data;
     }
@@ -152,8 +158,8 @@ class AudioServiceAgent {
 
     switch (data["event"]) {
       case "PlayComplete":
-        _notifyAudioEventListeners(
-            AudioEventType.positionUpdate, currentAudio!.durationMS);
+        // _notifyAudioEventListeners(
+        //     AudioEventType.positionUpdate, currentAudio!.durationMS);
         _notifyAudioEventListeners(AudioEventType.complete, null);
         state = AudioState.idle;
         break;
@@ -191,14 +197,17 @@ class AudioServiceAgent {
     return _platformParamCompleter!.future;
   }
 
-  void _platformMethodLock() async {
+  Future _platformMethodLock([caller = ""]) async {
+    _log.verboseWithParentInfo("PLTFM-CALL $caller locking");
     while(_methodLockCompleter != null) {
       await _methodLockCompleter!.future;
     }
       _methodLockCompleter = Completer();
+    _log.verboseWithParentInfo("PLTFM-CALL $caller locked");
   }
 
-  void _platformMethodUnlock() {
+  void _platformMethodUnlock([caller = ""]) {
+    _log.verboseWithParentInfo("PLTFM-CALL $caller unlock");
     final tmp = _methodLockCompleter;
     _methodLockCompleter = null;
     tmp!.complete();
@@ -232,7 +241,7 @@ class AudioServiceAgent {
     Recording
   \*=======================================================================*/
   Future<Result> startRecord(String path) async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod("startRecord", {
       "path": path,
     });
@@ -245,7 +254,7 @@ class AudioServiceAgent {
   }
 
   Future<Result> stopRecord() async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod("stopRecord");
     if (ret is Succeed) {
       state = AudioState.idle;
@@ -256,7 +265,7 @@ class AudioServiceAgent {
   }
 
   Future<Result> pauseRecord() async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod("pauseRecord");
     if (ret is Succeed) {
       state = AudioState.idle;
@@ -266,7 +275,7 @@ class AudioServiceAgent {
   }
 
   Future<Result> resumeRecord() async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod("resumeRecord");
     if (ret is Succeed) {
       state = AudioState.recording;
@@ -282,22 +291,24 @@ class AudioServiceAgent {
       {int positionNotifyIntervalMs = 10}) async {
     final path = await audio.realPath;
     audio.currentPosition = 0;
+    await _platformMethodLock();
     switch (state) {
       case AudioState.idle:
         break;
       case AudioState.playPaused:
       case AudioState.playing:
-        final stopRet = await stopPlay();
+        final stopRet = await stopPlay(lock: false);
         if (stopRet.failed) {
+          _platformMethodUnlock();
           return stopRet;
         }
         break;
       case AudioState.recordPaused:
       case AudioState.recording:
+        _platformMethodUnlock();
         return Fail(ErrMsg("AudioServiceAgent State error, now:$state"));
     }
 
-    _platformMethodLock();
     Result ret = await _callPlatformMethod("startPlay", {
       "path": path,
       "positionNotifyIntervalMs": positionNotifyIntervalMs,
@@ -307,29 +318,33 @@ class AudioServiceAgent {
       _notifyAudioEventListeners(AudioEventType.started, audio);
       state = AudioState.playing;
     }
+    _playbackCompleter = Completer();
     _platformMethodUnlock();
 
     return ret;
   }
 
-  Future<Result> stopPlay() async {
-    if (state == AudioState.idle) return const Succeed(); 
-    _platformMethodLock();
+  Future<Result> stopPlay({bool lock = true}) async {
+    if (lock) await _platformMethodLock();
+    if (state == AudioState.idle) {
+      if (lock) _platformMethodUnlock();
+      return const Succeed();
+    }
     Result ret = await _callPlatformMethod("stopPlay");
+    await _playbackCompleter?.future;
     if (ret is Succeed) {
       _notifyAudioEventListeners(AudioEventType.stopped, null);
       // currentAudio = null;
       state = AudioState.idle;
       ret = const Succeed();
     }
-    _platformMethodUnlock();
+    if (lock) _platformMethodUnlock();
     return ret;
   }
 
   Future<Result> pausePlay() async {
+    await _platformMethodLock();
     if (state != AudioState.playing) return const Succeed();
-
-    _platformMethodLock();
     Result ret = await _callPlatformMethod("pausePlay");
     if (ret is Succeed) {
       _notifyAudioEventListeners(AudioEventType.stopped, null);
@@ -342,7 +357,7 @@ class AudioServiceAgent {
   }
 
   Future<Result> resumePlay() async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod("resumePlay");
     if (ret is Succeed) {
       _notifyAudioEventListeners(AudioEventType.started, currentAudio!);
@@ -369,23 +384,27 @@ class AudioServiceAgent {
   }
 
   Future<Result> _seekTo(int positionMs) async {
+    await _platformMethodLock();
     if (currentAudio == null) {
+      _platformMethodUnlock();
       return Fail(ErrMsg("current position is null, " "Not Playing?"));
     }
     if (positionMs >= currentAudio!.durationMS!) {
-      final ret = await stopPlay();
+      final ret = await stopPlay(lock: false);
       _notifyAudioEventListeners(AudioEventType.positionUpdate, currentAudio!.durationMS!);
+      _platformMethodUnlock();
       return ret;
     } else if (positionMs < 0) {
       positionMs = 0;
     }
 
-    _platformMethodLock();
     Result ret = await _callPlatformMethod("seekTo", {
       "position": positionMs,
     });
     if (ret is Succeed) {
-      _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
+      if (state != AudioState.playing) {
+        _notifyAudioEventListeners(AudioEventType.positionUpdate, positionMs);
+      }
     }
     _platformMethodUnlock();
 
@@ -414,9 +433,11 @@ class AudioServiceAgent {
       pitch = GlobalInfo.PLATFORM_PITCH_MIN_VALUE;
     }
 
-    if (pitch == _currentPitch) return const Succeed();
-
-    _platformMethodLock();
+    await _platformMethodLock();
+    if (pitch == _currentPitch) {
+      _platformMethodUnlock();
+      return const Succeed();
+    }
     Result ret = await _callPlatformMethod("setPitch", {"pitch": pitch});
     if (ret is Succeed) _currentPitch = pitch;
     _platformMethodUnlock();
@@ -425,8 +446,11 @@ class AudioServiceAgent {
   }
 
   Future<Result> setSpeed(double speed) async {
-    if (speed == _currentSpeed) return const Succeed();
-    _platformMethodLock();
+    await _platformMethodLock();
+    if (speed == _currentSpeed) {
+      _platformMethodUnlock();
+      return const Succeed();
+    }
     Result ret = await _callPlatformMethod("setSpeed", {"speed": speed});
     if (ret is Succeed) _currentSpeed = speed;
     _platformMethodUnlock();
@@ -435,8 +459,11 @@ class AudioServiceAgent {
   }
 
   Future<Result> setVolume(double volume) async {
-    if (volume == _currentVolume) return const Succeed();
-    _platformMethodLock();
+    await _platformMethodLock();
+    if (volume == _currentVolume) {
+      _platformMethodUnlock();
+      return const Succeed();
+    }
     Result ret = await _callPlatformMethod("setVolume", {"volume": volume});
     if (ret is Succeed) _currentVolume = volume;
     _platformMethodUnlock();
@@ -448,7 +475,7 @@ class AudioServiceAgent {
     Other
   \*==============================ƒ=========================================*/
   Future<Result> getDuration(String path) async {
-    _platformMethodLock();
+    await _platformMethodLock();
     Result ret = await _callPlatformMethod('getDuration', {"path": path});
     if (ret is Succeed) {
       state = AudioState.idle;
@@ -466,8 +493,8 @@ class AudioServiceAgent {
   }
 
   Future<Result> setParams() async {
-    _platformMethodLock();
-    final ret = await _callPlatformMethod("setParams", {
+    await _platformMethodLock();
+    Result ret = await _callPlatformMethod("setParams", {
       //Recording
       "samplesPerSecond": GlobalInfo.WAVEFORM_SAMPLES_PER_SECOND,
       "sendPerSecond": GlobalInfo.WAVEFORM_SEND_PER_SECOND,
@@ -481,10 +508,8 @@ class AudioServiceAgent {
       "playbackPositionNotifyIntervalMS":
           GlobalInfo.PLAYBACK_POSITION_NOTIFY_INTERVAL_MS,
     });
-    if (ret == false) {
-      return const Fail(PlatformFailure());
-    }
-    return const Succeed();
+    _platformMethodUnlock();
+    return ret;
   }
 
   /*=======================================================================*\ 

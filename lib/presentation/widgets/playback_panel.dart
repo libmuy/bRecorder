@@ -18,7 +18,7 @@ import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
 final log = Logger('PlaybackPanel',
-//  level: LogLevel.debug
+ level: LogLevel.verbose
  );
 
 class PlaybackPanel extends StatefulWidget {
@@ -125,7 +125,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   void _positionListener(_, data) {
     final seconds = data / 1000;
-    // log.debug("update position:$seconds");
+    log.verbose("update position:$seconds");
     if (seconds > _durationNotifier.value) return;
     _positionNotifier.value = seconds;
     _waveformDelegate.setPosition(seconds, dispatchNotification: false);
@@ -140,9 +140,9 @@ class _PlaybackPanelState extends State<PlaybackPanel>
         _waveformDataNotifier.value = data ?? Float32List(0);
       });
       final seconds = currentAudio!.durationMS! / 1000.0;
-      if (seconds < _positionNotifier.value) {
-        _positionNotifier.value = seconds;
-      }
+      // if (seconds < _positionNotifier.value) {
+      //   _positionNotifier.value = seconds;
+      // }
       _durationNotifier.value = seconds;
       _titleNotifier.value = currentAudio!.name;
 
