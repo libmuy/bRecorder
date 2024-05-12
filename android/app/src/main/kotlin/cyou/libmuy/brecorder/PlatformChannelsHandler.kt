@@ -171,6 +171,7 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                     val recordSampleRate: Int? = call.argument("recordSampleRate")
                     val recordBitRate: Int? = call.argument("recordBitRate")
                     val recordFrameReadPerSecond: Int? = call.argument("recordFrameReadPerSecond")
+                    val playbackPositionNotifyIntervalMS: Int? = call.argument("playbackPositionNotifyIntervalMS")
                     if (samplesPerSecond == null ||
                         sendPerSecond == null ||
                         recordChannelCount == null ||
@@ -185,6 +186,7 @@ class PlatformChannelsHandler (act: FlutterActivity, flutterEngine: FlutterEngin
                         WAVEFORM_SEND_PER_SECOND = sendPerSecond!!
                         RECORD_FORMAT = recordFormat!!
                         RECORD_CHANNEL_COUNT = recordChannelCount!!
+                        PLAYBACK_POSITION_NOTIFY_INTERVAL_MS = playbackPositionNotifyIntervalMS!!
                         SAMPLE_RATE = recordSampleRate!!
                         BIT_RATE = recordBitRate!!
                         RECORD_FRAME_READ_PER_SECOND = recordFrameReadPerSecond!!

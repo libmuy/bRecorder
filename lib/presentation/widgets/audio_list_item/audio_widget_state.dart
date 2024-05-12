@@ -56,7 +56,7 @@ class AudioWidgetState {
       onPlayStopped = () {
         log.debug("play stopped: ${audio.path}");
         playing = false;
-        highlight = false;
+        // highlight = false;
       };
     }
   }

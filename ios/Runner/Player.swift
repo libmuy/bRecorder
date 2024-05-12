@@ -7,8 +7,9 @@
 
 import Foundation
 import AVFoundation
+import os
 
-private let log = Logger(name: "Player")
+private let log = Logger(subsystem: "player", category: "")
 
 private enum PlayerState {
     case playing
@@ -28,10 +29,9 @@ class Player {
     private var mDurationMs: Int = 0
     private var onPlaybackComplete: (() -> Void)?
     private var mPositionNotifyTimer: Timer?
-    // There are seeks when stopped or paused
     private var mPendingSeek = false
     private var mState = PlayerState.stopped
-//    private var mNotFinalize = false
+    private var mNotFinalize = false
     
     init(channelHandler: PlatformChannelsHandler) {
         mEventChannel = channelHandler
@@ -64,7 +64,7 @@ class Player {
         mTotalFrame = mFile!.length
         mSampleRate = mFile!.processingFormat.sampleRate
         mDurationMs = Int(Double(mTotalFrame) / mSampleRate * 1000)
-        log.debug("Audio File: frames:\(mFile!.length), samplerate:\(mFile!.processingFormat.sampleRate), duration:\(mDurationMs)")
+        log.debug("Audio File: frames:\(self.mFile!.length), samplerate:\(self.mFile!.processingFormat.sampleRate), duration:\(self.mDurationMs)")
         onPlaybackComplete = onComplete
         startPositionNotifyTimer()
         if (fromTimeMs > 0) {
@@ -180,7 +180,7 @@ class Player {
     /// Stop playback, [playbackComplete()] will be called after this
     private func stop(temporarily: Bool = false) {
         if (temporarily) {
-//            mNotFinalize = true
+            mNotFinalize = true
             mAudioPlayer.stop()
         } else {
             mAudioPlayer.stop()
@@ -191,24 +191,26 @@ class Player {
     
     /// Playback complete callback, called by [mAudioPlayer]
     private func playbackComplete() {
-//        if (mNotFinalize) {
-//            log.debug("playback completed but not finalize")
-//            mNotFinalize = false
-//            return
-//        }
-        log.debug("playback completed START")
+        if (mNotFinalize) {
+            log.debug("playback completed but not finalize")
+            mNotFinalize = false
+            return
+        }
+        log.debug("playback completed")
         mPositionNotifyTimer!.invalidate()
+        onPlaybackComplete?()
         mAudioPlayer.stop()
         mEngine.stop()
+        mEngine.reset()
+        onPlaybackComplete = nil
+        mFile = nil
+        mPositionNotifyTimer = nil
         mPendingSeek = false
         mState = .stopped
-        onPlaybackComplete?()
         sendEvent(event: [
             "event": "PlayComplete",
             "data": nil
         ])
-        log.debug("playback completed END")
-
     }
     
     /// Send Playback Event to Flutter
@@ -226,6 +228,7 @@ class Player {
     
     /// Start Timer for playback position notification to Flutter
     private func startPositionNotifyTimer() {
+        mPositionNotifyTimer?.invalidate()
         mPositionNotifyTimer = Timer.scheduledTimer(
             withTimeInterval: Double(PLAYBACK_POSITION_NOTIFY_INTERVAL_MS) / 1000,
             repeats: true) { _ in

@@ -5,7 +5,7 @@ import 'package:flutter/cupertino.dart';
 class GlobalInfo {
   static const int WAVEFORM_SAMPLES_PER_SECOND = 40;
   static const int WAVEFORM_SEND_PER_SECOND = 10;
-  static const int PLAYBACK_POSITION_NOTIFY_INTERVAL_MS = 10;
+  static const int PLAYBACK_POSITION_NOTIFY_INTERVAL_MS = 20;
   static const String RECORD_FORMAT = "M4A_ACC";
   static const int RECORD_CHANNEL_COUNT = 1;
   static const int RECORD_SAMPLE_RATE = 44100;

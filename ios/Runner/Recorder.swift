@@ -7,8 +7,9 @@
 
 import Foundation
 import AVFoundation
+import os
 
-private let log = Logger(name: "Recorder")
+private let log = Logger(subsystem: "Recorder", category: "")
 
 class Recorder {
     private let mAudioEngine = AVAudioEngine()
@@ -70,7 +71,7 @@ class Recorder {
         //            log.debug("Read frame count:\(RECORDER_READ_FRAME_COUNT)")
         let bufferSize =  AVAudioFrameCount(mInputFormat.sampleRate / Double(RECORD_FRAME_READ_PER_SECOND))
         let samplerate2 = mInputNode.outputFormat(forBus: 0).sampleRate
-        log.debug("inputformat samplerate: \(mInputFormat.sampleRate), sample rate2: \(samplerate2)")
+        log.debug("inputformat samplerate: \(self.mInputFormat.sampleRate), sample rate2: \(samplerate2)")
         mInputNode.installTap(onBus: 0,
                              bufferSize: bufferSize,
                              format: mInputFormat,
@@ -98,7 +99,7 @@ class Recorder {
     func stopRecord()-> AudioResult<NoValue>{
         do {
             mInputNode.removeTap(onBus: 0)
-            log.debug("file len: \(mOutputFile!.length), buffer len:\(samples)")
+            log.debug("file len: \(self.mOutputFile!.length), buffer len:\(self.samples)")
             self.mOutputFile = nil
             mAudioEngine.stop()
             mWaveformGenerator.stop()

@@ -76,24 +76,24 @@ private let LOG_LINENO_LEN = 5
 private let LOG_NAME_LEN = 10
 private let LOG_FUN_LEN = 60
 
-
-class Logger {
-    private let name: String
-    private let showFileName: Bool
-    private let nameWithPadding: String
-    
-    init(name:String, showFileName: Bool = false) {
-        self.name = name
-        self.nameWithPadding = name.padding(toLength: LOG_NAME_LEN, withPad: " ", startingAt: 0)
-        self.showFileName = showFileName
-    }
-    
-    public func debug(_ message: String, file: String = #file, function: String = #function, line: Int = #line ) {
-        let lineWithPadding = String(line).leftPadding(toLength: LOG_LINENO_LEN, withPad: "0")
-        let funWithPadding = function.padding(toLength: LOG_FUN_LEN, withPad: " ", startingAt: 0)
-        print("[L\(lineWithPadding)][\(nameWithPadding)] [\(funWithPadding)] \(message)")
-    }
-}
+//
+//class Logger {
+//    private let name: String
+//    private let showFileName: Bool
+//    private let nameWithPadding: String
+//    
+//    init(name:String, showFileName: Bool = false) {
+//        self.name = name
+//        self.nameWithPadding = name.padding(toLength: LOG_NAME_LEN, withPad: " ", startingAt: 0)
+//        self.showFileName = showFileName
+//    }
+//    
+//    public func debug(_ message: String, file: String = #file, function: String = #function, line: Int = #line ) {
+//        let lineWithPadding = String(line).leftPadding(toLength: LOG_LINENO_LEN, withPad: "0")
+//        let funWithPadding = function.padding(toLength: LOG_FUN_LEN, withPad: " ", startingAt: 0)
+//        print("[L\(lineWithPadding)][\(nameWithPadding)] [\(funWithPadding)] \(message)")
+//    }
+//}
 
 extension String {
     func leftPadding(toLength: Int, withPad character: Character) -> String {
