@@ -18,6 +18,7 @@ import '../widgets/search_box.dart';
 final log = Logger(
   'BrowserView',
 );
+const _kHeaderPadding = 10.0;
 
 /*=======================================================================*\ 
   Widget
@@ -549,9 +550,12 @@ class _AudioListHeader {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text("$count Audios"
-            " - "
-            "$sizeStr"),
+        Container(
+          padding: const EdgeInsets.only(left: _kHeaderPadding),
+          child: Text("$count Audios"
+              " - "
+              "$sizeStr"),
+        ),
         headerEnding,
       ],
     );
@@ -666,6 +670,7 @@ class _SortButtonState extends State<_SortButton> {
   @override
   Widget build(BuildContext context) {
     return MaterialButton(
+      padding: const EdgeInsets.only(right: 0),
       onPressed: () => onPressed(context),
       child: Row(
         children: [Text(sortName(type)), orderIcon],

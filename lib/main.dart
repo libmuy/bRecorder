@@ -33,6 +33,8 @@ class BRecorderApp extends StatelessWidget {
       Theme Dark
     \*=======================================================================*/
     final themeDark = ThemeData.dark().copyWith(
+      primaryColor: Colors.black,
+      highlightColor: Colors.grey,
       // useMaterial3: true,
       dialogBackgroundColor: Colors.black,
       textTheme: ThemeData.dark().textTheme.copyWith(

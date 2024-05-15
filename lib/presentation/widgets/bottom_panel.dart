@@ -67,7 +67,7 @@ class _BottomPanelState extends State<BottomPanel> {
         valueListenable: state.selectStateNotifier,
         builder: (context, selectState, _) {
           return SizedBox(
-              height: 50,
+              height: 100,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

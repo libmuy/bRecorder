@@ -307,7 +307,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
               //   width: 0.5,
               //   color: Color.fromARGB(255, 53, 53, 53),
               // ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(GlobalInfo.kDialogBorderRadius)),
             ),
             // color: Colors.transparent,
             child: IntrinsicHeight(
@@ -599,7 +599,8 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                       },
                       child: const Icon(Icons.skip_next)),
                 ],
-              )
+              ),
+              const SizedBox(height: 10,)
             ],
           ),
         ),
