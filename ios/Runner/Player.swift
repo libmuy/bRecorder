@@ -111,12 +111,13 @@ class Player {
     }
     
     func seekTo(timeMs: Int)-> AudioResult<NoValue> {
-        guard timeMs < mDurationMs else {
-            return AudioResult(type: .ParamError, extraString: "target time(\(timeMs)) is bigger than duration(\(mDurationMs))")
+        var time = timeMs
+        if (time >= mDurationMs) {
+            time = 0
         }
-        mStartFrame = timeMsToFrame(timeMs)
+        mStartFrame = timeMsToFrame(time)
         if (mState == .playing) {
-            log.debug("seek to \(timeMs) ms")
+            log.debug("seek to \(time) ms")
             stop(temporarily: true)
             do {
                 try play(fromFrame: mStartFrame)

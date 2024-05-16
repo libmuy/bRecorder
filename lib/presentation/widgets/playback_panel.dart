@@ -18,7 +18,7 @@ import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
 final log = Logger('PlaybackPanel',
- level: LogLevel.verbose
+ level: LogLevel.debug
  );
 
 class PlaybackPanel extends StatefulWidget {
@@ -194,7 +194,8 @@ class _PlaybackPanelState extends State<PlaybackPanel>
     _positionNotifier.value = metrics.position;
   }
 
-  void _pauseForSeek() {
+  void _pauseForSeek() async {
+    await agent.waitPendingMethodCall();
     if (agent.state == AudioState.playing) {
       log.debug("playing, pause it");
       needResume = true;
@@ -204,6 +205,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   void _seekWhilePlaying(int positionMs) {
     agent.seekTo(positionMs);
+    if ((positionMs / 1000) >= _durationNotifier.value) needResume = false;
     if (needResume) {
       log.debug("paused playing, resume it");
       agent.resumePlay();

@@ -8,7 +8,7 @@ import 'logging.dart';
 import 'result.dart';
 
 final _log = Logger('Audio-Agent', 
-level: LogLevel.verbose
+level: LogLevel.debug
 );
 
 typedef AudioEventListener = void Function(AudioEventType event, dynamic data);
@@ -342,16 +342,19 @@ class AudioServiceAgent {
     return ret;
   }
 
-  Future<Result> pausePlay() async {
-    await _platformMethodLock();
-    if (state != AudioState.playing) return const Succeed();
+  Future<Result> pausePlay({bool lock = true}) async {
+    if (lock) await _platformMethodLock();
+    if (state != AudioState.playing) {
+      if (lock) _platformMethodUnlock();
+      return const Succeed();
+    }
     Result ret = await _callPlatformMethod("pausePlay");
     if (ret is Succeed) {
       _notifyAudioEventListeners(AudioEventType.stopped, null);
       state = AudioState.playPaused;
       ret = const Succeed();
     }
-    _platformMethodUnlock();
+    if (lock) _platformMethodUnlock();
 
     return ret;
   }
@@ -390,10 +393,8 @@ class AudioServiceAgent {
       return Fail(ErrMsg("current position is null, " "Not Playing?"));
     }
     if (positionMs >= currentAudio!.durationMS!) {
-      final ret = await stopPlay(lock: false);
-      _notifyAudioEventListeners(AudioEventType.positionUpdate, currentAudio!.durationMS!);
-      _platformMethodUnlock();
-      return ret;
+      positionMs = currentAudio!.durationMS!;
+      await pausePlay(lock: false);
     } else if (positionMs < 0) {
       positionMs = 0;
     }
@@ -510,6 +511,19 @@ class AudioServiceAgent {
     });
     _platformMethodUnlock();
     return ret;
+  }
+
+  /*=======================================================================*\ 
+    Others
+  \*=======================================================================*/
+  bool methodCallPending() {
+    return _methodLockCompleter != null;
+  }
+
+  Future waitPendingMethodCall() async {
+    while(_methodLockCompleter != null) {
+      await _methodLockCompleter!.future;
+    }
   }
 
   /*=======================================================================*\ 
