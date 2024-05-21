@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 
 import '../../core/logging.dart';
 
-final log = Logger('TitleBar');
+final _log = Logger('TitleBar');
 
 class TitleBar extends StatefulWidget implements PreferredSizeWidget {
   final void Function()? leadingOnPressed;
@@ -178,7 +178,7 @@ class _TitleBarState extends State<TitleBar> {
                                     //       MaterialTapTargetSize.shrinkWrap,
                                     // ),
                                     onPressed: () {
-                                      log.info("Path button:$newPath clicked");
+                                      _log.info("Path button:$newPath clicked");
                                       widget.onTitleTapped?.call(newPath);
                                     },
                                     child: Text(

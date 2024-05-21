@@ -5,7 +5,7 @@ import 'dart:collection';
 
 import '../logging.dart';
 
-final log = Logger('TaskQueue');
+final _log = Logger('TaskQueue');
 
 class TaskQueue {
   final Queue<Task> _queue = Queue();
@@ -20,7 +20,7 @@ class TaskQueue {
   // Stream<B> get stream => _streamController.stream;
 
   void add(Task t) {
-    log.debug("add task");
+    _log.debug("add task");
     _queue.add(t);
     if (_current == null) _startExecution();
   }
@@ -43,11 +43,11 @@ class TaskQueue {
     while (_queue.isNotEmpty && runningTasks < maxConcurrentTasks) {
       runningTasks++;
       // print('Concurrent workers: $runningTasks');
-      log.debug("execute task: Start");
+      _log.debug("execute task: Start");
       _current = _queue.removeFirst();
       await _current!.runTask();
       _current = null;
-      log.debug("execute task: End");
+      _log.debug("execute task: End");
       runningTasks--;
       // task(_queue.removeFirst()).then((value) async {
       //   // _streamController.add(value);

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/logging.dart';
-
-final log = Logger('EditableText');
 
 class EditableText extends StatefulWidget {
   final String initialText;

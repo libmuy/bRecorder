@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/logging.dart';
-
-final log = Logger('WaveForm');
 
 class CenterBarPainter extends CustomPainter {
   Paint painter = Paint();

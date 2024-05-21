@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/logging.dart';
 
-final log = Logger('WaveForm');
+final _log = Logger('WaveForm');
 
 class WaveformPainter extends CustomPainter {
   Paint painter = Paint();
@@ -51,7 +51,7 @@ class WaveformPainter extends CustomPainter {
     double max = 0.012;
 
     if (data.isEmpty) {
-      log.debug("no data draw a line");
+      _log.debug("no data draw a line");
       path.moveTo(0, middle);
       path.lineTo(size.width, middle);
       path.lineTo(0, middle);

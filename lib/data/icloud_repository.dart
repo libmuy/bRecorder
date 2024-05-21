@@ -1,10 +1,13 @@
 import '../core/result.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
+import '../core/logging.dart';
+
+final _log = Logger('RepoGDrive', level: LogLevel.debug);
 
 class ICloudRepository extends Repository {
   ICloudRepository() : super() {
-    log.name = "RepoICloud";
+    _log.name = "RepoICloud";
   }
   @override
   Future<Result> getFolderInfoRealOperation(String relativePath,

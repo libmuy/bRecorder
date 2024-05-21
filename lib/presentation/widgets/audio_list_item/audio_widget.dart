@@ -9,7 +9,7 @@ import '../../../data/google_drive_repository.dart';
 import '../../../domain/entities.dart';
 import 'audio_widget_state.dart';
 
-final log = Logger('AudioListItem');
+final _log = Logger('AudioListItem');
 
 class AudioWidget extends StatefulWidget {
   final AudioObject audioItem;
@@ -118,7 +118,7 @@ class _AudioWidgetState extends State<AudioWidget> {
           if (AudioWidgetState.height != null) return;
           final box = context.findRenderObject() as RenderBox?;
           AudioWidgetState.height = box?.size.height;
-          log.debug("Audio Item Height:${AudioWidgetState.height}");
+          _log.debug("Audio Item Height:${AudioWidgetState.height}");
         },
       );
     }

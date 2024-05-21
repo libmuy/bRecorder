@@ -2,12 +2,10 @@ import 'package:brecorder/data/google_drive_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/global_info.dart';
-import '../../../core/logging.dart';
 import '../../../core/service_locator.dart';
 import '../../../core/setting.dart';
 import '../../../core/utils/utils.dart';
 
-final log = Logger('SettingPage', level: LogLevel.debug);
 
 class SettingTabsPage extends StatefulWidget {
   const SettingTabsPage({super.key});

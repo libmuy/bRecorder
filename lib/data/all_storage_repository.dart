@@ -6,14 +6,14 @@ import '../core/result.dart';
 import '../core/service_locator.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
+import '../core/logging.dart';
+
+final _log = Logger('RepoAll', level: LogLevel.debug);
 
 class AllStorageRepository extends Repository {
   List<Repository>? _repoList;
   Map<String, Repository>? _nameToRepo;
 
-  AllStorageRepository() {
-    log.name = "RepoAll";
-  }
 
   @override
   final type = RepoType.allStoreage;
@@ -43,7 +43,7 @@ class AllStorageRepository extends Repository {
   }
 
   void _addRepoNameToPath(String prefix, FolderInfo folder) {
-    log.debug("change path to:${folder.path}");
+    _log.debug("change path to:${folder.path}");
     folder.path = "/$prefix${folder.path}";
 
     folder.subfolders?.forEach((f) {
@@ -63,7 +63,7 @@ class AllStorageRepository extends Repository {
     var pathList2 = List<String>.from(pathList);
     pathList2.removeAt(1);
     final path2 = joinAll(pathList2);
-    log.debug("reomve repo name from path:$path");
+    _log.debug("reomve repo name from path:$path");
 
     return Succeed(RepoPath(repo, path2));
   }
@@ -73,7 +73,7 @@ class AllStorageRepository extends Repository {
       {bool folderOnly = false}) async {
     if (relativePath == "/") {
       var root = FolderInfo("/");
-      log.debug("get root folder info");
+      _log.debug("get root folder info");
       var folders = await Future.wait(repoList.map((repo) async {
         final ret = await repo.getFolderInfo("/", folderOnly: folderOnly);
         if (ret.succeed) {

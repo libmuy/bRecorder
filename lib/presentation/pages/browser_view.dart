@@ -15,7 +15,7 @@ import '../widgets/animated_audio_list.dart';
 import '../widgets/dialogs.dart';
 import '../widgets/search_box.dart';
 
-final log = Logger(
+final _log = Logger(
   'BrowserView',
 );
 const _kHeaderPadding = 10.0;
@@ -80,7 +80,7 @@ class _BrowserViewState extends State<BrowserView>
   \*=======================================================================*/
   @override
   void initState() {
-    log.info("initState");
+    _log.info("initState");
     super.initState();
     state = sl.getBrowserViewState(widget.repoType);
     _scrollController = ScrollController();
@@ -91,7 +91,7 @@ class _BrowserViewState extends State<BrowserView>
 
   @override
   void dispose() {
-    log.info("dispose");
+    _log.info("dispose");
     if (widget.destoryRepoCache) state.destoryRepositoryCache();
     state.groupNotifier.removeListener(_groupListener);
     state.dispose();
@@ -201,7 +201,7 @@ class _BrowserViewState extends State<BrowserView>
                   _scrollController.offset;
 
           // 高さ更新
-          log.debug("ScrollDown, Update height:$currentHeight");
+          _log.debug("ScrollDown, Update height:$currentHeight");
           currentHeader.headerHeight = currentHeight;
         }
       }
@@ -218,7 +218,7 @@ class _BrowserViewState extends State<BrowserView>
                 _scrollController.offset;
 
             // 高さ更新
-            log.debug("ScrollUp, Update height:$currentHeight");
+            _log.debug("ScrollUp, Update height:$currentHeight");
             currentHeader.headerHeight = currentHeight;
           }
         }
@@ -229,7 +229,7 @@ class _BrowserViewState extends State<BrowserView>
             box.constraints.precedingScrollExtent - _scrollController.offset;
 
         // 高さ更新
-        log.debug("ScrollDown, Update prev height:$previousHeight");
+        _log.debug("ScrollDown, Update prev height:$previousHeight");
         previousHeader.headerHeight = previousHeight;
       }
     }
@@ -310,7 +310,7 @@ class _BrowserViewState extends State<BrowserView>
     required Curve curve,
   }) {
     if (AudioWidgetState.height == null) {
-      log.warning("AudioListeItem's height is unknow, can't scroll to it");
+      _log.warning("AudioListeItem's height is unknow, can't scroll to it");
       return;
     }
     int index = 0;
@@ -338,7 +338,7 @@ class _BrowserViewState extends State<BrowserView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    log.debug("group count:${_groups?.length}");
+    _log.debug("group count:${_groups?.length}");
     late List<Widget> slivers;
     if (widget.folderOnly) {
       slivers = _groups == null
@@ -500,10 +500,10 @@ class _AudioListHeader {
 
   set height(double height) {
     if (height < 0) {
-      log.error("height: $height < 0, set to 0");
+      _log.error("height: $height < 0, set to 0");
       _headerHeightNotifier.value = 0;
     } else if (height > _kDefaultHeight) {
-      log.error("height: $height > $_kDefaultHeight, set to $_kDefaultHeight");
+      _log.error("height: $height > $_kDefaultHeight, set to $_kDefaultHeight");
       _headerHeightNotifier.value = _kDefaultHeight;
     } else {
       _headerHeightNotifier.value = height;
@@ -646,14 +646,14 @@ class _SortButtonState extends State<_SortButton> {
   }
 
   void onPressed(context) {
-    log.debug("show sort dialog");
+    _log.debug("show sort dialog");
     final options = AudioItemSortType.values
         .asMap()
         .map((_, sortType) => MapEntry(sortName(sortType), sortType));
     final ret =
         showAudioItemSortDialog(context, title: "Sort", options: options);
     ret.then((newType) {
-      log.debug("sort dialog end");
+      _log.debug("sort dialog end");
       if (newType == null) return;
       if (newType == type) {
         reverseOrder = !reverseOrder;
@@ -663,7 +663,7 @@ class _SortButtonState extends State<_SortButton> {
       }
       setState(() {});
       widget.onSorted?.call(type, reverseOrder);
-      log.debug("Dialog return:$type");
+      _log.debug("Dialog return:$type");
     });
   }
 

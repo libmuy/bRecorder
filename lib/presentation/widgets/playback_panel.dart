@@ -17,7 +17,7 @@ import 'rect_slider.dart';
 import 'square_icon_button.dart';
 import 'waveform/waveform.dart';
 
-final log = Logger('PlaybackPanel',
+final _log = Logger('PlaybackPanel',
  level: LogLevel.debug
  );
 
@@ -125,7 +125,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
 
   void _positionListener(_, data) {
     final seconds = data / 1000;
-    log.verbose("update position:$seconds");
+    _log.verbose("update position:$seconds");
     if (seconds > _durationNotifier.value) return;
     _positionNotifier.value = seconds;
     _waveformDelegate.setPosition(seconds, dispatchNotification: false);
@@ -136,7 +136,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
       _playingNotifier.value = true;
       currentAudio = audio;
       currentAudio!.waveformData.then((data) {
-        log.debug("audio($currentAudio)'s waveform length:${data?.length}");
+        _log.debug("audio($currentAudio)'s waveform length:${data?.length}");
         _waveformDataNotifier.value = data ?? Float32List(0);
       });
       final seconds = currentAudio!.durationMS! / 1000.0;
@@ -197,7 +197,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   void _pauseForSeek() async {
     await agent.waitPendingMethodCall();
     if (agent.state == AudioState.playing) {
-      log.debug("playing, pause it");
+      _log.debug("playing, pause it");
       needResume = true;
       agent.pausePlay();
     }
@@ -207,7 +207,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
     agent.seekTo(positionMs);
     if ((positionMs / 1000) >= _durationNotifier.value) needResume = false;
     if (needResume) {
-      log.debug("paused playing, resume it");
+      _log.debug("paused playing, resume it");
       agent.resumePlay();
       needResume = false;
     }
@@ -217,18 +217,18 @@ class _PlaybackPanelState extends State<PlaybackPanel>
     return ValueListenableBuilder<bool>(
         valueListenable: _expandNotifier,
         builder: (context, show, _) {
-          log.debug("build waveform");
+          _log.debug("build waveform");
           if (_panelBodyHeight == null) {
             return Container();
           }
           final screenHeight = MediaQuery.of(context).size.height;
           final statusBarHeight = MediaQuery.of(context).viewPadding.top;
           final height = screenHeight - statusBarHeight - _panelBodyHeight!;
-          log.debug("screen height:$screenHeight");
-          log.debug("statusbar height:$statusBarHeight");
-          log.debug("playback panel body height:$_panelBodyHeight");
+          _log.debug("screen height:$screenHeight");
+          _log.debug("statusbar height:$statusBarHeight");
+          _log.debug("playback panel body height:$_panelBodyHeight");
           // log.debug("playback panel body height:$_panelHeaderHeight");
-          log.debug("waveform height:$height");
+          _log.debug("waveform height:$height");
           return AnimatedSizedPanel(
               debugLabel: "WaveForm",
               relayNotification: true,
@@ -276,7 +276,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
   Widget build(context) {
     if (_panelBodyHeight == null) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        log.debug("playback panel post frame callback, size:${context.size}");
+        _log.debug("playback panel post frame callback, size:${context.size}");
         if (context.size != null) {
           _panelBodyHeight = context.size!.height;
           _expandNotifier.notify();
@@ -480,7 +480,7 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                             onChanged: ((value) =>
                                 _timerValueNotifier.value = value),
                             onChangeEnd: (value) {
-                              log.debug("timer change:$value");
+                              _log.debug("timer change:$value");
                               if (_timerValueNotifier.value <= 0) {
                                 _timer?.cancel();
                                 _timer = null;
@@ -540,11 +540,11 @@ class _PlaybackPanelState extends State<PlaybackPanel>
                       dispatchNotification: false);
                 },
                 onChangeStart: (val) {
-                  log.debug("start drag slider, state:${agent.state}");
+                  _log.debug("start drag slider, state:${agent.state}");
                   _pauseForSeek();
                 },
                 onChangeEnd: (val) {
-                  log.debug("end drag slider, state:${agent.state}");
+                  _log.debug("end drag slider, state:${agent.state}");
                   final targetPos = (val * 1000).toInt();
                   _seekWhilePlaying(targetPos);
                 },

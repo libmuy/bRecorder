@@ -2,9 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../core/logging.dart';
-
-final log = Logger('SizedAnimated');
 
 class SizedAnimated extends StatefulWidget {
   final Widget child;

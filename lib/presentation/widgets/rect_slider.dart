@@ -4,8 +4,8 @@ import '../../core/logging.dart';
 import 'icons/audio_icons.dart';
 import 'square_icon_button.dart';
 
-final log = Logger('OnOffIconButton', 
-level: LogLevel.debug
+final _log = Logger('OnOffIconButton', 
+// level: LogLevel.debug
 );
 
 class RectThumbSlider extends StatefulWidget {
@@ -61,14 +61,14 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
 
   void _rebuild() {
     widget.valueNotifier.value = 0;
-    log.debug("rebuild progress bar, position:${widget.valueNotifier.value}");
+    _log.debug("rebuild progress bar, position:${widget.valueNotifier.value}");
     setState(() {});
   }
 
   Widget _internalSlider(
       BuildContext context, double value, double min, double max) {
     final sliderFontStyle = Theme.of(context).textTheme.labelSmall;
-    log.debug("slider min:$min, max:$max, value:$value");
+    _log.debug("slider min:$min, max:$max, value:$value");
     return Container(
       color: widget.color ?? Theme.of(context).primaryColor,
       child: Column(
@@ -184,7 +184,7 @@ class _RectThumbSliderState extends State<RectThumbSlider> {
                         final div = widget.divisions ?? 20;
                         var newValue = value + (max / div);
                         if (newValue > max) newValue = max;
-                        log.debug("value: ${widget.valueNotifier.value} ->"
+                        _log.debug("value: ${widget.valueNotifier.value} ->"
                             "$newValue");
                         widget.valueNotifier.value = newValue;
                         widget.onChangeEnd?.call(newValue);

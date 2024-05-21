@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/logging.dart';
 
-final log = Logger('SquareIconButton');
+final _log = Logger('SquareIconButton');
 
 class SquareIconButton extends StatelessWidget {
   final EdgeInsets padding;

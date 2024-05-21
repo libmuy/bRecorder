@@ -14,7 +14,7 @@ import '../../data/repository.dart';
 import '../widgets/waveform/waveform.dart';
 import 'home_page_state.dart';
 
-final log = Logger('RecordPageState');
+final _log = Logger('RecordPageState');
 
 class RecordPageState {
   final agent = sl.get<AudioServiceAgent>();
@@ -37,7 +37,7 @@ class RecordPageState {
     audioTitle = dateFormat.format(DateTime.now());
     recordingFileName = audioTitle;
     repo = sl.getRepository(repoType);
-    log.info("record path:$dirPath");
+    _log.info("record path:$dirPath");
     startPauseButtonOnPressed();
   }
 
@@ -95,7 +95,7 @@ class RecordPageState {
     final base = join(dirPath, recordingFileName);
     audioPath = "$base.m4a";
     final absPath = await repo.absolutePath(audioPath);
-    log.info("Start recording: $audioPath");
+    _log.info("Start recording: $audioPath");
     final f = File(absPath);
     if (f.existsSync()) {
       f.deleteSync();
@@ -104,46 +104,46 @@ class RecordPageState {
     final agentRet = await agent.startRecord(absPath);
 
     if (agentRet.succeed) {
-      log.info("record start ok");
+      _log.info("record start ok");
       return true;
     } else {
-      log.error("record start failed");
+      _log.error("record start failed");
       return false;
     }
   }
 
   Future<bool> _stopRecording() async {
-    log.info("Stop recording");
+    _log.info("Stop recording");
     final agentRet = await agent.stopRecord();
     if (agentRet.succeed) {
-      log.info("record stop ok");
+      _log.info("record stop ok");
       return true;
     } else {
-      log.error("record stop failed");
+      _log.error("record stop failed");
       return false;
     }
   }
 
   Future<bool> _pauseRecording() async {
-    log.info("Pause recording");
+    _log.info("Pause recording");
     final agentRet = await agent.pauseRecord();
     if (agentRet.succeed) {
-      log.info("record pause ok");
+      _log.info("record pause ok");
       return true;
     } else {
-      log.error("record pause failed");
+      _log.error("record pause failed");
       return false;
     }
   }
 
   Future<bool> _resumeRecording() async {
-    log.info("Resume recording");
+    _log.info("Resume recording");
     final agentRet = await agent.resumeRecord();
     if (agentRet.succeed) {
-      log.info("record resume ok");
+      _log.info("record resume ok");
       return true;
     } else {
-      log.error("record resume failed");
+      _log.error("record resume failed");
       return false;
     }
   }

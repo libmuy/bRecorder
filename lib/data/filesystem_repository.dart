@@ -11,6 +11,9 @@ import '../core/result.dart';
 import '../core/service_locator.dart';
 import '../domain/entities.dart';
 import 'repository.dart';
+import '../core/logging.dart';
+
+final _log = Logger('RepoFs', level: LogLevel.debug);
 
 class FilesystemRepository extends Repository {
   String? _rootPath;
@@ -19,7 +22,6 @@ class FilesystemRepository extends Repository {
 
   FilesystemRepository(Future<String> rootPathFuture)
       : _rootPathFuture = rootPathFuture {
-    log.name = "RepoFs";
     rootPathFuture.then((value) {
       _rootPath = value;
       _rootPathFuture = null;
@@ -72,16 +74,16 @@ class FilesystemRepository extends Repository {
       await waitUiReqWhilePrefetch(prefetch);
       if (!doingPrefetch && prefetch) return false;
       if (ret.succeed) {
-        log.verbose("duration:${ret.value}");
+        _log.verbose("duration:${ret.value}");
       } else {
-        log.error("failed to get audio($relativePath)'s duration, set to 0");
+        _log.error("failed to get audio($relativePath)'s duration, set to 0");
       }
       request.durationMS = ret.value ?? 0;
       request.bytes = bytes;
       request.timestamp = timestamp;
       request.repo = this;
     } catch (e) {
-      log.critical("got a file IO exception: $e");
+      _log.critical("got a file IO exception: $e");
       return false;
     }
 
@@ -99,7 +101,7 @@ class FilesystemRepository extends Repository {
       final itr = orphans.where((f) => f.path == folder.path);
       if (itr.isNotEmpty) {
         // Get Folder Info from orphans list(UI requested folder info catch)
-        log.debug("get folder from orphan cache: ${folder.path}");
+        _log.debug("get folder from orphan cache: ${folder.path}");
         final orphanFolder = itr.first;
         orphans.remove(orphanFolder);
         folder.subfoldersMap = orphanFolder.subfoldersMap;
@@ -107,14 +109,14 @@ class FilesystemRepository extends Repository {
         folder.displayData ??= orphanFolder.displayData;
       } else {
         // Get Folder Info from Repo
-        log.debug("get folder from repo: ${folder.path}");
+        _log.debug("get folder from repo: ${folder.path}");
         prefetchingFolderPath = folder.path;
         final result = await fetchFolderInfoFs(folder, prefetch: true);
         await waitUiReqWhilePrefetch();
         if (!doingPrefetch) break;
 
         if (!result) {
-          log.error("Get Folder Info Failed!(${folder.path})");
+          _log.error("Get Folder Info Failed!(${folder.path})");
           prefetchingFolderPath = null;
           return false;
         }
@@ -135,7 +137,7 @@ class FilesystemRepository extends Repository {
     int bytes = 0;
     DateTime timestamp = DateTime(1970);
 
-    log.debug("Get statics: ${folder.path}");
+    _log.debug("Get statics: ${folder.path}");
     for (final sub in folder.subObjects) {
       if (sub is FolderInfo) {
         await preFetchInternalStaticsInfo(sub);
@@ -145,7 +147,7 @@ class FilesystemRepository extends Repository {
         if (sub.bytes == null) {
           final result = await getAudioInfoFromRepo(sub, prefetch: true);
           if (!result) {
-            log.error("Get AudioInfo from repo failed: ${sub.path}");
+            _log.error("Get AudioInfo from repo failed: ${sub.path}");
             return false;
           }
           sub.updateUI();
@@ -164,14 +166,14 @@ class FilesystemRepository extends Repository {
 
   @override
   Future<bool> preFetchInternal() async {
-    log.debug("============== Prefetch: Dir structure Start ");
+    _log.debug("============== Prefetch: Dir structure Start ");
     var ret = await preFetchInternalDirStructure();
-    log.debug("============== Prefetch: Dir structure End ");
+    _log.debug("============== Prefetch: Dir structure End ");
     if (!ret) return false;
 
-    log.debug("============== Prefetch: Update statics info Start ");
+    _log.debug("============== Prefetch: Update statics info Start ");
     ret = await preFetchInternalStaticsInfo(cache!);
-    log.debug("============== Prefetch: Update statics info End ");
+    _log.debug("============== Prefetch: Update statics info End ");
 
     return ret;
   }
@@ -185,7 +187,7 @@ class FilesystemRepository extends Repository {
     var audiosMap = <String, AudioInfo>{};
 
     if (!await dir.exists()) {
-      log.error("dirctory(${dir.path}) not exists");
+      _log.error("dirctory(${dir.path}) not exists");
       return false;
     }
     await waitUiReqWhilePrefetch(prefetch);
@@ -198,12 +200,12 @@ class FilesystemRepository extends Repository {
       final path = join(relativePath, name);
       late AudioObject obj;
       if (file is Directory) {
-        log.verbose("got directory:${file.path}");
+        _log.verbose("got directory:${file.path}");
         obj = FolderInfo(path, repo: this);
         subfoldersMap[name] = obj as FolderInfo;
       } else if (file is File) {
         if (folderOnly) continue;
-        log.verbose("got file:${file.path}");
+        _log.verbose("got file:${file.path}");
         if (prefetch) {
           obj = AudioInfo(path);
           final result =
@@ -231,7 +233,7 @@ class FilesystemRepository extends Repository {
     final result = await fetchFolderInfoFs(folder, folderOnly: folderOnly);
 
     if (!result) {
-      log.error("get folder($relativePath) not exists");
+      _log.error("get folder($relativePath) not exists");
       return const Fail(IOFailure());
     }
     return Succeed(folder);
@@ -250,7 +252,7 @@ class FilesystemRepository extends Repository {
         }
       }
     } catch (e) {
-      log.error("Copy file failed! src:$src, dst:$dst");
+      _log.error("Copy file failed! src:$src, dst:$dst");
       return false;
     }
 
@@ -273,7 +275,7 @@ class FilesystemRepository extends Repository {
       if (!ok) return Fail(ErrMsg("Copy file between fs failed!"));
       await srcFile.delete(recursive: true);
     } catch (e) {
-      log.critical("got a file IO exception: $e");
+      _log.critical("got a file IO exception: $e");
       return const Fail(IOFailure());
     }
 
@@ -290,7 +292,7 @@ class FilesystemRepository extends Repository {
       }
       await dir.create();
     } catch (e) {
-      log.critical("got a file IO exception: $e");
+      _log.critical("got a file IO exception: $e");
       return const Fail(IOFailure());
     }
 
@@ -324,7 +326,7 @@ class FilesystemRepository extends Repository {
     try {
       await entity.delete(recursive: true);
     } catch (e) {
-      log.critical("got a file IO exception: $e");
+      _log.critical("got a file IO exception: $e");
       return const Fail(IOFailure());
     }
 

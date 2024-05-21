@@ -3,9 +3,6 @@ import '../domain/entities.dart';
 import 'repository.dart';
 
 class PlaylistRepository extends Repository {
-  PlaylistRepository() : super() {
-    log.name = "RepoPlaylist";
-  }
 
   @override
   Future<Result> getFolderInfoRealOperation(String relativePath,

@@ -7,7 +7,7 @@ import 'folder_selector.dart';
 
 const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
-final log = Logger('Dialogs', level: LogLevel.debug);
+final _log = Logger('Dialogs', level: LogLevel.debug);
 
 void showNewFolderDialog(
     BuildContext context, void Function(String path) folderNotifier) {
@@ -176,21 +176,21 @@ Future<dynamic> showAudioItemSortDialog(BuildContext context,
         onVerticalDragStart: (details) {
           final hitted = hitTest(details.globalPosition);
           setHighlight(hitted);
-          log.debug("onVerticalDragStart: $hitted");
+          _log.debug("onVerticalDragStart: $hitted");
         },
         onVerticalDragEnd: (details) {
-          log.debug("onVerticalDragEnd: ");
+          _log.debug("onVerticalDragEnd: ");
           if (selectedIndex >= 0) {
             Navigator.pop(context, optionReturn[selectedIndex]);
           }
         },
         onVerticalDragCancel: () {
-          log.debug("onVerticalDragCancel:");
+          _log.debug("onVerticalDragCancel:");
         },
         onVerticalDragUpdate: (details) {
           final hitted = hitTest(details.globalPosition);
           setHighlight(hitted);
-          log.debug("onVerticalDragUpdate: $hitted");
+          _log.debug("onVerticalDragUpdate: $hitted");
         },
         child: Column(
           mainAxisSize: MainAxisSize.min,

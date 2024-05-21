@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/logging.dart';
 import 'square_icon_button.dart';
 
-final log = Logger('OnOffIconButton');
+final _log = Logger('OnOffIconButton');
 
 class OnOffIconButton extends StatefulWidget {
   final IconData? icon;
@@ -173,7 +173,7 @@ class _OnOffIconButtonState extends State<OnOffIconButton>
 
   @override
   Widget build(context) {
-    log.debug("duration${widget.duration}");
+    _log.debug("duration${widget.duration}");
     _colorTween ??= ColorTween(
             begin: Theme.of(context).textTheme.bodyLarge!.color,
             end: Theme.of(context).indicatorColor)

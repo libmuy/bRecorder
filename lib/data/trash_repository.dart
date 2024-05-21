@@ -3,9 +3,7 @@ import '../domain/entities.dart';
 import 'repository.dart';
 
 class TrashRepository extends Repository {
-  TrashRepository() : super() {
-    log.name = "RepoTrash";
-  }
+
   @override
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly = false}) async {

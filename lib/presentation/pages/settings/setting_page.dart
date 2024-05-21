@@ -1,10 +1,8 @@
 import 'package:brecorder/core/global_info.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/logging.dart';
 import 'setting_tabs_page.dart';
 
-final log = Logger('SettingPage', level: LogLevel.debug);
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});

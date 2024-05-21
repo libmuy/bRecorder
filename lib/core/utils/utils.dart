@@ -135,6 +135,9 @@ class PathProvider {
 
   static Future<String> get iCloudPath =>
       _createAndReturnPath(_appDataDir, "bRecorder/iCloudDrive");
+
+  static Future<String> get playlistPath =>
+      _createAndReturnPath(_appDataDir, "bRecorder/playlist");
 }
 
 void showSnackBar(Widget content) {

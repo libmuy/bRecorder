@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../core/utils/utils.dart';
 import '../../data/repository.dart';
@@ -8,7 +7,6 @@ import '../ploc/record_page_state.dart';
 import '../widgets/editable_text.dart' as brecord;
 import '../widgets/waveform/waveform.dart';
 
-final log = Logger('TestPage');
 
 class RecordPage extends StatefulWidget {
   final String dirPath;

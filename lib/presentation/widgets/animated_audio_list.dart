@@ -12,7 +12,7 @@ import '../ploc/browser_view_state.dart';
 import 'audio_list_item/audio_widget.dart';
 import 'audio_list_item/audio_widget_state.dart';
 
-final log = Logger('AudioList');
+final _log = Logger('AudioList');
 
 /*=======================================================================*\ 
   Widget
@@ -142,7 +142,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
   Future<void> _updateList(List<AudioObject> newItems) async {
     final oldItems = List.of(_list.items);
     if (_cancelUpdateList) _cancelUpdateList = false;
-    log.debug("Update list Start");
+    _log.debug("Update list Start");
     // Divide new list into ranges
     List<_Range> ranges = [];
     int rangeStart = 0;
@@ -229,7 +229,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       if (rangesAfter.isNotEmpty) {
         final rangeNext = rangesAfter.first;
         final rangeNextStr = _dumpOldRange(rangeNext);
-        log.debug("Insert $dumpStr before: $rangeNextStr");
+        _log.debug("Insert $dumpStr before: $rangeNextStr");
 
         for (var i = 0; i < rangeInsert.len; i++) {
           final index = rangeNext.startInOldList + i;
@@ -237,7 +237,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
           await _list.insert(index, item);
           if (_cancelUpdateList) return;
         }
-        log.debug("Old List:${_list.items}");
+        _log.debug("Old List:${_list.items}");
 
         for (final r in rangesAfter) {
           r.startInOldList += rangeInsert.len;
@@ -245,24 +245,24 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       } else if (rangesBefore.isNotEmpty) {
         final rangePrev = rangesBefore.last;
         final rangePrevStr = _dumpOldRange(rangePrev);
-        log.debug("Insert $dumpStr after: $rangePrevStr");
+        _log.debug("Insert $dumpStr after: $rangePrevStr");
         for (var i = 0; i < rangeInsert.len; i++) {
           final index = rangePrev.startInOldList + rangePrev.len + i;
           final item = newItems[rangeInsert.start + i];
           await _list.insert(index, item);
           if (_cancelUpdateList) return;
         }
-        log.debug("Old List:${_list.items}");
+        _log.debug("Old List:${_list.items}");
         rangePrev.len += rangeInsert.len;
       } else {
-        log.debug("Insert: $dumpStr ");
+        _log.debug("Insert: $dumpStr ");
         assert(index == 0 && _list.length == 0);
         for (var i = 0; i < rangeInsert.len; i++) {
           final item = newItems[rangeInsert.start + i];
           await _list.insert(i, item);
           if (_cancelUpdateList) return;
         }
-        log.debug("Old List:${_list.items}");
+        _log.debug("Old List:${_list.items}");
         rangeInsert.startInOldList = 0;
         rangeInsert.preserve = true;
       }
@@ -279,7 +279,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       oldItems.remove(item);
       if (_cancelUpdateList) {
         _cancelUpdateList = false;
-        log.debug("Update list End: canceled");
+        _log.debug("Update list End: canceled");
         return;
       }
     }
@@ -368,7 +368,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
 
       if (_cancelUpdateList) {
         _cancelUpdateList = false;
-        log.debug("Update list End: canceled");
+        _log.debug("Update list End: canceled");
         return;
       }
     }
@@ -382,7 +382,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       await removeRangeInOldList(r);
       if (_cancelUpdateList) {
         _cancelUpdateList = false;
-        log.debug("Update list End: canceled");
+        _log.debug("Update list End: canceled");
         return;
       }
     }
@@ -401,7 +401,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       if (!ranges[i].preserve) await insertRangeIntoOldListAt(i);
       if (_cancelUpdateList) {
         _cancelUpdateList = false;
-        log.debug("Update list End: canceled");
+        _log.debug("Update list End: canceled");
         return;
       }
     }
@@ -411,7 +411,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
     //     "================= ");
     // log.debug("Old List:${_list.items}");
     // log.debug("New List:$newItems");
-    log.debug("Update list End");
+    _log.debug("Update list End");
   }
 
   /*=======================================================================*\ 
@@ -450,7 +450,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
       int index, BuildContext context, Animation<double> animation) {
     final obj = _list.removedItem(index);
     if (obj == null) {
-      log.debug("build removed item:$index, item not exists");
+      _log.debug("build removed item:$index, item not exists");
 
       return const Text("Audio Object not exists");
     }

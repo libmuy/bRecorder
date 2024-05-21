@@ -8,9 +8,10 @@ import '../core/logging.dart';
 import '../core/result.dart';
 import '../domain/entities.dart';
 
+final _log = Logger('Repo', level: LogLevel.debug);
+
 abstract class Repository {
   @protected
-  final log = Logger('Repo', level: LogLevel.debug);
   abstract final RepoType type;
   String get name => type.title;
   Icon get icon => type.icon;
@@ -119,7 +120,7 @@ abstract class Repository {
 
     final result = await preFetchInternal();
     if (!result) {
-      log.critical("\n"
+      _log.critical("\n"
           "##############################################\n"
           "#            PreFetch FAILED!                #\n"
           "##############################################");
@@ -150,7 +151,7 @@ abstract class Repository {
       }
     }
     if (folder == null || force) {
-      log.info("Get folder($path) from real repository");
+      _log.info("Get folder($path) from real repository");
       uiRequest = Completer();
       final ret =
           await getFolderInfoRealOperation(path, folderOnly: folderOnly);
@@ -159,7 +160,7 @@ abstract class Repository {
       if (ret.succeed) {
         folder = ret.value;
       } else {
-        log.error("get folder($path) from real repository failed!");
+        _log.error("get folder($path) from real repository failed!");
         return ret;
       }
 
@@ -181,7 +182,7 @@ abstract class Repository {
   }
 
   void _destoryAudioObject(AudioObject obj) {
-    log.debug("destroy repo:$name, obj:${obj.path}");
+    _log.debug("destroy repo:$name, obj:${obj.path}");
     // if (obj.displayData != null) obj.displayData = null;
     if (obj.copyFrom != null) obj.copyFrom = null;
 
@@ -192,7 +193,7 @@ abstract class Repository {
         obj.parent?.audiosMap?.remove(obj.mapKey);
       }
     } catch (e) {
-      log.warning("not exist in parent's subobject?, error:$e");
+      _log.warning("not exist in parent's subobject?, error:$e");
     }
 
     obj.parent = null;
@@ -265,7 +266,7 @@ abstract class Repository {
         findObjectFromCache(dirname(obj.path), folderOnly: true) as FolderInfo?;
 
     if (parent == null) {
-      log.error("Can not find parent for ${obj.path}");
+      _log.error("Can not find parent for ${obj.path}");
       return false;
     }
 
@@ -310,14 +311,14 @@ abstract class Repository {
       if (srcRepo == dstRepo) {
         ret = await moveObjectsRealOperation(src, folder);
       } else {
-        log.debug("Move Object between Repo");
+        _log.debug("Move Object between Repo");
         if (dstRepo.isCloud) {
           final ok = await dstRepo.addToCloud(src);
           if (!ok) {
             final errMsg = "Add Object to ${dstRepo.name} failed!\n"
                 "Object:$src";
             showSnackBar(Text(errMsg));
-            log.error(errMsg);
+            _log.error(errMsg);
             return Fail(ErrMsg(errMsg));
           }
         }
@@ -327,7 +328,7 @@ abstract class Repository {
             final errMsg = "Remove Object from ${srcRepo.name} failed!\n"
                 "Object:$src";
             showSnackBar(Text(errMsg));
-            log.error(errMsg);
+            _log.error(errMsg);
             return Fail(ErrMsg(errMsg));
           }
         }
@@ -335,7 +336,7 @@ abstract class Repository {
       }
       if (ret.failed) {
         showSnackBar(Text("Move Object failed!\nsrc:$src, dst:$folder"));
-        log.error("Move Object failed! src:$src, dst:$folder");
+        _log.error("Move Object failed! src:$src, dst:$folder");
         return ret;
       }
       removeObjectFromCache(src);
@@ -347,7 +348,7 @@ abstract class Repository {
   Future<Result> newFolder(String path) async {
     final ret = await newFolderRealOperation(path);
     if (ret.failed) {
-      log.error("New Folder($path) failed:${ret.error}");
+      _log.error("New Folder($path) failed:${ret.error}");
       return ret;
     }
     final folder = ret.value as FolderInfo;
@@ -375,7 +376,7 @@ abstract class Repository {
     if (ret.succeed) {
       removeObjectFromCache(obj, destory: true);
     } else {
-      log.error("Remove object(${obj.path}) failed");
+      _log.error("Remove object(${obj.path}) failed");
       return ret;
     }
     return const Succeed();

@@ -14,6 +14,8 @@ import '../domain/entities.dart';
 import 'filesystem_repository.dart';
 import 'repository.dart';
 
+final _log = Logger('RepoGDrive', level: LogLevel.debug);
+
 const _kRootFolderName = "bRecorder";
 const _kFolderMimeType = 'application/vnd.google-apps.folder';
 const _kAppTagKey = "appTag";
@@ -48,8 +50,8 @@ class GoogleDriveRepository extends FilesystemRepository {
   final _taskQ = TaskQueue(maxConcurrentTasks: 20);
 
   GoogleDriveRepository(super.rootPathFuture) {
-    log.name = "RepoGDrive";
-    log.level = LogLevel.verbose3;
+    _log.name = "RepoGDrive";
+    _log.level = LogLevel.verbose3;
   }
 
   gdrive.File get _googleDriveRootFolder => gdrive.File(
@@ -76,7 +78,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       }
       if (_account == null) return false;
       final authHeaders = await _account!.authHeaders;
-      final authenticateClient = GoogleAuthClient(authHeaders, log);
+      final authenticateClient = GoogleAuthClient(authHeaders, _log);
       _driveApi = gdrive.DriveApi(authenticateClient);
     } catch (e) {
       _account = null;
@@ -199,11 +201,11 @@ class GoogleDriveRepository extends FilesystemRepository {
     final meta = await _getMetaData(audio);
     //Not exist in cloud, upload
     if (meta == null) {
-      log.info("Audio($path) not exists in cloud, upload it");
+      _log.info("Audio($path) not exists in cloud, upload it");
       audio.cloudData = CloudFileData(existInCloud: false, existInFs: true);
       _uploadFile(audio);
     } else {
-      log.info("Audio($path) already exists? not expected");
+      _log.info("Audio($path) already exists? not expected");
       audio.cloudData = CloudFileData(id: meta.id);
     }
 
@@ -215,7 +217,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       final file = await _driveApi!.files.get(id) as gdrive.File;
       return file;
     } catch (e) {
-      log.error("Download Google Drive file(id:$id) failed, $e");
+      _log.error("Download Google Drive file(id:$id) failed, $e");
     }
     return null;
   }
@@ -232,7 +234,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       if (files == null || files.isEmpty) return null;
       return files.first;
     } catch (e) {
-      log.error("Can not retrive files from Google Drive"
+      _log.error("Can not retrive files from Google Drive"
           ", query:$query, error: $e");
       return null;
     }
@@ -258,7 +260,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     void setFlags(CloudFileState state) {
       switch (state) {
         case CloudFileState.init:
-          log.error("############# this should not happen ########");
+          _log.error("############# this should not happen ########");
           break;
         case CloudFileState.synced:
           break;
@@ -277,7 +279,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       }
     }
 
-    log.debug("Get statics: ${folder.path}");
+    _log.debug("Get statics: ${folder.path}");
     for (final sub in folder.subObjects) {
       if (sub is FolderInfo) {
         await _updateCloudState(sub);
@@ -287,7 +289,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         if (sub.bytes == null) {
           final result = await getAudioInfoFromRepo(sub, prefetch: true);
           if (!result) {
-            log.error("Get AudioInfo from repo failed: ${sub.path}");
+            _log.error("Get AudioInfo from repo failed: ${sub.path}");
             return false;
           }
         }
@@ -328,45 +330,45 @@ class GoogleDriveRepository extends FilesystemRepository {
     // }
 
     do {
-      log.debug("============== Prefetch: Get Google Drive Files with tag");
+      _log.debug("============== Prefetch: Get Google Drive Files with tag");
       networkUpdate = await _updateFromCloudWithAppTag(fsPrefetchResult);
       if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
-        log.error("Get File info from Google Drive (with tag) failed"
+        _log.error("Get File info from Google Drive (with tag) failed"
             ", retry in 10 seconds");
         await Future.delayed(const Duration(seconds: 10));
       }
     } while (!networkUpdate);
 
     do {
-      log.debug("============== Prefetch: Get Google Drive Files without tag");
+      _log.debug("============== Prefetch: Get Google Drive Files without tag");
       networkUpdate = await _updateFromCloudWithoutAppTag();
       if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
-        log.error("Get File info from Google Drive (without tag) failed"
+        _log.error("Get File info from Google Drive (without tag) failed"
             ", retry in 10 seconds");
         await Future.delayed(const Duration(seconds: 10));
       }
     } while (!networkUpdate);
 
     do {
-      log.debug("============== Prefetch: Sync");
+      _log.debug("============== Prefetch: Sync");
       networkUpdate = await _syncAudioObject(cache!);
       if (!doingPrefetch) return false;
       await waitUiReqWhilePrefetch();
       if (!networkUpdate) {
-        log.error("Sync with Google Drive failed"
+        _log.error("Sync with Google Drive failed"
             ", retry in 10 seconds");
         await Future.delayed(const Duration(seconds: 10));
       }
     } while (!networkUpdate);
 
-    log.debug("============== Prefetch: Update Cloud state");
+    _log.debug("============== Prefetch: Update Cloud state");
     await _updateCloudState(cache!);
 
-    log.debug("============== Prefetch: End");
+    _log.debug("============== Prefetch: End");
     return true;
   }
 
@@ -393,7 +395,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         }
       } while (nextToken != null);
     } catch (e) {
-      log.error("Can not retrive files from Google Drive"
+      _log.error("Can not retrive files from Google Drive"
           ", query:$query, error: $e");
       return null;
     }
@@ -406,7 +408,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     final id = file.id!;
     final name = file.name!;
     FolderInfo? parent;
-    log.debug("Add cloud file($path) to cache");
+    _log.debug("Add cloud file($path) to cache");
 
     if (path == "/") {
       parent = null;
@@ -414,7 +416,7 @@ class GoogleDriveRepository extends FilesystemRepository {
       final dirPath = dirname(path);
       parent = findObjectFromCache(dirPath) as FolderInfo?;
       if (parent == null) {
-        log.error("Not found parent dir:$dirPath");
+        _log.error("Not found parent dir:$dirPath");
         return false;
       }
     }
@@ -549,7 +551,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         properties.containsKey(_kAppTagKey) &&
         properties[_kAppTagKey] == _kAppTagValue) return file;
 
-    log.debug("Folder(${file.name}) has no tag, add tag");
+    _log.debug("Folder(${file.name}) has no tag, add tag");
     final request = gdrive.File(properties: {_kAppTagKey: _kAppTagValue});
     return _driveApi!.files
         .update(request, file.id!, $fields: _kSingleFileFields);
@@ -559,7 +561,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     gdrive.File? rootFolder;
     final file =
         await _driveApi!.files.get("root", $fields: "id") as gdrive.File;
-    log.verbose("Got 'My Drive' folder id:${file.id}");
+    _log.verbose("Got 'My Drive' folder id:${file.id}");
     final queryRootFolder = "name = '$_kRootFolderName'"
         " and mimeType = '$_kFolderMimeType' and $_kQueryNoTrash"
         " and '${file.id}' in parents";
@@ -575,23 +577,23 @@ class GoogleDriveRepository extends FilesystemRepository {
 
     //No 'bRecorder' folder exists, search without tag
     if (files == null || files.isEmpty) {
-      log.verbose("Get root folder with tag failed, retry get it without tag");
+      _log.verbose("Get root folder with tag failed, retry get it without tag");
       queryResult = await _driveApi!.files.list(
           q: queryRootFolder, $fields: _kSingleFileFields, spaces: 'drive');
       if (!doingPrefetch) return null;
       await waitUiReqWhilePrefetch();
       files = queryResult.files;
     } else {
-      log.verbose("Get root folder with tag OK!");
+      _log.verbose("Get root folder with tag OK!");
     }
 
     //No 'bRecorder' folder exists, create it
     if (files == null || files.isEmpty) {
-      log.verbose("Root folder not exists, create it");
+      _log.verbose("Root folder not exists, create it");
       // rootFolder = await _createDirectory(cache!);
     } else {
       rootFolder = files.first;
-      log.info("[Google Drive] Got root folder, id:${rootFolder.id}");
+      _log.info("[Google Drive] Got root folder, id:${rootFolder.id}");
     }
 
     if (rootFolder == null) return null;
@@ -629,7 +631,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         if (files == null || files.isEmpty) break;
 
         for (final f in files) {
-          log.debug("got file with tag:${f.name}");
+          _log.debug("got file with tag:${f.name}");
           final parentId = f.parents!.first;
           if (filesByParent.containsKey(parentId)) {
             filesByParent[parentId]!.add(f);
@@ -639,7 +641,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         }
       } while (nextToken != null);
     } catch (e) {
-      log.error("Can not retrive files from Google Drive: $e");
+      _log.error("Can not retrive files from Google Drive: $e");
       return false;
     }
 
@@ -657,23 +659,23 @@ class GoogleDriveRepository extends FilesystemRepository {
 
   ///Delete Google Drive File/Folder recursively
   Future<bool> _removeFile(AudioObject file) async {
-    log.debug("[Google Drive] Remove:${file.path}");
+    _log.debug("[Google Drive] Remove:${file.path}");
     try {
       await _driveApi!.files.delete(file.cloudData!.id!);
     } catch (e) {
-      log.error("Delete Google Drive file(${file.path}) failed, $e");
+      _log.error("Delete Google Drive file(${file.path}) failed, $e");
       return false;
     }
-    log.debug("Delete Google Drive file(${file.path}) OK");
+    _log.debug("Delete Google Drive file(${file.path}) OK");
     return true;
   }
 
   ///Create a
   Future<Result> _createDirectory(FolderInfo folder, {String? parentId}) async {
-    log.debug("[Google Drive] Create Folder:${folder.path}");
+    _log.debug("[Google Drive] Create Folder:${folder.path}");
     final exist = _existInCloud(folder, parentId: parentId);
     if (exist) {
-      log.error("Already exist: $folder");
+      _log.error("Already exist: $folder");
       return const Fail(AlreadExists());
     }
 
@@ -697,15 +699,15 @@ class GoogleDriveRepository extends FilesystemRepository {
       folder.cloudData = CloudFileData(id: file.id);
     } catch (e) {
       final errMsg = "Create Google Drive folder failed, $e";
-      log.error(errMsg);
+      _log.error(errMsg);
       return Fail(ErrMsg(errMsg));
     }
-    log.debug("Create Google Drive folder OK");
+    _log.debug("Create Google Drive folder OK");
     return Succeed(file);
   }
 
   Future<bool> _uploadFile(AudioInfo audio, {bool overwrite = false}) async {
-    log.debug("[Google Drive] Upload:${audio.path}");
+    _log.debug("[Google Drive] Upload:${audio.path}");
     var media = gdrive.Media((await audio.file).openRead(), audio.bytes,
         contentType: _kContentType);
     var driveFile = gdrive.File(
@@ -721,7 +723,7 @@ class GoogleDriveRepository extends FilesystemRepository {
           result = await _driveApi!.files
               .update(driveFile, audio.cloudData!.id!, uploadMedia: media);
         } else {
-          log.error("Upload error: File Already exists."
+          _log.error("Upload error: File Already exists."
               " use [overwrite] argument to overwrite");
           return false;
         }
@@ -731,20 +733,20 @@ class GoogleDriveRepository extends FilesystemRepository {
       }
       // audio.cloudData = CloudFileData(result.id, state: CloudFileState.synced);
       audio.updateUI();
-      log.info("Upload audio to Google Drive OK: ${audio.path}");
+      _log.info("Upload audio to Google Drive OK: ${audio.path}");
     } catch (e) {
-      log.error("Upload Google Drive file(${audio.path}) failed, $e");
+      _log.error("Upload Google Drive file(${audio.path}) failed, $e");
       return false;
     }
     return true;
   }
 
   Future<bool> _downloadFile(AudioInfo audio, {bool overwrite = false}) async {
-    log.debug("[Google Drive] Download:${audio.path}");
+    _log.debug("[Google Drive] Download:${audio.path}");
     try {
       if ((await audio.file).existsSync()) {
         if (!overwrite) {
-          log.error("Download error: File Already exists."
+          _log.error("Download error: File Already exists."
               " use [overwrite] argument to overwrite");
           return false;
         }
@@ -752,18 +754,18 @@ class GoogleDriveRepository extends FilesystemRepository {
       final media = await _driveApi!.files.get(audio.cloudData!.id!,
           downloadOptions: gdrive.DownloadOptions.fullMedia) as gdrive.Media;
       final result = (await audio.file).openWrite().addStream(media.stream);
-      log.info("Download file startted");
+      _log.info("Download file startted");
       result.then((_) async {
         final updateResult = await getAudioInfoFromRepo(audio);
         if (!updateResult) return false;
         // audio.cloudData!.state = CloudFileState.synced;
         audio.updateUI();
-        log.info("Download from Google Drive DONE: ${audio.path}");
+        _log.info("Download from Google Drive DONE: ${audio.path}");
       }, onError: (e) {
-        log.info("Download from Google Drive ERROR: ${audio.path} \n$e");
+        _log.info("Download from Google Drive ERROR: ${audio.path} \n$e");
       });
     } catch (e) {
-      log.error("Download Google Drive file(${audio.path}) failed, $e");
+      _log.error("Download Google Drive file(${audio.path}) failed, $e");
       return false;
     }
     return true;
@@ -776,14 +778,14 @@ class GoogleDriveRepository extends FilesystemRepository {
   void debugGetAllFiles() async {
     if (_account == null) return;
 
-    log.debug("retriving file list");
+    _log.debug("retriving file list");
     _driveApi!.files
         .list(
             q: "name = '$_kRootFolderName' and type",
             $fields: 'nextPageToken, files(id, name, parents)',
             spaces: 'drive')
         .then((list) {
-      log.debug("got file list");
+      _log.debug("got file list");
       list.files?.forEach((file) {
         // _driveApi!.files
         //     .get(file.id!, $fields: 'id, name, parents')
@@ -792,7 +794,7 @@ class GoogleDriveRepository extends FilesystemRepository {
         //   log.debug("parent:${file.parents}");
         // });
 
-        log.debug("ID:${file.id}, "
+        _log.debug("ID:${file.id}, "
             "name:${file.name}, "
             "parents:${file.parents}, "
             "size:${file.size}");
@@ -890,7 +892,7 @@ extension AudioObjectExt on AudioObject {
       cloudData!.updating = null;
       return true;
     } catch (e) {
-      log.error("Can not retrive files from Google Drive"
+      _log.error("Can not retrive files from Google Drive"
           ", query:$query, error: $e");
       cloudData!.updating!.complete(false);
       cloudData!.updating = null;

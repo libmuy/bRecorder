@@ -8,7 +8,9 @@ import '../../../core/utils/utils.dart';
 import 'center_bar_painter.dart';
 import 'waveform_painter.dart';
 
-final log = Logger('WaveForm');
+final _log = Logger('WaveForm',
+  level: LogLevel.debug
+);
 
 class WaveformDelegate {
   Function(double, bool)? _setPosition;
@@ -82,7 +84,7 @@ class _WaveformState extends State<Waveform> {
     _scrollController.addListener(_scrollListener); // ←追加
     widget.delegate?._setPosition = _setPosition;
     widget.delegate?._setPositionByPercent = _setPositionByPercent;
-    log.debug("initState()");
+    _log.debug("initState()");
   }
 
   @override
@@ -128,7 +130,7 @@ class _WaveformState extends State<Waveform> {
     if (_duration <= 0) return;
 
     final percent = seconds / _duration;
-    log.debug("set position to $seconds ms, $percent%");
+    _log.debug("set position to $seconds ms, $percent%");
     _setPositionByPercent(percent, dispatchNotification);
   }
 
@@ -244,7 +246,7 @@ class _WaveformState extends State<Waveform> {
     Pointer Events:
   \*=======================================================================*/
   void _pointerDown(PointerEvent details) {
-    log.debug("pointer down");
+    _log.debug("pointer down");
     _pointers[details.pointer] = _PointerInfo(
         id: details.pointer,
         startX: details.position.dx,
@@ -278,7 +280,7 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerUp(PointerEvent details) {
-    log.debug("pointer up");
+    _log.debug("pointer up");
     // Ending Scale Mode
     if (_pointers.length == 2) {
       // log.debug("build waveform from pointer up");
@@ -299,7 +301,7 @@ class _WaveformState extends State<Waveform> {
 
   /*-----------------------------------------------------------------*/
   void _pointerMove(PointerEvent details) {
-    log.debug("pointer move");
+    _log.debug("pointer move");
     final info = _pointers[details.pointer];
     info!.endX = details.position.dx;
 

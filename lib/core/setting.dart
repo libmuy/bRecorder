@@ -12,7 +12,7 @@ import 'service_locator.dart';
 const _kPrefKeyTabs = "settingsTabs";
 const _kPrefKeyCloudSync = "settingsCloudSync";
 const _kPrefKeyTabIndex = "settingsTabIndex";
-final log = Logger('Settings', level: LogLevel.debug);
+final _log = Logger('Settings', level: LogLevel.debug);
 
 class Settings {
   final tabsNotifier = ValueNotifier<List<TabInfo>?>(null);
@@ -43,7 +43,7 @@ class Settings {
             .map((str) => TabInfo.fromJson(jsonDecode(str)))
             .toList();
       } catch (e) {
-        log.warning("convert shared preference value to RepoType Failed\n"
+        _log.warning("convert shared preference value to RepoType Failed\n"
             "error:$e\n"
             "jsons str:$jsonStrList");
       }
@@ -79,7 +79,7 @@ class Settings {
       try {
         cloudSyncSetting = CloudSyncSetting.fromJson(jsonDecode(jsonStr));
       } catch (e) {
-        log.warning("convert shared preference value to RepoType Failed\n"
+        _log.warning("convert shared preference value to RepoType Failed\n"
             "error:$e\n"
             "jsons str:$jsonStr");
         cloudSyncSetting = CloudSyncSetting(

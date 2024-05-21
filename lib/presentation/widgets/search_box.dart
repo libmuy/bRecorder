@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../core/logging.dart';
 import '../../core/utils/notifiers.dart';
 
-final log = Logger('SearchBox');
 
 class SearchBox extends StatefulWidget {
   final double height;

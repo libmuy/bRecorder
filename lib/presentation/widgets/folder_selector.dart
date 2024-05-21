@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 
-import '../../core/logging.dart';
 import '../../core/service_locator.dart';
 import '../../data/all_storage_repository.dart';
 import '../../data/repository.dart';
@@ -11,7 +10,6 @@ import '../ploc/browser_view_state.dart';
 import 'dialogs.dart';
 import 'title_bar.dart';
 
-final log = Logger('FolderSelector');
 
 class FolderSelector extends StatefulWidget {
   final void Function(FolderInfo folder) onFolderSelected;

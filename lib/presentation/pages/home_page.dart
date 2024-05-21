@@ -12,7 +12,7 @@ import '../widgets/title_bar.dart';
 import 'browser_view.dart';
 import 'record_page.dart';
 
-final log = Logger('HomePage');
+final _log = Logger('HomePage');
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage>
           child: ValueListenableBuilder<List<TabInfo>?>(
               valueListenable: settings.tabsNotifier,
               builder: (context, allTabs, _) {
-                log.info("Tabs changed");
+                _log.info("Tabs changed");
                 assert(allTabs != null);
                 final tabs = allTabs!.where((tab) => tab.enabled).toList();
                 state.initTabController(this, tabs, settings.tabIndex ?? 0);
