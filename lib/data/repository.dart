@@ -11,7 +11,6 @@ import '../domain/entities.dart';
 final _log = Logger('Repo', level: LogLevel.debug);
 
 abstract class Repository {
-  @protected
   abstract final RepoType type;
   String get name => type.title;
   Icon get icon => type.icon;
