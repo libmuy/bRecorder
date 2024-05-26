@@ -137,7 +137,7 @@ class _BrowserViewState extends State<BrowserView>
         if (_groups!.containsKey(key)) {
           _groups![key]!.items = model.objects;
         } else {
-          _groups![key] = _AudioItemGroup(key: key, items: model.objects);
+          _groups![key] = _AudioItemGroup(key: key, items: model.objects,headerEnding: _buildHeaderEnding(key));
           needRebuild = true;
         }
       });

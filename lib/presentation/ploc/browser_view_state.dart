@@ -133,11 +133,11 @@ abstract class BrowserViewState {
   void _modeListener() {
     final itemMode =
         _isEditMode ? AudioListItemMode.notSelected : AudioListItemMode.normal;
-    final itemStates =
-        _currentFolder.subObjects.map((e) => e.displayData as AudioWidgetState);
+    final objs = widget.groupByDate ? _currentFolder.allAudios : _currentFolder.subObjects;
+    final itemStates = objs!.map((e) => e.displayData);
     for (final itemState in itemStates) {
-      itemState.mode = itemMode;
-      itemState.resetHighLight();
+      itemState?.mode = itemMode;
+      itemState?.resetHighLight();
     }
     if (mode != GlobalMode.playback) {
       _agent.stopPlay();

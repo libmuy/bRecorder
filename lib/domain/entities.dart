@@ -443,7 +443,8 @@ class FolderInfo extends AudioObject {
     if (subfolders == null) return audios;
     var ret = <AudioInfo>[];
     for (final f in subfolders!) {
-      if (f.audios != null) ret += f.audios!;
+      final audios = f.allAudios;
+      if (audios != null) ret += audios;
     }
 
     if (audios == null) return ret;
