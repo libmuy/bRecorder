@@ -46,7 +46,7 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => ICloudRepository());
     getIt.registerLazySingleton(
         () => GoogleDriveRepository(PathProvider.googleDrivePath));
-    getIt.registerLazySingleton(() => PlaylistRepository());
+    getIt.registerLazySingleton(() => PlaylistRepository(PathProvider.playlistPath));
     getIt.registerLazySingleton(() => TrashRepository());
     getIt.registerLazySingleton(() => AllStorageRepository());
     getIt.registerLazySingleton(() => GlobalModeNotifier(GlobalMode.normal));

@@ -4,6 +4,7 @@ import '../../core/global_info.dart';
 import '../../core/logging.dart';
 import '../../domain/entities.dart';
 import 'folder_selector.dart';
+import '../../data/repository.dart';
 
 const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
@@ -41,7 +42,15 @@ void showNewFolderDialog(
 }
 
 void showFolderSelecter(
-    BuildContext context, void Function(FolderInfo folder) onFolderSelected) {
+        BuildContext context, void Function(FolderInfo folder) onSelected) =>
+    _showSelecter(context, RepoType.allStoreage, true, onSelected);
+
+void showPlaylistSelecter(
+        BuildContext context, void Function(FolderInfo folder) onSelected) =>
+    _showSelecter(context, RepoType.playlist, false, onSelected);
+
+void _showSelecter(BuildContext context, RepoType repoType, bool folderOnly,
+    void Function(FolderInfo folder) onFolderSelected) {
   showModalBottomSheet<void>(
     elevation: 20,
     context: context,
@@ -57,6 +66,7 @@ void showFolderSelecter(
           // color: Colors.amber,
           child: FolderSelector(
             onFolderSelected: onFolderSelected,
+            repoType: repoType,
           ));
     },
   );

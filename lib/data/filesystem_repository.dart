@@ -2,8 +2,10 @@
 
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:googleapis/youtube/v3.dart';
 import 'package:path/path.dart';
 
 import '../core/audio_agent.dart';
@@ -20,7 +22,7 @@ class FilesystemRepository extends Repository {
   Future<String>? _rootPathFuture;
   final audioAgent = sl.get<AudioServiceAgent>();
 
-  FilesystemRepository(Future<String> rootPathFuture)
+  FilesystemRepository(Future<String> rootPathFuture, {this.type = RepoType.filesystem})
       : _rootPathFuture = rootPathFuture {
     rootPathFuture.then((value) {
       _rootPath = value;
@@ -29,7 +31,7 @@ class FilesystemRepository extends Repository {
   }
 
   @override
-  final type = RepoType.filesystem;
+  RepoType type;
 
   @override
   Future<String> get rootPath async {
@@ -90,6 +92,37 @@ class FilesystemRepository extends Repository {
     return true;
   }
 
+  Future<bool> getPlaylistInfoFromRepo(PlaylistInfo request,
+      {bool prefetch = false}) async {
+    final relativePath = request.path;
+    final path = await absolutePath(relativePath);
+    try {
+      final file = File(path);
+      final jsonStr = await file.readAsString();
+      final json  = jsonDecode(jsonStr);
+      final List<Map<String, dynamic>> jsonAudios = json['audios'];
+      List<AudioInfo> audios = [];
+      for (final a in jsonAudios) {
+        final repo = sl.getRepository(RepoType.fromString(a['repoType']));
+        final audio = repo.findObjectFromCache(a['path']);
+        if (audio != null) {
+          audios.add(audio as AudioInfo);
+        } else {
+          AudioInfo.brokenAudio(path: a['path']);
+        }
+      }
+
+      request.audios = audios;
+      request.repo = this;
+      request.bytes = 0;
+    } catch (e) {
+      _log.critical("got a file IO exception: $e");
+      return false;
+    }
+
+    return true;
+  }
+
   Future<bool> preFetchInternalDirStructure() async {
     final queue = Queue<FolderInfo>();
     queue.add(cache == null ? FolderInfo("/") : cache!);
@@ -106,6 +139,7 @@ class FilesystemRepository extends Repository {
         orphans.remove(orphanFolder);
         folder.subfoldersMap = orphanFolder.subfoldersMap;
         folder.audiosMap = orphanFolder.audiosMap;
+        folder.playlistMap = orphanFolder.playlistMap;
         folder.displayData ??= orphanFolder.displayData;
       } else {
         // Get Folder Info from Repo
@@ -153,9 +187,21 @@ class FilesystemRepository extends Repository {
           sub.updateUI();
         }
         audioCount++;
+      } else if (sub is PlaylistInfo) {
+        //UI requested audios have no detail info, gather info here
+        if (sub.bytes == null) {
+          final result = await getPlaylistInfoFromRepo(sub, prefetch: true);
+          if (!result) {
+            _log.error("Get AudioInfo from repo failed: ${sub.path}");
+            return false;
+          }
+          sub.updateUI();
+        }
       }
       bytes += sub.bytes!;
-      if (sub.timestamp!.compareTo(timestamp) > 1) timestamp = sub.timestamp!;
+      if (sub.timestamp != null) {
+        if (sub.timestamp!.compareTo(timestamp) > 1) timestamp = sub.timestamp!;
+      }
     }
     folder.allAudioCount = audioCount;
     folder.bytes = bytes;
@@ -185,6 +231,7 @@ class FilesystemRepository extends Repository {
     Directory dir = Directory(absolautePath);
     var subfoldersMap = <String, FolderInfo>{};
     var audiosMap = <String, AudioInfo>{};
+    var playlistMap = <String, PlaylistInfo>{};
 
     if (!await dir.exists()) {
       _log.error("dirctory(${dir.path}) not exists");
@@ -206,21 +253,35 @@ class FilesystemRepository extends Repository {
       } else if (file is File) {
         if (folderOnly) continue;
         _log.verbose("got file:${file.path}");
-        if (prefetch) {
-          obj = AudioInfo(path);
-          final result =
-              await getAudioInfoFromRepo(obj as AudioInfo, prefetch: prefetch);
-          if (!doingPrefetch && prefetch) return false;
-          if (result == false) obj = AudioInfo.brokenAudio(path: path);
+        if (file.path.endsWith('.playlist')) {
+          if (prefetch) {
+            obj = PlaylistInfo(path);
+            final result =
+                await getPlaylistInfoFromRepo(obj as PlaylistInfo, prefetch: prefetch);
+            if (!doingPrefetch && prefetch) return false;
+            if (result == false) obj = PlaylistInfo.brokenPlaylist(path: path);
+          } else {
+            obj = PlaylistInfo(path, repo: this);
+          }
+          playlistMap[name] = obj as PlaylistInfo;
         } else {
-          obj = AudioInfo(path, repo: this);
+          if (prefetch) {
+            obj = AudioInfo(path);
+            final result =
+                await getAudioInfoFromRepo(obj as AudioInfo, prefetch: prefetch);
+            if (!doingPrefetch && prefetch) return false;
+            if (result == false) obj = AudioInfo.brokenAudio(path: path);
+          } else {
+            obj = AudioInfo(path, repo: this);
+          }
+          audiosMap[name] = obj as AudioInfo;
         }
-        audiosMap[name] = obj as AudioInfo;
       }
       obj.parent = request;
     }
     request.subfoldersMap = subfoldersMap.isEmpty ? null : subfoldersMap;
     request.audiosMap = audiosMap.isEmpty ? null : audiosMap;
+    request.playlistMap = playlistMap.isEmpty ? null : playlistMap;
     request.repo = this;
 
     return true;

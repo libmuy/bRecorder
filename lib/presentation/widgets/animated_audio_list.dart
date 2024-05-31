@@ -428,13 +428,7 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
         key: itemState.key,
         audioItem: obj,
         state: itemState,
-        onTap: (iconOnTapped) {
-          if (obj is FolderInfo) {
-            state.folderOnTap(obj);
-          } else if (obj is AudioInfo) {
-            state.audioOnTap(obj, iconOnTapped);
-          }
-        },
+        onTap: (iconOnTapped) => state.itemOnTap(obj, iconOnTapped),
         onLongPressed: state.onListItemLongPressed,
       ),
     );

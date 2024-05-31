@@ -119,7 +119,7 @@ class GoogleDriveRepository extends FilesystemRepository {
   @override
   // not implemented
   Future<bool> addToCloud(AudioObject obj) async {
-    if (obj.isFolder) {}
+    if (obj is FolderInfo) {}
     return true;
   }
 
@@ -506,7 +506,7 @@ class GoogleDriveRepository extends FilesystemRepository {
     parent ??= _gDriveRootFolderId;
     final existInCloud = _existInCloud(obj, parentId: parent);
     final existInFs = _existInFs(obj);
-    if (obj.isAudio) {
+    if (obj is AudioInfo) {
       switch (setting!.syncMethod) {
         case CloudSyncMethod.merge:
           break;
@@ -517,13 +517,13 @@ class GoogleDriveRepository extends FilesystemRepository {
           // TODO: Handle this case.
           break;
       }
-    } else if (obj.isFolder) {
+    } else if (obj is FolderInfo) {
     //Not exist in cloud, create it
     if (obj.cloudData == null) {
-      final gFolder = await _createDirectory(obj as FolderInfo);
+      final gFolder = await _createDirectory(obj);
     }
 
-    for (final sub in (obj as FolderInfo).subObjects) {
+    for (final sub in (obj).subObjects) {
       if (sub is FolderInfo) {
         final ok = await _syncAudioObject(sub);
         if (!ok) return false;

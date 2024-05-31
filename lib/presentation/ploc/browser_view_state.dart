@@ -46,6 +46,7 @@ abstract class BrowserViewState {
   // About Audio Playback
   final _agent = sl.get<AudioServiceAgent>();
   final loopNotifier = ValueNotifier<PlayLoopType>(PlayLoopType.noLoop);
+  var groupByDate = false;
 
   /*=======================================================================*\ 
     Constructor, initializier, finalizer
@@ -58,6 +59,11 @@ abstract class BrowserViewState {
     ScrollToFunc? scrollTo,
   }) {
     this.widget = widget;
+
+    //if show folder only, can not group audios, so disable it
+    groupByDate = groupByDate;
+    if (widget.folderOnly) groupByDate = false;
+
     _modeNotifier.addListener(_modeListener);
     if (!widget.folderOnly) {
       _agent.addAudioEventListener(AudioEventType.started, _playingListener);
@@ -133,7 +139,7 @@ abstract class BrowserViewState {
   void _modeListener() {
     final itemMode =
         _isEditMode ? AudioListItemMode.notSelected : AudioListItemMode.normal;
-    final objs = widget.groupByDate ? _currentFolder.allAudios : _currentFolder.subObjects;
+    final objs = groupByDate ? _currentFolder.allAudios : _currentFolder.subObjects;
     final itemStates = objs!.map((e) => e.displayData);
     for (final itemState in itemStates) {
       itemState?.mode = itemMode;
@@ -168,7 +174,13 @@ abstract class BrowserViewState {
     _selectedFolders = [];
   }
 
-  void folderOnTap(FolderInfo folder) {
+  void itemOnTap(AudioObject item, bool iconOnTapped) async {
+    if (item is FolderInfo) _folderOnTap(item);
+    if (item is PlaylistInfo) _playlistOnTap(item);
+    if (item is AudioInfo) _audioOnTap(item, iconOnTapped);
+  }
+
+  void _folderOnTap(FolderInfo folder) {
     final state = folder.displayData as AudioWidgetState;
     if (_isEditMode && widget.editable) {
       state.toggleSelected();
@@ -182,7 +194,7 @@ abstract class BrowserViewState {
     }
   }
 
-  void audioOnTap(AudioInfo audio, bool iconOnTapped) async {
+  void _audioOnTap(AudioInfo audio, bool iconOnTapped) async {
     final state = audio.displayData as AudioWidgetState;
     switch (mode) {
       case GlobalMode.normal:
@@ -213,6 +225,8 @@ abstract class BrowserViewState {
         }
         break;
     }
+  }
+  void _playlistOnTap(PlaylistInfo playlist) async {
   }
 
   void onBottomPanelClosed() {
@@ -294,7 +308,7 @@ abstract class BrowserViewState {
         _log.info("folder changed to:${_repo.name}$path, "
             "count:${folderInfo.subObjects.length}");
 
-        if (widget.groupByDate) {
+        if (groupByDate) {
           DateFormat dateFormat = DateFormat('yyyy-MM-dd');
           final allAudios = folderInfo.allAudios;
           if (allAudios == null) return;

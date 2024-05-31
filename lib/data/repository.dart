@@ -62,7 +62,6 @@ abstract class Repository {
     cache = null;
   }
 
-  @protected
   AudioObject? findObjectFromCache(String path, {bool folderOnly = false}) {
     final list = split(path);
     FolderInfo? current = cache;
@@ -188,8 +187,10 @@ abstract class Repository {
     try {
       if (obj is FolderInfo) {
         obj.parent?.subfoldersMap?.remove(obj.mapKey);
-      } else {
+      } else if (obj is AudioInfo) {
         obj.parent?.audiosMap?.remove(obj.mapKey);
+      } else if (obj is PlaylistInfo) {
+        obj.parent?.playlistMap?.remove(obj.mapKey);
       }
     } catch (e) {
       _log.warning("not exist in parent's subobject?, error:$e");
@@ -197,7 +198,7 @@ abstract class Repository {
 
     obj.parent = null;
     obj.destory();
-    if (obj is AudioInfo) return;
+    if (obj is FileObject) return;
 
     final folder = obj as FolderInfo;
     for (var o in folder.subObjects) {
@@ -215,6 +216,8 @@ abstract class Repository {
       parent!.subfoldersMap!.remove(key);
     } else if (obj is AudioInfo) {
       parent!.audiosMap!.remove(key);
+    } else if (obj is PlaylistInfo) {
+      parent!.playlistMap!.remove(key);
     }
 
     while (parent != null) {
@@ -248,10 +251,9 @@ abstract class Repository {
 
   void _updatePath(AudioObject obj) {
     obj.updatePath(obj.parent!.repo!, join(obj.parent!.path, obj.mapKey));
-    if (obj is AudioInfo) return;
+    if (obj is! FolderInfo) return;
 
-    final folder = obj as FolderInfo;
-    for (final o in folder.subObjects) {
+    for (final o in obj.subObjects) {
       _updatePath(o);
     }
   }
@@ -271,14 +273,17 @@ abstract class Repository {
 
     obj.parent = parent;
     int audioCount = 0;
-    if (obj is AudioInfo) {
-      parent.audiosMap ??= {};
-      parent.audiosMap![obj.mapKey] = obj;
-      audioCount = 1;
-    } else if (obj is FolderInfo) {
+    if (obj is FolderInfo) {
       parent.subfoldersMap ??= {};
       parent.subfoldersMap![obj.mapKey] = obj;
       audioCount = obj.allAudioCount ?? 0;
+    } else if (obj is AudioInfo) {
+      parent.audiosMap ??= {};
+      parent.audiosMap![obj.mapKey] = obj;
+      audioCount = 1;
+    } else if (obj is PlaylistInfo) {
+      parent.playlistMap ??= {};
+      parent.playlistMap![obj.mapKey] = obj;
     }
 
     if (onlyStruct) return true;

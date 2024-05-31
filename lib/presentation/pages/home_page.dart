@@ -49,9 +49,12 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        WillPopScope(
-          onWillPop: () async {
-            return state.onPop();
+        PopScope(
+          canPop: false,
+          onPopInvoked: (didPop) async {
+            if (didPop) return;
+            final NavigatorState navigator = Navigator.of(context);
+            if(state.onPop()) navigator.pop();
           },
           child: ValueListenableBuilder<List<TabInfo>?>(
               valueListenable: settings.tabsNotifier,

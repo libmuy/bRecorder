@@ -13,7 +13,7 @@ import 'animated_sized_panel.dart';
 import 'dialogs.dart';
 import 'playback_panel.dart';
 
-final log = Logger('BottomPanel');
+final _log = Logger('BottomPanel');
 const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 
 class BottomPanel extends StatefulWidget {
@@ -33,7 +33,7 @@ class _BottomPanelState extends State<BottomPanel> {
       AnimationStatus from, AnimationStatus to) {
     switch (to) {
       case AnimationStatus.dismissed:
-        log.debug("bottompanel closed");
+        _log.debug("bottompanel closed");
         state.onBottomPanelClosed();
         break;
       case AnimationStatus.completed:
@@ -46,7 +46,7 @@ class _BottomPanelState extends State<BottomPanel> {
   }
 
   Widget _buildBottomPanelInternal(BuildContext context, GlobalMode mode) {
-    log.debug("show playback panel, mode:$mode");
+    _log.debug("show playback panel, mode:$mode");
     var judgMode = mode == GlobalMode.normal ? _lastMode : mode;
     _lastMode = mode;
 
@@ -72,11 +72,24 @@ class _BottomPanelState extends State<BottomPanel> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   MaterialButton(
+                      onPressed: selectState.audioSelected &&
+                              (!selectState.folderSelected)
+                          ? () {
+                              showFolderSelecter(context, 
+                              
+                              (folder) {
+                                _log.debug("selected folder:${folder.path}");
+                                state.moveSelectedToFolder(folder);
+                              });
+                            }
+                          : null,
+                      child: const Icon(Icons.playlist_add)),
+                  MaterialButton(
                       onPressed: selectState.audioSelected ||
                               selectState.folderSelected
                           ? () {
                               showFolderSelecter(context, (folder) {
-                                log.debug("selected folder:${folder.path}");
+                                _log.debug("selected folder:${folder.path}");
                                 state.moveSelectedToFolder(folder);
                               });
                             }

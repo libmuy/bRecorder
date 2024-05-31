@@ -116,7 +116,9 @@ class _BrowserViewState extends State<BrowserView>
           key,
           _AudioItemGroup(
               key: key,
-              items: model.objects,
+              items: widget.folderOnly
+                  ? model.folders as List<AudioObject>
+                  : model.objects,
               headerEnding: _buildHeaderEnding(key))));
       needRebuild = true;
 
@@ -135,9 +137,16 @@ class _BrowserViewState extends State<BrowserView>
       // update groups
       groupMap.forEach((key, model) {
         if (_groups!.containsKey(key)) {
-          _groups![key]!.items = model.objects;
+          _groups![key]!.items = widget.folderOnly
+              ? model.folders as List<AudioObject>
+              : model.objects;
         } else {
-          _groups![key] = _AudioItemGroup(key: key, items: model.objects,headerEnding: _buildHeaderEnding(key));
+          _groups![key] = _AudioItemGroup(
+              key: key,
+              items: widget.folderOnly
+                  ? model.folders as List<AudioObject>
+                  : model.objects,
+              headerEnding: _buildHeaderEnding(key));
           needRebuild = true;
         }
       });
@@ -239,7 +248,7 @@ class _BrowserViewState extends State<BrowserView>
     Sort Button
   \*=======================================================================*/
   Widget _buildHeaderEnding(String key) {
-    return widget.groupByDate
+    return state.groupByDate
         ? Text(key)
         : _SortButton(onSorted: state.setAudioItemsSortOrder);
   }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:googleapis/youtube/v3.dart';
 import 'package:path/path.dart';
 
 import '../core/global_info.dart';
@@ -106,9 +107,6 @@ class AudioObject extends AudioEqual {
 
   String get name => basename(path);
 
-  bool get isFolder => this is FolderInfo;
-  bool get isAudio => this is AudioInfo;
-
   Future<String> get realPath async {
     if (repo == null) {
       return path;
@@ -150,7 +148,21 @@ class AudioObject extends AudioEqual {
 /*=======================================================================*\ 
   Audio Information
 \*=======================================================================*/
-class AudioInfo extends AudioObject {
+class FileObject extends AudioObject {
+  FileObject(super.path,
+      {super.bytes,
+      super.timestamp,
+      super.repo,
+      super.parent,
+      super.displayData});
+
+  Future<File> get file async => File(await realPath);
+}
+
+/*=======================================================================*\ 
+  Audio Information
+\*=======================================================================*/
+class AudioInfo extends FileObject {
   int? _prefId;
   int? durationMS;
   int currentPosition;
@@ -171,13 +183,10 @@ class AudioInfo extends AudioObject {
       this.broken = false,
       super.repo,
       super.parent,
-      displayData})
-      : super(displayData: displayData);
+      super.displayData});
 
   @override
   List<Object?> get props => [durationMS, path, bytes, timestamp];
-
-  Future<File> get file async => File(await realPath);
 
   @override
   void updatePath(Repository newRepo, String newPath) async {
@@ -341,6 +350,7 @@ class AudioInfo extends AudioObject {
 class FolderInfo extends AudioObject {
   Map<String, FolderInfo>? subfoldersMap;
   Map<String, AudioInfo>? audiosMap;
+  Map<String, PlaylistInfo>? playlistMap;
   int? allAudioCount;
 
   List<AudioObject> get subObjects {
@@ -369,6 +379,11 @@ class FolderInfo extends AudioObject {
     return audiosMap!.values.toList();
   }
 
+  List<PlaylistInfo>? get playlists {
+    if (playlistMap == null) return null;
+    return playlistMap!.values.toList();
+  }
+
   int get subFolderCount {
     if (subfoldersMap == null) return 0;
 
@@ -389,10 +404,23 @@ class FolderInfo extends AudioObject {
     return audiosMap!.containsKey(key);
   }
 
+  bool hasPlaylist(String path) {
+    final key = basename(path);
+    if (playlistMap == null) return false;
+
+    return playlistMap!.containsKey(key);
+  }
+
   int get audioCount {
     if (audiosMap == null) return 0;
 
     return audiosMap!.length;
+  }
+
+  int get playlistCount {
+    if (playlistMap == null) return 0;
+
+    return playlistMap!.length;
   }
 
   FolderInfo(super.path,
@@ -401,10 +429,10 @@ class FolderInfo extends AudioObject {
       this.allAudioCount,
       this.subfoldersMap,
       this.audiosMap,
+      this.playlistMap,
       super.repo,
       super.parent,
-      displayData})
-      : super(displayData: displayData);
+      super.displayData});
 
   FolderInfo copyWith({
     String? path,
@@ -430,9 +458,12 @@ class FolderInfo extends AudioObject {
           (key, folder) => MapEntry(key, folder.copyWith(parent: folder)));
       Map<String, AudioInfo>? localAudiosMap = audiosMap
           ?.map((key, audio) => MapEntry(key, audio.copyWith(parent: folder)));
+      Map<String, PlaylistInfo>? localPlaylistMap = playlistMap
+          ?.map((key, pl) => MapEntry(key, pl.copyWith(parent: folder)));
 
       folder.subfoldersMap = localSubfoldersMap;
       folder.audiosMap = localAudiosMap;
+      folder.playlistMap = localPlaylistMap;
     }
     folder.cloudData = cloudData;
     folder.copyFrom = this;
@@ -476,6 +507,78 @@ class FolderInfo extends AudioObject {
         'bytes': bytes,
         'timestamp': timestamp,
         'repoType': repo!.type.toString()
+      };
+}
+
+/*=======================================================================*\ 
+  PlayList Information
+\*=======================================================================*/
+class PlaylistInfo extends FileObject {
+  bool broken;
+  String? json;
+  List<AudioInfo>? audios;
+
+  @override
+  String get name => basenameWithoutExtension(path);
+
+  PlaylistInfo(super.path,
+      {this.audios,
+      this.broken = false,
+      super.repo,
+      super.parent,
+      super.displayData});
+
+  PlaylistInfo copyWith(
+      {String? path,
+      String? name,
+      DateTime? timestamp,
+      Repository? repo,
+      FolderInfo? parent,
+      displayData}) {
+    var audio = PlaylistInfo(
+      path ?? this.path,
+      repo: repo ?? this.repo,
+      parent: parent ?? this.parent,
+    );
+
+    audio.cloudData = cloudData;
+    audio.copyFrom = this;
+    return audio;
+  }
+
+  static PlaylistInfo brokenPlaylist(
+      {
+      String path = "",
+      Repository? repo}) {
+    return PlaylistInfo(path,
+        broken: true,
+        repo: repo);
+  }
+
+  @override
+  String toString() => basename(path);
+
+  static Future<PlaylistInfo> fromJson(Map<String, dynamic> json) async {
+    final List<Map<String, dynamic>> jsonAudios = json['audios'];
+    List<AudioInfo> audios = [];
+    for (final a in jsonAudios) {
+      final repo = sl.getRepository(RepoType.fromString(a['repoType']));
+      final audio = repo.findObjectFromCache(a['path']);
+      if (audio != null) {
+        audios.add(audio as AudioInfo);
+      } else {
+        AudioInfo.brokenAudio(path: a['path']);
+      }
+    }
+    return PlaylistInfo(json['path'], audios: audios);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'path': path,
+        'audios': audios == null
+            ? '{}'
+            : audios!.map(
+                (a) => {'repoType': a.repo!.type.toString(), 'path': a.path}),
       };
 }
 

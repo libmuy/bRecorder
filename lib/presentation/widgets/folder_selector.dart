@@ -13,10 +13,14 @@ import 'title_bar.dart';
 
 class FolderSelector extends StatefulWidget {
   final void Function(FolderInfo folder) onFolderSelected;
+  final RepoType repoType;
+  final bool folderOnly;
 
   const FolderSelector({
     super.key,
     required this.onFolderSelected,
+    this.folderOnly = true,
+    this.repoType = RepoType.allStoreage,
   });
 
   @override
