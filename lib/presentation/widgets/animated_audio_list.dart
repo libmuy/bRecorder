@@ -6,9 +6,7 @@ import '../../core/service_locator.dart';
 import '../../core/utils/notifiers.dart';
 import '../../core/utils/task_queue.dart';
 import '../../core/utils/utils.dart';
-import '../../data/repository.dart';
 import '../../domain/entities.dart';
-import '../ploc/browser_view_state.dart';
 import 'audio_list_item/audio_widget.dart';
 import 'audio_list_item/audio_widget_state.dart';
 
@@ -19,12 +17,15 @@ final _log = Logger('AudioList');
 \*=======================================================================*/
 class AnimatedAudioSliver extends StatefulWidget {
   // final ValueNotifier<bool> showingNotifier;
-  final RepoType repoType;
   final bool editable;
   final ForcibleValueNotifier<List<AudioObject>> listNotifier;
+  final void Function(AudioObject object, bool iconOnTapped)? onTap;
+  final void Function(AudioObject object)? onLongPressed;
+
   const AnimatedAudioSliver({
     super.key,
-    required this.repoType,
+    required this.onTap,
+    required this.onLongPressed,
     this.editable = true,
     // required this.showingNotifier,
     required this.listNotifier,
@@ -38,7 +39,6 @@ class AnimatedAudioSliver extends StatefulWidget {
   State
 \*=======================================================================*/
 class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
-  late BrowserViewState state = sl.getBrowserViewState(widget.repoType);
   final GlobalKey<SliverAnimatedListState> _listKey =
       GlobalKey<SliverAnimatedListState>();
   final modeNotifier = sl.get<GlobalModeNotifier>();
@@ -428,8 +428,8 @@ class _AnimatedAudioSliverState extends State<AnimatedAudioSliver> {
         key: itemState.key,
         audioItem: obj,
         state: itemState,
-        onTap: (iconOnTapped) => state.itemOnTap(obj, iconOnTapped),
-        onLongPressed: state.onListItemLongPressed,
+        onTap: widget.onTap,
+        onLongPressed: widget.onLongPressed,
       ),
     );
   }

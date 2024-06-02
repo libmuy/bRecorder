@@ -21,6 +21,14 @@ class HomePageState {
     TabInfo(repoType: RepoType.trash),
   ];
   int currentTabIndex = 0;
+  final fabStateNotifier = ValueNotifier(FABState(0, GlobalMode.normal));
+
+  HomePageState() {
+    _modeNotifier.addListener(() {
+      fabStateNotifier.value =
+          fabStateNotifier.value.copyWith(m: _modeNotifier.value);
+    });
+  }
 
   bool get isRoot {
     if (currentTab.currentPath == "/") {
@@ -54,6 +62,8 @@ class HomePageState {
       // currentBrowserState.refresh();
       _notifyTitle();
       _log.info("Tab switched, index:$currentTabIndex");
+      fabStateNotifier.value =
+          fabStateNotifier.value.copyWith(i: currentTabIndex);
     }
   }
 
@@ -163,4 +173,27 @@ class HomePageState {
       }
     }
   }
+}
+
+class FABState {
+  int tabIndex;
+  GlobalMode mode;
+  FABState(this.tabIndex, this.mode);
+
+  FABState copyWith({int? i, GlobalMode? m}) {
+    final newState = FABState(tabIndex, mode);
+    if (i != null) newState.tabIndex = i;
+    if (m != null) newState.mode = m;
+
+    return newState;
+  }
+
+  // @override
+  // bool operator == (covariant FABState other) {
+  //   if (identical(this, other)) return true;
+  //   return tabIndex == other.tabIndex && mode == other.mode;
+  // }
+
+  // @override
+  // int get hashCode => Object.hash(tabIndex, mode);
 }

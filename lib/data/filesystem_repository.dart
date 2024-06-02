@@ -5,7 +5,6 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:googleapis/youtube/v3.dart';
 import 'package:path/path.dart';
 
 import '../core/audio_agent.dart';
@@ -370,6 +369,14 @@ class FilesystemRepository extends Repository {
   Future<Result> getAudioInfoRealOperation(String relativePath) async {
     final request = AudioInfo(relativePath);
     final result = await getAudioInfoFromRepo(request);
+    if (result == false) Fail(ErrMsg("Get AudioInfo from Repo failed"));
+    return Succeed(request);
+  }
+
+  @override
+  Future<Result> getPlaylistInfoRealOperation(String relativePath) async {
+    final request = PlaylistInfo(relativePath);
+    final result = await getPlaylistInfoFromRepo(request);
     if (result == false) Fail(ErrMsg("Get AudioInfo from Repo failed"));
     return Succeed(request);
   }

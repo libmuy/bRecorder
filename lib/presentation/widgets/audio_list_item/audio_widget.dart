@@ -18,8 +18,8 @@ class AudioWidget extends StatefulWidget {
   final double titlePadding;
   final double iconPadding;
   final double detailPadding;
-  final void Function(bool)? onTap;
-  final void Function(AudioWidgetState state)? onLongPressed;
+  final void Function(AudioObject object, bool iconOnTapped)? onTap;
+  final void Function(AudioObject object)? onLongPressed;
 
   const AudioWidget(
       {super.key,
@@ -185,10 +185,10 @@ class _AudioWidgetState extends State<AudioWidget> {
       // component is not dragged.
       child: InkWell(
         onTap: () {
-          widget.onTap?.call(false);
+          widget.onTap?.call(widget.audioItem, false);
         },
         onLongPress: () {
-          widget.onLongPressed?.call(widget.state);
+          widget.onLongPressed?.call(widget.audioItem);
         },
         child: ValueListenableBuilder<bool>(
             valueListenable: widget.state.highlightNotifier,
@@ -213,7 +213,7 @@ class _AudioWidgetState extends State<AudioWidget> {
                       // Icons
                       GestureDetector(
                         onTap: () {
-                          widget.onTap?.call(true);
+                          widget.onTap?.call(widget.audioItem, true);
                         },
                         child: Container(
                           color: Colors.transparent,

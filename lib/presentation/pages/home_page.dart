@@ -1,4 +1,6 @@
 import 'package:brecorder/data/repository.dart';
+import 'package:brecorder/presentation/pages/playlist_page.dart';
+import 'package:brecorder/presentation/widgets/dialogs.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/logging.dart';
@@ -54,7 +56,7 @@ class _HomePageState extends State<HomePage>
           onPopInvoked: (didPop) async {
             if (didPop) return;
             final NavigatorState navigator = Navigator.of(context);
-            if(state.onPop()) navigator.pop();
+            if (state.onPop()) navigator.pop();
           },
           child: ValueListenableBuilder<List<TabInfo>?>(
               valueListenable: settings.tabsNotifier,
@@ -122,29 +124,59 @@ class _HomePageState extends State<HomePage>
                       return _browserViewCache[tab.repoType]!;
                     }).toList(),
                   ),
-                  floatingActionButton: ValueListenableBuilder<GlobalMode>(
-                    valueListenable: _modeNotifier,
-                    builder: (context, mode, child) {
-                      switch (mode) {
+                  floatingActionButton: ValueListenableBuilder<FABState>(
+                    valueListenable: state.fabStateNotifier,
+                    builder: (context, fabstate, _) {
+                      final isPlaylist =
+                          state.tabsInfo[fabstate.tabIndex].repoType ==
+                              RepoType.playlist;
+                      final isReadonly =
+                          state.tabsInfo[fabstate.tabIndex].groupByDate ||
+                              state.tabsInfo[fabstate.tabIndex].calendar || 
+                              state.tabsInfo[fabstate.tabIndex].repoType ==
+                              RepoType.trash;
+
+                      if (isReadonly) return Container();
+
+                      switch (fabstate.mode) {
                         case GlobalMode.playback:
                         case GlobalMode.edit:
                           return Container();
                         case GlobalMode.normal:
                           return FloatingActionButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) {
-                                    return RecordPage(
-                                      dirPath: state.currentPath,
-                                      repoType: state.currentRepoType,
+                            onPressed: isPlaylist
+                                ? () {
+                                  showNewPlaylistDialog(context, (path) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) {
+                                          return PlaylistPage(dirPath: path);
+                                        },
+                                      ),
+                                    );
+                                    
+                                  });
+                                }
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) {
+                                          return RecordPage(
+                                            dirPath: state.currentPath,
+                                            repoType: state.currentRepoType,
+                                          );
+                                        },
+                                      ),
                                     );
                                   },
-                                ),
-                              );
-                            },
-                            tooltip: 'Increment',
-                            child: const Icon(Icons.add),
+                            shape: const CircleBorder(),
+                            tooltip: isPlaylist
+                                ? 'Add New Playlist'
+                                : 'Add New Audio',
+                            // backgroundColor: Theme.of(context).highlightColor,
+                            child: isPlaylist 
+                            ? const Icon(Icons.library_add)
+                            : const Icon(Icons.add),
                           );
                       }
                     },

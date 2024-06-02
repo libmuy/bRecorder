@@ -234,14 +234,14 @@ abstract class BrowserViewState {
     _agent.stopPlay();
   }
 
-  void onListItemLongPressed(AudioWidgetState item) {
-    _log.debug("item:${basename(item.audioObject.path)}long pressed");
+  void onListItemLongPressed(AudioObject item) {
+    _log.debug("item:${basename(item.path)}long pressed");
     switch (mode) {
       case GlobalMode.normal:
       case GlobalMode.playback:
         mode = GlobalMode.edit;
-        item.mode = AudioListItemMode.selected;
-        _addSelectedItem(item.audioObject);
+        item.displayData!.mode = AudioListItemMode.selected;
+        _addSelectedItem(item);
         break;
       case GlobalMode.edit:
         break;

@@ -11,7 +11,7 @@ const _kBorderRadius = GlobalInfo.kDialogBorderRadius;
 final _log = Logger('Dialogs', level: LogLevel.debug);
 
 void showNewFolderDialog(
-    BuildContext context, void Function(String path) folderNotifier) {
+    BuildContext context, void Function(String path) onOK) {
   String currentValue = "";
   showDialog(
     context: context,
@@ -31,8 +31,39 @@ void showNewFolderDialog(
         ),
         TextButton(
           onPressed: () {
-            folderNotifier(currentValue);
+            onOK(currentValue);
             Navigator.pop(context);
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
+void showNewPlaylistDialog(
+    BuildContext context, void Function(String path) onOK) {
+  String currentValue = "";
+  showDialog(
+    context: context,
+    builder: (BuildContext context) => AlertDialog(
+      title: const Text('New Playlist'),
+      content: TextField(
+        onChanged: (value) {
+          currentValue = value;
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            onOK(currentValue);
           },
           child: const Text('OK'),
         ),

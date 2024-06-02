@@ -116,6 +116,8 @@ class _BrowserViewState extends State<BrowserView>
           key,
           _AudioItemGroup(
               key: key,
+              onTap: state.itemOnTap,
+              onLongPressed: state.onListItemLongPressed,
               items: widget.folderOnly
                   ? model.folders as List<AudioObject>
                   : model.objects,
@@ -143,6 +145,8 @@ class _BrowserViewState extends State<BrowserView>
         } else {
           _groups![key] = _AudioItemGroup(
               key: key,
+              onTap: state.itemOnTap,
+              onLongPressed: state.onListItemLongPressed,
               items: widget.folderOnly
                   ? model.folders as List<AudioObject>
                   : model.objects,
@@ -435,9 +439,13 @@ class _AudioItemGroup {
   final String key;
   final ForcibleValueNotifier<List<AudioObject>> _itemsNotifier;
   List<AudioObject>? _beforeFilterItems;
+  final void Function(AudioObject object, bool iconOnTapped)? onTap;
+  final void Function(AudioObject object)? onLongPressed;
 
   _AudioItemGroup({
     required this.key,
+    required this.onTap,
+    required this.onLongPressed,
     GlobalKey? headerKey,
     Widget? headerEnding,
     required List<AudioObject> items,
@@ -487,7 +495,7 @@ class _AudioItemGroup {
   Widget buildListWidget(
       BuildContext context, RepoType repoType, bool editable) {
     return AnimatedAudioSliver(
-        repoType: repoType, editable: editable, listNotifier: _itemsNotifier);
+        onTap: onTap, onLongPressed: onLongPressed, editable: editable, listNotifier: _itemsNotifier);
   }
 }
 

@@ -375,6 +375,18 @@ abstract class Repository {
     return ret;
   }
 
+  Future<Result> notifyNewPlaylist(String path) async {
+    var ret = await getPlaylistInfoRealOperation(path);
+    if (ret.failed) return ret;
+    AudioInfo newAudio = ret.value;
+    final addRet = addObjectIntoCache(newAudio);
+    if (addRet == false) {
+      return Fail(ErrMsg("Add audio info into cache failed!"));
+    }
+
+    return ret;
+  }
+
   Future<Result> removeObject(AudioObject obj) async {
     final ret = await removeObjectRealOperation(obj);
     if (ret.succeed) {
@@ -408,6 +420,9 @@ abstract class Repository {
   Future<Result> getFolderInfoRealOperation(String relativePath,
       {bool folderOnly});
   Future<Result> getAudioInfoRealOperation(String relativePath);
+  Future<Result> getPlaylistInfoRealOperation(String relativePath) async {
+    return Fail(ErrMsg('msg'));
+  }
 
   Future<String> absolutePath(String relativePath) async {
     final root = await rootPath;

@@ -1,3 +1,4 @@
+import 'package:brecorder/presentation/ploc/playlist_page_state.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,6 +57,7 @@ class ServiceLocator {
     getIt.registerLazySingleton(() => Settings());
 
     getIt.registerFactory(() => RecordPageState());
+    getIt.registerFactory(() => PlaylistPageState());
 
     // sl.registerLazySingleton(() => AudioPlayer());
     // sl.registerLazySingleton(() {

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
-import 'package:googleapis/youtube/v3.dart';
 import 'package:path/path.dart';
 
 import '../core/global_info.dart';

@@ -58,12 +58,16 @@ class TabInfo {
   FolderInfo? currentFolder;
   RepoType repoType;
   bool enabled;
+  bool groupByDate;
+  bool calendar;
 
   String get currentPath => currentFolder == null ? '/' : currentFolder!.path;
 
   TabInfo({
     this.enabled = true,
     required this.repoType,
+    this.calendar = false,
+    this.groupByDate = false,
   });
 
   String get title => repoType.title;
